@@ -43,10 +43,12 @@ vi.mock('../cache', () => ({
   listMyRepositories: () => [
     { fullName: 'octo-dev/side-project', owner: 'octo-dev', name: 'side-project' }
   ],
-  listStarredRepositories: () => [
-    { fullName: 'megacorp/internal-tool', owner: 'megacorp', name: 'internal-tool' }
-  ],
-  listMyRepositoryOwners: () => [{ login: 'octo-dev' }, { login: 'my-org' }]
+  // 캐시의 모든 행(내 것, 스타, 고정한 남의 저장소 등)
+  listAllRepositoryNames: () => [
+    { fullName: 'octo-dev/side-project', owner: 'octo-dev' },
+    { fullName: 'megacorp/internal-tool', owner: 'megacorp' },
+    { fullName: 'my-org/tooling', owner: 'my-org' }
+  ]
 }))
 
 const { registerIpc } = await import('./crash.ipc')

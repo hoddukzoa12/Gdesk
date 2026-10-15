@@ -2,12 +2,12 @@ import { homedir, release } from 'node:os'
 import { app } from 'electron'
 import '@shared/ipc/crash'
 import { getAuthService, getToken } from '../auth'
-import { listMyRepositories, listMyRepositoryOwners, listStarredRepositories } from '../cache'
 import { GDESK_REPO } from '../config'
 import { getDb, isDbReady } from '../db/db'
 import { emit } from '../ipc/registry'
 import type { ReportEnv } from './report'
 import type { ScrubContext } from './scrub'
+import { cachedScrubNames } from './scrub-context'
 import { createCrashService, type CrashService } from './service'
 
 /**
@@ -57,18 +57,11 @@ function scrubContext(): ScrubContext {
   }
   try {
     if (isDbReady()) {
-      const db = getDb()
-      // 내 저장소(포크·보관 포함): 전체 이름, 소유자, 이름만까지 지운다
-      for (const repo of listMyRepositories(db, { includeForks: true, includeArchived: true })) {
-        if (repo.fullName) ctx.repos.push(repo.fullName)
-        if (repo.owner) ctx.owners.push(repo.owner)
-        if (repo.name) ctx.repoNames.push(repo.name)
-      }
-      // 스타한 저장소: 전체 이름만 지운다(유명 저장소 이름이 스택의 패키지 경로를 망가뜨리지 않게)
-      for (const repo of listStarredRepositories(db)) {
-        if (repo.fullName) ctx.repos.push(repo.fullName)
-      }
-      for (const owner of listMyRepositoryOwners(db)) ctx.owners.push(owner.login)
+      // 캐시의 모든 저장소 전체 이름·소유자, 내 저장소는 이름만까지 지운다
+      const names = cachedScrubNames(getDb())
+      ctx.repos.push(...names.repos)
+      ctx.owners.push(...names.owners)
+      ctx.repoNames.push(...names.repoNames)
     }
   } catch {
     // DB 가 닫히는 중이면 이름 없이 지운다(경로·토큰·GitHub 주소는 그래도 지운다)
