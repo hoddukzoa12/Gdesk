@@ -145,7 +145,7 @@ test('오프라인이면 배너와 하단 문구, 연결이 돌아오면 회복'
     )
     .toBe('online')
   await expect(page.getByTestId('offline-banner')).toHaveCount(0)
-  await expect(page.getByTestId('sync-footer-text')).toHaveText(/^(Synced|동기화) /)
+  await expect(page.getByTestId('sync-footer-text')).toHaveText(/^Synced |동기화됨$/)
 })
 
 test('새로고침 버튼과 단축키는 지금 화면 범위로 가짜 서버에 요청한다', async ({ page, server }) => {
