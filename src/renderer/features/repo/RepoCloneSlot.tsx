@@ -1,9 +1,7 @@
-import { ChevronDown, Code } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-import { Button } from '@renderer/components'
+import { CloneOpenMenu } from '@renderer/features/clone'
 
 /**
- * 저장소 머리글의 Clone/Open 메뉴 자리. 나중 작업이 이 파일만 바꿔 실제 메뉴를 넣는다.
+ * 저장소 머리글의 Clone/Open 메뉴 자리. 실제 메뉴는 클론 기능(features/clone)이 그린다.
  * 받는 값(계약): 아래 RepoCloneSlotProps. 이름·모양을 바꾸지 말고 필요한 값만 더한다.
  */
 export interface RepoCloneSlotProps {
@@ -17,16 +15,10 @@ export interface RepoCloneSlotProps {
   url: string
   defaultBranch: string | null
   private: boolean
+  className?: string
 }
 
-/** 자리표시: 아직 클론 기능이 없어서 꺼진 "Clone" 버튼. */
-export function RepoCloneSlot(_props: RepoCloneSlotProps) {
-  const { t } = useTranslation('repo')
-  return (
-    <Button disabled title={t('actions.cloneUnavailable')} data-testid="repo-clone-button">
-      <Code />
-      {t('actions.clone')}
-      <ChevronDown />
-    </Button>
-  )
+/** Clone/Open 메뉴: 로컬 연결이 없으면 "Clone", 있으면 "Open"(spec §4.9). */
+export function RepoCloneSlot({ repoId, owner, name, className }: RepoCloneSlotProps) {
+  return <CloneOpenMenu repoId={repoId} owner={owner} name={name} className={className} />
 }

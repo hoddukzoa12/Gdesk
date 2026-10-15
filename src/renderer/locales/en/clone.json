@@ -1,0 +1,101 @@
+{
+  "button": {
+    "clone": "Clone",
+    "open": "Open",
+    "menuLabel": "Clone or open {{name}}"
+  },
+  "menu": {
+    "clone": "Clone…",
+    "cloneAgain": "Clone again…",
+    "copyHttps": "Copy HTTPS URL",
+    "copySsh": "Copy SSH URL",
+    "linkFolder": "Link existing folder…",
+    "openInEditor": "Open in {{editor}}",
+    "openInDefaultEditor": "Open in editor",
+    "otherEditors": "Open in another editor",
+    "openInTerminal": "Open in Terminal",
+    "showInFinder": "Show in Finder",
+    "showInExplorer": "Show in Explorer",
+    "showInFiles": "Show in Files",
+    "folders": "Local folders",
+    "missing": "Missing",
+    "missingHint": "This folder is gone or no longer this repository.",
+    "relink": "Relink…",
+    "noEditors": "No editors found"
+  },
+  "feedback": {
+    "copied": "Copied {{url}}",
+    "copyFailed": "Couldn’t copy to the clipboard.",
+    "linked": "Linked {{path}}",
+    "relinked": "Relinked to {{path}}",
+    "dismiss": "Dismiss",
+    "openSettings": "Open Settings"
+  },
+  "dialog": {
+    "title": "Clone {{repo}}",
+    "description": "Copy this repository to your computer. The folder is linked to the repository when cloning finishes.",
+    "target": "Location",
+    "change": "Change…",
+    "targetHint": "A folder named {{name}} is created inside the folder you choose.",
+    "protocol": "Address",
+    "protocolHint": "You can change this in Settings.",
+    "protocols": {
+      "https": "HTTPS",
+      "ssh": "SSH"
+    },
+    "start": "Clone",
+    "cancel": "Cancel",
+    "close": "Close",
+    "loading": "Loading settings…",
+    "preparing": "Preparing…",
+    "progressLabel": "Clone progress",
+    "blocked": {
+      "offline": "You’re offline, so you can’t clone right now.",
+      "session_expired": "Your session has expired. Sign in again to clone.",
+      "rate_limited": "GitHub’s rate limit was reached. Try again later.",
+      "signed_out": "Sign in to clone."
+    },
+    "success": "Cloned to {{path}}",
+    "openInEditor": "Open in editor",
+    "existsTitle": "A folder already exists at {{path}}",
+    "existsSame": "It’s already a copy of this repository. You can link this folder instead of cloning.",
+    "existsOther": "It isn’t a copy of this repository, so nothing was cloned. Choose another location.",
+    "linkThisFolder": "Link this folder",
+    "chooseAnother": "Choose another location",
+    "linkedThisFolder": "Linked {{path}}",
+    "failedTitle": "Couldn’t clone",
+    "details": "Details",
+    "tryAgain": "Try again"
+  },
+  "cloneFailure": {
+    "signed_out": "You’re signed out. Sign in and try again.",
+    "session_expired": "Your session has expired. Sign in again and retry.",
+    "offline": "You’re offline. Check your connection and try again.",
+    "rate_limited": "GitHub’s rate limit was reached. Try again later.",
+    "invalid_request": "This repository name isn’t valid.",
+    "invalid_target": "The location must be a full folder path.",
+    "already_running": "This clone is already running.",
+    "auth_failed": "GitHub rejected the sign-in for HTTPS. Sign in again, or switch to SSH in Settings.",
+    "ssh_auth": "SSH authentication failed. Check your SSH key and known hosts, or switch to HTTPS in Settings.",
+    "not_found": "The repository doesn’t exist or you don’t have access to it.",
+    "network": "A network error interrupted the clone. Try again.",
+    "target_error": "Couldn’t create or write to the location. Choose another folder.",
+    "git_error": "Git reported an error while cloning."
+  },
+  "linkFailure": {
+    "link_not_found": "That link no longer exists.",
+    "path_not_found": "That folder doesn’t exist.",
+    "not_git": "That folder isn’t the top of a Git repository.",
+    "not_github": "That folder has no remote pointing to a GitHub repository.",
+    "different_repo": "That folder is a different repository.",
+    "unresolved": "Couldn’t confirm which repository the folder points to. Check your connection and try again."
+  },
+  "openFailure": {
+    "link_not_found": "That link no longer exists.",
+    "missing": "The folder is gone. Relink it to its new location.",
+    "no_editor": "No editor was found. Choose a default editor in Settings.",
+    "unknown_editor": "That editor isn’t installed anymore. Choose another in Settings.",
+    "no_terminal": "No terminal app was found.",
+    "launch_failed": "Couldn’t open it."
+  }
+}

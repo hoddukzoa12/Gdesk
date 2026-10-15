@@ -1,0 +1,101 @@
+{
+  "button": {
+    "clone": "클론",
+    "open": "열기",
+    "menuLabel": "{{name}} 클론 또는 열기"
+  },
+  "menu": {
+    "clone": "클론…",
+    "cloneAgain": "다시 클론…",
+    "copyHttps": "HTTPS 주소 복사",
+    "copySsh": "SSH 주소 복사",
+    "linkFolder": "기존 폴더 연결…",
+    "openInEditor": "{{editor}}에서 열기",
+    "openInDefaultEditor": "편집기에서 열기",
+    "otherEditors": "다른 편집기에서 열기",
+    "openInTerminal": "터미널에서 열기",
+    "showInFinder": "Finder에서 보기",
+    "showInExplorer": "탐색기에서 보기",
+    "showInFiles": "파일 관리자에서 보기",
+    "folders": "로컬 폴더",
+    "missing": "없음",
+    "missingHint": "폴더가 사라졌거나 더 이상 이 저장소가 아닙니다.",
+    "relink": "다시 연결…",
+    "noEditors": "찾은 편집기가 없습니다"
+  },
+  "feedback": {
+    "copied": "{{url}} 주소를 복사했습니다",
+    "copyFailed": "클립보드에 복사하지 못했습니다.",
+    "linked": "{{path}} 폴더를 연결했습니다",
+    "relinked": "{{path}} 폴더로 다시 연결했습니다",
+    "dismiss": "닫기",
+    "openSettings": "설정 열기"
+  },
+  "dialog": {
+    "title": "{{repo}} 클론",
+    "description": "이 저장소를 컴퓨터로 복사합니다. 클론이 끝나면 폴더가 저장소에 자동으로 연결됩니다.",
+    "target": "위치",
+    "change": "변경…",
+    "targetHint": "고른 폴더 안에 {{name}} 폴더를 만듭니다.",
+    "protocol": "주소 방식",
+    "protocolHint": "설정에서 바꿀 수 있습니다.",
+    "protocols": {
+      "https": "HTTPS",
+      "ssh": "SSH"
+    },
+    "start": "클론",
+    "cancel": "취소",
+    "close": "닫기",
+    "loading": "설정을 읽는 중…",
+    "preparing": "준비 중…",
+    "progressLabel": "클론 진행률",
+    "blocked": {
+      "offline": "오프라인이라 지금은 클론할 수 없습니다.",
+      "session_expired": "세션이 만료되었습니다. 다시 로그인한 뒤 클론하세요.",
+      "rate_limited": "GitHub 요청 한도에 도달했습니다. 잠시 후 다시 시도하세요.",
+      "signed_out": "클론하려면 로그인하세요."
+    },
+    "success": "{{path}}에 클론했습니다",
+    "openInEditor": "편집기에서 열기",
+    "existsTitle": "{{path}}에 이미 폴더가 있습니다",
+    "existsSame": "이미 이 저장소의 복사본입니다. 클론하는 대신 이 폴더를 연결할 수 있습니다.",
+    "existsOther": "이 저장소의 복사본이 아니어서 클론하지 않았습니다. 다른 위치를 고르세요.",
+    "linkThisFolder": "이 폴더 연결",
+    "chooseAnother": "다른 위치 고르기",
+    "linkedThisFolder": "{{path}} 폴더를 연결했습니다",
+    "failedTitle": "클론하지 못했습니다",
+    "details": "자세히",
+    "tryAgain": "다시 시도"
+  },
+  "cloneFailure": {
+    "signed_out": "로그인되어 있지 않습니다. 로그인한 뒤 다시 시도하세요.",
+    "session_expired": "세션이 만료되었습니다. 다시 로그인한 뒤 시도하세요.",
+    "offline": "오프라인입니다. 연결을 확인하고 다시 시도하세요.",
+    "rate_limited": "GitHub 요청 한도에 도달했습니다. 잠시 후 다시 시도하세요.",
+    "invalid_request": "저장소 이름이 올바르지 않습니다.",
+    "invalid_target": "위치는 전체 폴더 경로여야 합니다.",
+    "already_running": "이 클론은 이미 진행 중입니다.",
+    "auth_failed": "GitHub가 HTTPS 로그인을 거부했습니다. 다시 로그인하거나 설정에서 SSH로 바꾸세요.",
+    "ssh_auth": "SSH 인증에 실패했습니다. SSH 키와 호스트 확인 설정을 점검하거나 설정에서 HTTPS로 바꾸세요.",
+    "not_found": "저장소가 없거나 접근 권한이 없습니다.",
+    "network": "네트워크 오류로 클론이 중단되었습니다. 다시 시도하세요.",
+    "target_error": "위치에 폴더를 만들거나 쓸 수 없습니다. 다른 폴더를 고르세요.",
+    "git_error": "클론하는 중에 git 오류가 났습니다."
+  },
+  "linkFailure": {
+    "link_not_found": "그 연결은 더 이상 없습니다.",
+    "path_not_found": "그 폴더가 없습니다.",
+    "not_git": "그 폴더는 git 저장소의 최상위 폴더가 아닙니다.",
+    "not_github": "그 폴더에는 GitHub 저장소를 가리키는 원격이 없습니다.",
+    "different_repo": "그 폴더는 다른 저장소입니다.",
+    "unresolved": "폴더가 가리키는 저장소를 확인하지 못했습니다. 연결을 확인하고 다시 시도하세요."
+  },
+  "openFailure": {
+    "link_not_found": "그 연결은 더 이상 없습니다.",
+    "missing": "폴더가 사라졌습니다. 새 위치로 다시 연결하세요.",
+    "no_editor": "편집기를 찾지 못했습니다. 설정에서 기본 편집기를 고르세요.",
+    "unknown_editor": "그 편집기가 더 이상 설치되어 있지 않습니다. 설정에서 다른 편집기를 고르세요.",
+    "no_terminal": "터미널 앱을 찾지 못했습니다.",
+    "launch_failed": "열지 못했습니다."
+  }
+}
