@@ -24,7 +24,18 @@ describe('계정 단위 삭제', () => {
     pinRepo(db, 10)
     pinRepo(db, 20)
     addLink(db, 10, '/gdesk-nonexistent/a', { platform: 'linux' })
-    updateSettings(db, { theme: 'dark', language: 'ko', cloneProtocol: 'ssh' }, home)
+    updateSettings(
+      db,
+      {
+        theme: 'dark',
+        language: 'ko',
+        cloneProtocol: 'ssh',
+        cloneBaseDir: '/work/code',
+        defaultEditor: 'vscode',
+        homeCards: [{ id: 'a', enabled: false }]
+      },
+      home
+    )
     setLastUserId(db, 4242)
   })
 
