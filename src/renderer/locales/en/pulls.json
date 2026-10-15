@@ -1,0 +1,32 @@
+{
+  "title": "Pull requests",
+  "tabs": {
+    "label": "Pull request lists",
+    "incoming": "Incoming",
+    "mine": "Mine"
+  },
+  "empty": {
+    "incoming": {
+      "title": "No incoming pull requests",
+      "description": "Open pull requests that others send to your repositories appear here."
+    },
+    "mine": {
+      "title": "No open pull requests from you",
+      "description": "Open pull requests you authored in any repository appear here."
+    }
+  },
+  "review": {
+    "approved": "Approved",
+    "changes_requested": "Changes requested",
+    "review_required": "Review required"
+  },
+  "row": {
+    "label": "{{repo}}#{{number}} {{title}}",
+    "draft": "Draft"
+  },
+  "more": {
+    "text": "Showing {{shown}} of {{total}}.",
+    "link": "More on GitHub"
+  },
+  "error": "Couldn’t load pull requests."
+}

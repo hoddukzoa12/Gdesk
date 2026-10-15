@@ -1,0 +1,34 @@
+{
+  "title": "Issues",
+  "tabs": {
+    "label": "Issue lists",
+    "incoming": "Incoming",
+    "assigned": "Assigned to me",
+    "mine": "Mine"
+  },
+  "empty": {
+    "incoming": {
+      "title": "No incoming issues",
+      "description": "Open issues that others file in your repositories appear here."
+    },
+    "assigned": {
+      "title": "Nothing assigned to you",
+      "description": "Open issues assigned to you appear here."
+    },
+    "mine": {
+      "title": "No open issues from you",
+      "description": "Open issues you filed in any repository appear here."
+    }
+  },
+  "row": {
+    "label": "{{repo}}#{{number}} {{title}}",
+    "labels": "Labels",
+    "comments_one": "{{count}} comment",
+    "comments_other": "{{count}} comments"
+  },
+  "more": {
+    "text": "Showing {{shown}} of {{total}}.",
+    "link": "More on GitHub"
+  },
+  "error": "Couldn’t load issues."
+}

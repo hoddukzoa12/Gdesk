@@ -1,0 +1,32 @@
+{
+  "title": "풀 리퀘스트",
+  "tabs": {
+    "label": "PR 목록",
+    "incoming": "들어온 PR",
+    "mine": "내가 올린 PR"
+  },
+  "empty": {
+    "incoming": {
+      "title": "들어온 PR이 없습니다",
+      "description": "다른 사람이 내 저장소에 올린 열린 PR이 여기에 표시됩니다."
+    },
+    "mine": {
+      "title": "내가 올린 열린 PR이 없습니다",
+      "description": "어느 저장소든 내가 올린 열린 PR이 여기에 표시됩니다."
+    }
+  },
+  "review": {
+    "approved": "승인됨",
+    "changes_requested": "변경 요청됨",
+    "review_required": "리뷰 필요"
+  },
+  "row": {
+    "label": "{{repo}}#{{number}} {{title}}",
+    "draft": "초안"
+  },
+  "more": {
+    "text": "전체 {{total}}개 중 {{shown}}개를 보여 줍니다.",
+    "link": "GitHub에서 더 보기"
+  },
+  "error": "PR 목록을 불러오지 못했습니다."
+}
