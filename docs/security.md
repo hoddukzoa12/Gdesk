@@ -45,13 +45,13 @@ Gdesk는 한 사람이 자기 컴퓨터에서 쓰는 앱이다. 앱 자체의 �
 
 앱 안의 역할은 없다. 아래는 프로세스·구성 요소별로 허용과 금지를 정리한 것이다.
 
-| 주체                      | 허용                                                                                  | 금지                                                                                                                                                       |
-| ------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 화면(렌더러)              | `window.gdesk.invoke`/`on`으로 등록된 채널 부르기, 캐시 값 표시, `https:` 이미지 표시 | Node·Electron API, `fs`·`path`·`child_process`·`os`·`crypto` import, `src/main` import, 네트워크 요청(CSP `connect-src 'self'`), 다른 페이지로 이동, 새 창 |
-| 프리로드                  | `invoke`·`on` 두 함수 노출                                                            | 그 밖의 API 노출, 토큰 다루기                                                                                                                              |
-| 메인                      | GitHub API·웹, git 실행, DB·파일, 토큰                                                | GitHub 이외의 서버와 통신, 사용 통계·원격 로그 전송, 폴더 삭제(클론 정리 예외)                                                                             |
-| git 자식 프로세스         | HTTPS 클론 동안 환경 변수로 토큰 받기, 시스템 SSH 설정 쓰기                           | 토큰을 인자·원격 주소·`.git/config`·자격 증명 도우미에 남기기                                                                                              |
-| 테스트 빌드 + 테스트 모드 | 아래 "테스트 모드" 표의 덮어쓰기                                                      | 배포 빌드에서 같은 동작                                                                                                                                    |
+| 주체                      | 허용                                                                                                                                        | 금지                                                                                                                                                       |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 화면(렌더러)              | `window.gdesk.invoke`/`on`으로 등록된 채널 부르기, 캐시 값 표시, GitHub 아바타(`https://avatars.githubusercontent.com`)·`data:` 이미지 표시 | Node·Electron API, `fs`·`path`·`child_process`·`os`·`crypto` import, `src/main` import, 네트워크 요청(CSP `connect-src 'self'`), 다른 페이지로 이동, 새 창 |
+| 프리로드                  | `invoke`·`on` 두 함수 노출                                                                                                                  | 그 밖의 API 노출, 토큰 다루기                                                                                                                              |
+| 메인                      | GitHub API·웹, git 실행, DB·파일, 토큰                                                                                                      | GitHub 이외의 서버와 통신, 사용 통계·원격 로그 전송, 폴더 삭제(클론 정리 예외)                                                                             |
+| git 자식 프로세스         | HTTPS 클론 동안 환경 변수로 토큰 받기, 시스템 SSH 설정 쓰기                                                                                 | 토큰을 인자·원격 주소·`.git/config`·자격 증명 도우미에 남기기                                                                                              |
+| 테스트 빌드 + 테스트 모드 | 아래 "테스트 모드" 표의 덮어쓰기                                                                                                            | 배포 빌드에서 같은 동작                                                                                                                                    |
 
 ### 화면이 보낸 값은 믿지 않는다
 
@@ -107,7 +107,7 @@ Gdesk는 한 사람이 자기 컴퓨터에서 쓰는 앱이다. 앱 자체의 �
 ## 창과 링크
 
 - 모든 창: `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`, `webSecurity: true`.
-- CSP: `default-src 'self'`, `script-src 'self'`, `connect-src 'self'`(개발 서버 웹소켓만 추가), `img-src 'self' https: data:`. 화면은 네트워크 요청을 할 수 없고, GitHub가 준 아바타 같은 https 이미지만 띄운다.
+- CSP(배포·화면 테스트 빌드의 `index.html` 그대로): `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://avatars.githubusercontent.com; font-src 'self' data:; connect-src 'self'`. 화면은 네트워크 요청을 할 수 없고, 이미지는 앱 파일, `data:`, GitHub 아바타 호스트에서만 띄운다. 개발 서버(`pnpm dev`)에서만 `electron.vite.config.mts`의 플러그인(`apply: 'serve'`)이 `connect-src`에 HMR용 `ws://localhost:*`를 더한다. 빌드 결과에는 `ws://`가 없다.
 - 앱 창 안의 다른 페이지 이동은 모두 막는다. 예외는 포장되지 않은 개발 실행(`!app.isPackaged`)에서의 개발 서버 주소(`ELECTRON_RENDERER_URL`)뿐이다. 배포 앱은 이 환경 변수를 보지 않는다. 새 창 요청은 거부하고, http(s)면 기본 브라우저로 넘긴다.
 - 외부 링크(`app:openExternal`, 오류 보고 이슈, 다운로드 페이지, 기기 인증 주소)는 `https:`·`http:`만 연다. `file:`, `javascript:` 등은 열지 않고 `opened: false`.
 - 배포 빌드의 앱 메뉴에는 개발자 도구가 없다.
