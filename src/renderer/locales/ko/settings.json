@@ -1,0 +1,100 @@
+{
+  "title": "설정",
+  "sectionsLabel": "설정 항목",
+  "saveError": "설정을 저장하지 못했습니다. 다시 시도해 주세요.",
+  "account": {
+    "title": "계정",
+    "notSignedIn": "로그인하지 않았습니다.",
+    "tokenKind": "로그인 방식",
+    "tokenKinds": {
+      "classic": "개인 액세스 토큰(클래식)",
+      "fine_grained": "세분화된 개인 액세스 토큰",
+      "oauth": "브라우저로 로그인"
+    },
+    "signOut": "로그아웃",
+    "signOutTitle": "Gdesk에서 로그아웃할까요?",
+    "signOutDescription": "저장한 설정과 연결한 폴더는 이 컴퓨터에 그대로 남습니다. GitHub 정보를 보려면 다시 로그인해야 합니다.",
+    "cancel": "취소",
+    "confirmSignOut": "로그아웃"
+  },
+  "appearance": {
+    "title": "화면",
+    "language": "언어",
+    "languageHint": "기본으로 컴퓨터의 언어를 따릅니다.",
+    "languages": {
+      "system": "시스템 설정",
+      "en": "English",
+      "ko": "한국어"
+    },
+    "theme": "테마",
+    "themeHint": "기본으로 컴퓨터의 라이트·다크 모드 설정을 따릅니다.",
+    "themes": {
+      "system": "시스템 설정",
+      "dark": "다크",
+      "light": "라이트"
+    }
+  },
+  "clone": {
+    "title": "클론",
+    "folder": "기본 클론 폴더",
+    "folderHint": "새로 클론하는 저장소가 이 폴더에 들어갑니다. 바꾸면 새 폴더에서 저장소를 다시 찾습니다.",
+    "change": "변경…",
+    "protocol": "클론 주소",
+    "protocolHint": "SSH를 쓰려면 GitHub 계정에 SSH 키를 등록해야 합니다.",
+    "protocols": {
+      "https": "HTTPS",
+      "ssh": "SSH"
+    },
+    "editor": "기본 편집기",
+    "editorNone": "없음(자동으로 고름)",
+    "editorMissing": "{{name}}(찾을 수 없음)",
+    "noEditors": "이 컴퓨터에서 지원하는 편집기를 찾지 못했습니다. 폴더는 시스템 기본 앱으로 엽니다.",
+    "editorsLoading": "편집기를 찾는 중…"
+  },
+  "homeCards": {
+    "title": "홈 카드",
+    "hint": "홈에 보여 줄 카드와 순서를 정합니다.",
+    "show": "{{name}} 보이기",
+    "moveUp": "{{name}} 위로 옮기기",
+    "moveDown": "{{name}} 아래로 옮기기"
+  },
+  "folders": {
+    "title": "연결된 폴더",
+    "hint": "연결을 해제해도 Gdesk가 연결 정보만 잊을 뿐, 폴더 자체는 절대 지우지 않습니다.",
+    "empty": "아직 연결된 폴더가 없습니다. 저장소 화면에서 클론하거나 폴더를 연결해 보세요.",
+    "loadError": "연결된 폴더를 불러오지 못했습니다.",
+    "missing": "없음",
+    "unlink": "연결 해제",
+    "relink": "다시 연결…",
+    "unlinkLabel": "{{path}} 연결 해제",
+    "relinkLabel": "{{path}} 다시 연결",
+    "unlinkTitle": "이 폴더의 연결을 해제할까요?",
+    "unlinkDescription": "Gdesk가 {{path}} 연결 정보를 잊습니다. 폴더와 그 안의 파일은 컴퓨터에 그대로 남습니다.",
+    "cancel": "취소",
+    "confirmUnlink": "연결 해제",
+    "rescan": "폴더 다시 찾기",
+    "rescanning": "찾는 중…",
+    "rescanSummary": "다시 찾기를 마쳤습니다. 찾은 저장소 {{found}}개 · 새로 연결 {{added}}개 · 없어진 폴더 {{missing}}개",
+    "rescanError": "폴더를 다시 찾지 못했습니다.",
+    "unlinkError": "연결을 해제하지 못했습니다.",
+    "relinkErrors": {
+      "link_not_found": "이 연결은 이미 없습니다.",
+      "path_not_found": "그 폴더가 없습니다.",
+      "not_git": "그 폴더는 Git 저장소의 최상위 폴더가 아닙니다.",
+      "not_github": "그 저장소에는 GitHub 원격이 없습니다.",
+      "different_repo": "그 폴더는 다른 저장소입니다.",
+      "unresolved": "폴더의 GitHub 원격을 확인하지 못했습니다. 오프라인일 수 있습니다.",
+      "failed": "다시 연결하지 못했습니다."
+    }
+  },
+  "about": {
+    "title": "정보",
+    "version": "버전",
+    "updates": "업데이트",
+    "download": "다운로드",
+    "restart": "다시 시작해 업데이트",
+    "disabledHint": "개발·테스트용 빌드라서 업데이트를 확인하지 않습니다.",
+    "unavailableHint": "이 빌드에는 릴리스 위치가 설정되어 있지 않아 업데이트를 확인할 수 없습니다.",
+    "notifyHint": "이 빌드는 스스로 업데이트할 수 없습니다. 릴리스 페이지에서 새 버전을 내려받으세요."
+  }
+}
