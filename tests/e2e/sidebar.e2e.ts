@@ -101,6 +101,33 @@ test('Pinned: 끌어서 순서를 바꾸면 저장된다', async ({ page }) => {
     .toEqual([101, 201])
 })
 
+test('Pinned: 삭제·권한 상실로 접근할 수 없게 된 저장소는 사용할 수 없음 표시, 고정은 남는다', async ({
+  page,
+  server
+}) => {
+  const dotfiles = 102
+  await waitForAppShell(page)
+  await expect
+    .poll(() => page.locator('[data-testid^="your-repo-row-"]').count(), { timeout: SYNC_TIMEOUT })
+    .toBe(3)
+  await invoke(page, 'pins:pin', { repoId: dotfiles })
+  const row = page.getByTestId(`pinned-row-${dotfiles}`)
+  await expect(row).toContainText('dotfiles', { timeout: SYNC_TIMEOUT })
+  await expect(page.getByTestId(`pinned-unavailable-${dotfiles}`)).toHaveCount(0)
+
+  // 저장소가 지워진다: 내 저장소 집합에서 빠지고 GET /repositories/102 는 404
+  server.removeRepo(dotfiles)
+  await invoke(page, 'sync:refresh', { scope: 'repositories' })
+  await expect(page.getByTestId(`pinned-unavailable-${dotfiles}`)).toBeVisible({
+    timeout: SYNC_TIMEOUT
+  })
+  await expect(row).toHaveAttribute('data-access', 'unavailable')
+  // 빠진 고정 저장소는 접근 여부를 직접 확인한다
+  expect(server.hasRequest(`GET /repositories/${dotfiles}`)).toBe(true)
+  // 자동으로 지우지 않는다
+  expect((await invoke(page, 'pins:list')).map((p) => p.repoId)).toEqual([dotfiles])
+})
+
 test('Starred: 스타한 시각 최신순, 누르면 저장소 상세 주소', async ({ page }) => {
   await waitForAppShell(page)
   await page.locator('[data-nav="starred"]').click()

@@ -13,6 +13,23 @@ export type FetchedDataCleaner = (db: DatabaseSync) => void
 const cleaners = new Set<FetchedDataCleaner>()
 const accountClearedListeners = new Set<() => void>()
 
+/**
+ * 계정 데이터 세대. 로그아웃(clearFetchedData)·계정 전환(clearAccountData)마다 1 씩 오른다.
+ * 그 전에 시작한 갱신이 지운 뒤에 캐시를 쓰지 않도록, 갱신은 시작할 때 currentDataGuard() 로 세대를 잡아 두고
+ * 쓰기 직전에 확인한다.
+ */
+let generation = 0
+
+export function accountDataGeneration(): number {
+  return generation
+}
+
+/** 지금 세대를 잡아 둔다. 그 뒤 로그아웃·계정 전환으로 데이터가 지워졌으면 false */
+export function currentDataGuard(): () => boolean {
+  const started = generation
+  return () => generation === started
+}
+
 /** 가져온 GitHub 정보(캐시 테이블)를 지우는 함수를 등록한다. 해제 함수를 돌려준다. */
 export function registerFetchedDataCleaner(fn: FetchedDataCleaner): () => void {
   cleaners.add(fn)
@@ -40,11 +57,13 @@ function runCleaners(db: DatabaseSync): void {
 
 /** 로그아웃: 가져온 GitHub 정보만 지운다. */
 export function clearFetchedData(db: DatabaseSync = getDb()): void {
+  generation++
   withTransaction(db, () => runCleaners(db))
 }
 
 /** 다른 계정 로그인: 가져온 정보 + 고정 + 로컬 연결(DB 행만)을 지운다. 설정·계정 정보는 그대로. */
 export function clearAccountData(db: DatabaseSync = getDb()): void {
+  generation++
   withTransaction(db, () => {
     runCleaners(db)
     db.exec('DELETE FROM pins')

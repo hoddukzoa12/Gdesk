@@ -44,3 +44,14 @@ export function repoPath(fullName: string): string {
   const [owner = '', name = ''] = fullName.split('/')
   return `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`
 }
+
+/**
+ * 갱신을 시작한 뒤 로그아웃·계정 전환으로 계정 데이터가 지워졌다. 받은 결과를 캐시에 쓰지 않고 버린다
+ * (이전 계정의 정보가 새 세션에 남지 않게). 오류로 기록할 일은 아니다.
+ */
+export class StaleRefreshError extends Error {
+  constructor() {
+    super('Refresh discarded: account data was cleared while it was running')
+    this.name = 'StaleRefreshError'
+  }
+}

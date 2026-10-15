@@ -141,39 +141,45 @@ export function upsertRepositories(
 }
 
 export interface ReplaceMyRepositoriesOptions {
-  /** 고정 저장소 ID. 내 집합에서 빠진 고정 저장소는 unavailable 로 표시한다(고정 자체는 지우지 않는다) */
-  pinnedRepoIds?: readonly number[]
+  /**
+   * 내 집합에서 빠진 저장소 중 접근 여부를 확인한 것(고정·연결된 저장소, GET /repositories/{id}).
+   * unavailable 이면 표시하고, available 이면 표시를 푼다. 여기 없는 저장소의 접근 상태는 그대로 둔다.
+   * 고정·연결 자체는 지우지 않는다.
+   */
+  accessStatuses?: ReadonlyMap<number, RepoAccessStatus>
   now?: number
 }
 
 /**
  * 내 저장소 집합 전체를 바꾼다. 받은 저장소는 is_mine=1, 빠진 저장소는 is_mine=0.
- * 빠진 저장소가 고정돼 있으면 접근 상태를 unavailable 로 둔다. 다음 상세 수집이 성공하면 다시 available 이 된다.
+ * 빠진 저장소의 접근 상태는 확인 결과(accessStatuses)가 있을 때만 바꾼다.
  */
 export function replaceMyRepositories(
   db: DatabaseSync,
   repos: readonly RepositoryRecord[],
   options: ReplaceMyRepositoriesOptions = {}
 ): void {
-  const pinned = new Set(options.pinnedRepoIds ?? [])
   const ids = new Set(repos.map((r) => r.id))
   withTransaction(db, () => {
-    const previous = db
-      .prepare('SELECT id FROM cache_repositories WHERE is_mine = 1')
-      .all()
-      .map((row) => num(row, 'id'))
+    const previous = listMyRepositoryIds(db)
     upsertRepositories(db, repos, options.now)
     const setMine = db.prepare('UPDATE cache_repositories SET is_mine = ? WHERE id = ?')
     for (const id of ids) setMine.run(1, id)
-    const unavailable = db.prepare(
-      "UPDATE cache_repositories SET access_status = 'unavailable' WHERE id = ?"
-    )
     for (const id of previous) {
       if (ids.has(id)) continue
       setMine.run(0, id)
-      if (pinned.has(id)) unavailable.run(id)
+      const status = options.accessStatuses?.get(id)
+      if (status) setRepositoryAccessStatus(db, id, status)
     }
   })
+}
+
+/** 지금 캐시의 내 저장소 집합 ID */
+export function listMyRepositoryIds(db: DatabaseSync): number[] {
+  return db
+    .prepare('SELECT id FROM cache_repositories WHERE is_mine = 1')
+    .all()
+    .map((row) => num(row, 'id'))
 }
 
 /** 스타한 저장소 목록 전체를 바꾼다. is_mine 은 건드리지 않는다 */
@@ -250,6 +256,14 @@ export function getRepositoryAccessStatuses(
     out[num(row, 'id')] = str(row, 'access_status') === 'unavailable' ? 'unavailable' : 'available'
   }
   return out
+}
+
+/** 캐시의 모든 저장소(내 것·스타·고정한 남의 저장소·본 저장소·검색 결과)의 전체 이름과 소유자 */
+export function listAllRepositoryNames(db: DatabaseSync): { fullName: string; owner: string }[] {
+  return db
+    .prepare('SELECT full_name, owner FROM cache_repositories')
+    .all()
+    .map((row) => ({ fullName: str(row, 'full_name'), owner: str(row, 'owner') }))
 }
 
 /** 수집기가 쓰는 저장소 참조(노드 ID·이름·열린 수) */

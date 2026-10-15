@@ -2,7 +2,12 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { pollForToken, requestDeviceCode } from '../../src/main/auth/device-flow'
 import type { DeviceFlowDeps } from '../../src/main/auth/device-flow'
 import { validateToken } from '../../src/main/auth/token-validate'
-import { GitHubHttpError, OfflineError, SessionExpiredError } from '../../src/main/github/client'
+import {
+  GitHubHttpError,
+  OfflineError,
+  RateLimitedError,
+  SessionExpiredError
+} from '../../src/main/github/client'
 import type { GitHubClient } from '../../src/main/github/client'
 import { createGitHubClientForTests } from '../../src/main/github/client/testing'
 import {
@@ -443,6 +448,30 @@ describe('조종 API', () => {
     await client().checkConnectivity()
     expect((await pending).status).toBe(200)
     await expect(server.waitForRequest('GET /never', 50)).rejects.toThrow(/no request/)
+  })
+
+  it('setRateLimited: 403 + remaining 0 → 요청 한도 초과(rate_limited), 끄면 회복', async () => {
+    const resetAt = Math.floor(Date.now() / 1000) + 1800
+    server.setRateLimited(resetAt)
+    const c = client()
+    await expect(c.get('/user')).rejects.toBeInstanceOf(RateLimitedError)
+    expect(c.getStatus()).toBe('rate_limited')
+    expect(c.getRateLimitedUntil()).toBe(resetAt * 1000)
+    expect((await api('/rate_limit')).status).toBe(200)
+    server.setRateLimited(null)
+    expect((await api('/user')).status).toBe(200)
+  })
+
+  it('removeRepo: 내 저장소에서 빠지고 /repositories/{id}·상세가 404', async () => {
+    server.removeRepo(R.dotfiles.id)
+    const c = client()
+    const mine = await collectMyRepositories({ client: c })
+    expect(mine.items.map((r) => r.id)).not.toContain(R.dotfiles.id)
+    expect((await api(`/repositories/${R.dotfiles.id}`)).status).toBe(404)
+    const { results } = await collectRepositoryDetails([{ repoId: R.dotfiles.id }], { client: c })
+    expect(results[0]).toMatchObject({ status: 'unavailable', reason: 'not_found' })
+    server.reset()
+    expect((await api(`/repositories/${R.dotfiles.id}`)).status).toBe(200)
   })
 
   it('setRateLimit: 남은 한도를 고정한다', async () => {

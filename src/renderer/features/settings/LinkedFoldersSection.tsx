@@ -3,7 +3,7 @@ import { FolderSync, RefreshCw } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import type { LocalLink } from '@shared/domain/link'
-import type { LinkFailureReason, ScanSummary } from '@shared/domain/local'
+import type { LinkFailureReason, LinkedFolder, ScanSummary } from '@shared/domain/local'
 import '@shared/ipc/dialog'
 import '@shared/ipc/local'
 import '@shared/ipc/queries'
@@ -30,6 +30,7 @@ type Notice = { kind: 'scan'; summary: ScanSummary } | { kind: 'error'; message:
 /** 연결된 폴더 관리(spec §4.11): 연결 해제(폴더는 지우지 않음), 다시 연결, 폴더 다시 찾기. */
 export function LinkedFoldersSection() {
   const { t } = useTranslation('settings')
+  const { t: tl } = useTranslation('links')
   const client = useQueryClient()
   const links = useIpcQuery('local:listLinks', {})
   const names = useRepoNames()
@@ -107,22 +108,32 @@ export function LinkedFoldersSection() {
   } else {
     body = (
       <ul data-testid="settings-links">
-        {links.data.map((link) => (
+        {links.data.map((link: LinkedFolder) => (
           <li
             key={link.id}
             className="flex items-center gap-3 border-t border-border px-4 py-2 text-[13px]"
             data-testid={`settings-link-${link.id}`}
             data-repo-id={link.repoId}
             data-status={link.status}
+            data-access={link.accessStatus}
           >
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="flex min-w-0 items-center gap-2">
                 <span className="truncate font-medium text-fg" data-testid="settings-link-repo">
-                  {names.get(link.repoId) ?? `#${link.repoId}`}
+                  {names.get(link.repoId) ?? link.fullName ?? `#${link.repoId}`}
                 </span>
                 {link.status === 'missing' && (
                   <Badge variant="warning" data-testid="settings-link-missing">
                     {t('folders.missing')}
+                  </Badge>
+                )}
+                {link.accessStatus === 'unavailable' && (
+                  <Badge
+                    variant="warning"
+                    title={tl('unavailableHint')}
+                    data-testid="settings-link-unavailable"
+                  >
+                    {tl('unavailable')}
                   </Badge>
                 )}
               </span>

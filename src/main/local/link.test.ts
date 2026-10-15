@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { setRepositoryAccessStatus } from '../cache'
 import { addLink, getLink, listAllLinks, setLinkStatus } from '../db/links'
 import { isolateGitConfig } from '../git/test-helpers'
 import { cacheRepo, createHarness, makeWorkingCopy } from './test-helpers'
@@ -33,6 +34,23 @@ beforeEach(async () => {
 
 afterEach(() => {
   h.db.close()
+})
+
+describe('local:listLinks 접근 상태', () => {
+  it('캐시의 접근 상태를 붙이고, 캐시에 없는 저장소는 available', () => {
+    setRepositoryAccessStatus(h.db, 2, 'unavailable')
+    const a = addLink(h.db, 1, join(dir, 'a'), { platform: 'linux' }).link
+    const b = addLink(h.db, 2, join(dir, 'b'), { platform: 'linux' }).link
+    const c = addLink(h.db, 99, join(dir, 'c'), { platform: 'linux' }).link
+    const byId = new Map(h.service.listLinks().map((l) => [l.id, l.accessStatus]))
+    expect(byId.get(a.id)).toBe('available')
+    expect(byId.get(b.id)).toBe('unavailable')
+    expect(byId.get(c.id)).toBe('available')
+    expect(h.service.listLinks({ repoId: 2 })).toEqual([
+      { ...b, accessStatus: 'unavailable', fullName: 'org/app' }
+    ])
+    expect(h.service.listLinks({ repoId: 99 })[0]?.fullName).toBeNull()
+  })
 })
 
 describe('local:link', () => {

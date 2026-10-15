@@ -11,6 +11,7 @@ import { replacePullRequests, replaceRepoPullRequests } from '../../cache/pull-r
 import { saveRepositoryDetail } from '../../cache/repo-detail'
 import {
   getRepositoryRefs,
+  listMyRepositoryIds,
   listMyRepositoryRefs,
   markRepositoryUnavailable,
   replaceMyRepositories,
@@ -20,7 +21,10 @@ import {
 import { getSyncState, updateSyncState } from '../../cache/sync-state'
 import type { RepositoryRecord, StarredRepositoryRecord } from '../../cache/types'
 import { withTransaction } from '../../db/transaction'
-import type { OrgRestriction } from '../client'
+import type { RepoAccessStatus } from '@shared/domain/repo'
+import { GitHubHttpError, OrgAccessRestrictedError } from '../client'
+import type { GitHubClient, OrgRestriction } from '../client'
+import { StaleRefreshError, resolveClient } from './common'
 import type { CollectorOptions, ListResult } from './common'
 import { collectRepoOpenItems } from './items'
 import type { RepoOpenItemsOptions, RepoOpenItemsTarget } from './items'
@@ -64,28 +68,91 @@ export interface RefreshContext extends CollectorOptions {
   db?: DatabaseSync
   /** 기본 Date.now() */
   now?: number
+  /**
+   * 캐시에 쓰기 직전에 확인한다. false 면(갱신 중 로그아웃·계정 전환으로 데이터가 지워졌으면)
+   * 아무것도 쓰지 않고 StaleRefreshError 를 던진다. 앱은 db/cleanup 의 currentDataGuard() 를 넘긴다.
+   */
+  isCurrent?: () => boolean
 }
 
 function ctx(options: RefreshContext): { db: DatabaseSync; now: number } {
   return { db: options.db ?? getDb(), now: options.now ?? Date.now() }
 }
 
+/** 쓰기 트랜잭션 바로 앞에서 부른다(같은 동기 구간이라 사이에 로그아웃이 끼어들 수 없다) */
+function assertCurrent(options: RefreshContext): void {
+  if (options.isCurrent && !options.isCurrent()) throw new StaleRefreshError()
+}
+
+/** 접근 불가로 볼 응답: 404·410(삭제), 403·451(권한 상실·막힘), 조직 접근 제한 */
+function isAccessLost(error: unknown): boolean {
+  if (error instanceof OrgAccessRestrictedError) return true
+  return (
+    error instanceof GitHubHttpError &&
+    (error.status === 404 || error.status === 403 || error.status === 410 || error.status === 451)
+  )
+}
+
+/**
+ * 내 집합에서 빠진 고정·연결 저장소가 아직 접근 가능한지 GET /repositories/{id} 로 확인한다(spec §3).
+ * 404·403·410·451·조직 제한이면 unavailable, 성공하면 available. 그 밖의 실패(오프라인·한도·세션)면
+ * 상태를 정하지 않고 나머지 확인도 멈춘다(다음 확인은 상세 갱신이나 다시 받아질 때).
+ */
+async function verifyRepositoryAccess(
+  client: GitHubClient,
+  repoIds: readonly number[],
+  signal?: AbortSignal
+): Promise<Map<number, RepoAccessStatus>> {
+  const out = new Map<number, RepoAccessStatus>()
+  for (const id of repoIds) {
+    try {
+      await client.get(`/repositories/${id}`, { signal })
+      out.set(id, 'available')
+    } catch (error) {
+      if (!isAccessLost(error)) break
+      out.set(id, 'unavailable')
+    }
+  }
+  return out
+}
+
 function record(db: DatabaseSync, restrictions: readonly OrgRestriction[], now: number): void {
   recordOrgRestrictions(db, restrictions, now)
 }
 
+export interface MyRepositoriesRefreshOptions extends RefreshContext, PagedOptions {
+  /** 고정 저장소 ID. 내 집합에서 빠지면 접근 여부를 확인한다 */
+  pinnedRepoIds?: readonly number[]
+  /** 로컬 폴더에 연결된 저장소 ID. 내 집합에서 빠지면 접근 여부를 확인한다 */
+  linkedRepoIds?: readonly number[]
+}
+
 /**
- * 내 저장소 집합을 받아 저장한다. 모두 받았을 때만 집합을 바꾸고(빠진 고정 저장소는 unavailable),
- * 조직 제한 등으로 불완전하면 받은 머리글만 갱신한다. 모두 받았으면 이번에 제한이 없던 조직의 안내를 지운다.
+ * 내 저장소 집합을 받아 저장한다. 모두 받았을 때만 집합을 바꾸고, 조직 제한 등으로 불완전하면
+ * 받은 머리글만 갱신한다. 모두 받았으면 이번에 제한이 없던 조직의 안내를 지운다.
+ * 집합에서 빠진 저장소가 고정·연결돼 있으면 GET /repositories/{id} 로 확인해 접근할 수 없을 때만
+ * unavailable 로 표시한다(쓰기 권한만 잃은 공개 저장소는 available). 고정·연결은 지우지 않는다.
  */
 export async function refreshMyRepositories(
-  options: RefreshContext & PagedOptions & { pinnedRepoIds?: readonly number[] } = {}
+  options: MyRepositoriesRefreshOptions = {}
 ): Promise<ListResult<RepositoryRecord> & { viewerLogin: string | null }> {
   const { db, now } = ctx(options)
   const result = await collectMyRepositories(options)
+  let accessStatuses: Map<number, RepoAccessStatus> | undefined
+  if (result.complete) {
+    const watched = new Set([...(options.pinnedRepoIds ?? []), ...(options.linkedRepoIds ?? [])])
+    const received = new Set(result.items.map((r) => r.id))
+    const dropped = listMyRepositoryIds(db)
+      .filter((id) => !received.has(id) && watched.has(id))
+      .sort((a, b) => a - b)
+    if (dropped.length > 0) {
+      accessStatuses = await verifyRepositoryAccess(resolveClient(options), dropped, options.signal)
+    }
+  }
+  assertCurrent(options)
   withTransaction(db, () => {
     if (result.complete) {
-      replaceMyRepositories(db, result.items, { pinnedRepoIds: options.pinnedRepoIds, now })
+      replaceMyRepositories(db, result.items, { accessStatuses, now })
       updateSyncState(db, SYNC_SCOPES.repositories, { lastSyncedAt: now })
       // 모두 받았으므로 이번에 제한이 없던 조직의 안내는 지운다
       clearOrgRestrictionsExcept(db, result.orgRestrictions)
@@ -103,6 +170,7 @@ export async function refreshStarredRepositories(
 ): Promise<ListResult<StarredRepositoryRecord>> {
   const { db, now } = ctx(options)
   const result = await collectStarredRepositories(options)
+  assertCurrent(options)
   withTransaction(db, () => {
     if (result.complete) {
       replaceStarredRepositories(db, result.items, now)
@@ -129,6 +197,7 @@ export async function refreshRepoOpenItems(
   const { db, now } = ctx(options)
   const targets = options.targets ?? listMyRepositoryRefs(db)
   const result = await collectRepoOpenItems(targets, options)
+  assertCurrent(options)
   withTransaction(db, () => {
     for (const repo of result.repos) {
       replaceRepoPullRequests(db, repo.repoId, repo.pullRequests, {
@@ -159,6 +228,7 @@ export async function refreshPullRequestLists(
   const { db, now } = ctx(options)
   const mine = await collectMyPullRequests(options)
   const reviews = await collectReviewRequests(options)
+  assertCurrent(options)
   withTransaction(db, () => {
     if (shouldReplace(mine)) {
       replacePullRequests(db, 'mine', mine.items, total(mine))
@@ -180,6 +250,7 @@ export async function refreshIssueLists(
   const { db, now } = ctx(options)
   const assigned = await collectAssignedIssues(options)
   const mine = await collectMyIssues(options)
+  assertCurrent(options)
   withTransaction(db, () => {
     if (shouldReplace(assigned)) {
       replaceIssues(db, 'assigned', assigned.items, total(assigned))
@@ -208,6 +279,7 @@ export async function refreshNotifications(
     etag: state.etag,
     lastModified: state.lastModified
   })
+  assertCurrent(options)
   withTransaction(db, () => {
     if (!result.notModified) {
       // 페이지 한도로 잘렸으면 오래된 알림을 지우지 않도록 합친다
@@ -241,6 +313,7 @@ export async function refreshRepositoryDetails(
     nodeId: refs.get(repoId)?.nodeId ?? null
   }))
   const result = await collectRepositoryDetails(targets, { ...options, now })
+  assertCurrent(options)
   withTransaction(db, () => {
     for (const outcome of result.results) {
       if (outcome.status === 'ok') {

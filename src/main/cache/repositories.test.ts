@@ -107,9 +107,11 @@ describe('저장소 캐시', () => {
     })
   })
 
-  it('내 집합에서 빠지면 isMine=false, 고정돼 있었으면 unavailable', () => {
+  it('내 집합에서 빠지면 isMine=false, 확인 결과가 unavailable 이면 표시한다', () => {
     replaceMyRepositories(db, [repoRecord(1), repoRecord(2), repoRecord(3)])
-    replaceMyRepositories(db, [repoRecord(1)], { pinnedRepoIds: [2] })
+    replaceMyRepositories(db, [repoRecord(1)], {
+      accessStatuses: new Map([[2, 'unavailable']])
+    })
     expect(getRepository(db, 2)).toMatchObject({ isMine: false, accessStatus: 'unavailable' })
     expect(getRepository(db, 3)).toMatchObject({ isMine: false, accessStatus: 'available' })
     expect(getRepositoryAccessStatuses(db, [1, 2, 3, 77])).toEqual({
@@ -122,6 +124,19 @@ describe('저장소 캐시', () => {
     expect(getRepository(db, 2)?.accessStatus).toBe('available')
     expect(setRepositoryAccessStatus(db, 2, 'unavailable')).toBe(true)
     expect(getRepository(db, 2)?.accessStatus).toBe('unavailable')
+  })
+
+  it('빠진 저장소의 확인 결과가 available 이면 이전 unavailable 표시를 푼다, 집합에 남은 것은 무시', () => {
+    replaceMyRepositories(db, [repoRecord(1), repoRecord(2)])
+    setRepositoryAccessStatus(db, 2, 'unavailable')
+    replaceMyRepositories(db, [repoRecord(1)], {
+      accessStatuses: new Map([
+        [2, 'available'],
+        [1, 'unavailable']
+      ])
+    })
+    expect(getRepository(db, 2)).toMatchObject({ isMine: false, accessStatus: 'available' })
+    expect(getRepository(db, 1)).toMatchObject({ isMine: true, accessStatus: 'available' })
   })
 
   it('스타 목록 쓰기는 isMine 을 건드리지 않고, 내 저장소 쓰기는 starredAt 을 지우지 않는다', () => {

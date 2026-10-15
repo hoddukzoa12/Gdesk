@@ -2,7 +2,7 @@
  * GitHub 수집기 (T7). collect* 는 받아서 변환만 하고, refresh* 는 받아서 캐시에 반영한다.
  * 모든 함수는 options.client 로 GitHub 클라이언트를 주입받는다(기본 getGitHubClient()).
  */
-export { orgRestrictionsFrom } from './common'
+export { StaleRefreshError, orgRestrictionsFrom } from './common'
 export type { CollectorOptions, ListResult } from './common'
 export { collectRepoOpenItems } from './items'
 export type { RepoOpenItems, RepoOpenItemsOptions, RepoOpenItemsTarget } from './items'
@@ -21,7 +21,7 @@ export {
   refreshStarredRepositories,
   repoSyncScope
 } from './refresh'
-export type { RefreshContext } from './refresh'
+export type { MyRepositoriesRefreshOptions, RefreshContext } from './refresh'
 export { collectContributors, collectRepositoryDetails, collectStargazers } from './repo-detail'
 export type {
   RepoDetailOptions,
