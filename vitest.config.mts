@@ -19,6 +19,8 @@ export default defineConfig({
   // 작업 폴더마다 node_modules 를 공유하므로 변환 캐시는 프로젝트별로 둔다.
   cacheDir: '.vite-cache',
   test: {
+    // 새 번역 파일(import.meta.glob)이 반영되지 않는 일을 막기 위해 변환 결과를 디스크에 캐시하지 않는다.
+    fsModuleCache: false,
     include: ['src/**/*.test.{ts,tsx}', 'tests/unit/**/*.test.{ts,tsx}'],
     environment: 'node'
   }
