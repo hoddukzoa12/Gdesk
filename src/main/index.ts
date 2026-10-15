@@ -7,6 +7,8 @@ import { initAuth, startAuth, tokenProvider } from './auth'
 import { createElectronTokenStore } from './auth/electron'
 import { configureGitHubClient } from './github/client'
 import { initUpdater } from './updater/updater'
+import { initCrashReporting } from './crash'
+import { initLocal } from './local'
 import { registerAllIpc } from './ipc/registry'
 import { createMainWindow, installNavigationGuards } from './window'
 
@@ -17,6 +19,8 @@ if (isTestMode() && process.env.GDESK_TEST_USER_DATA) {
 
 app.setName('Gdesk')
 installNavigationGuards()
+// 처리되지 않은 오류를 잡아 미리 보기 후 보고할 수 있게 한다(창이 생기기 전 오류도 보관).
+initCrashReporting()
 
 app.whenReady().then(async () => {
   // ── 서비스 초기화 (각 단계 끝의 연결 작업에서 여기에 추가) ──
@@ -34,6 +38,7 @@ app.whenReady().then(async () => {
 
   createMainWindow()
   initUpdater()
+  initLocal() // 기본 클론 폴더 자동 탐색(백그라운드) + 설정 변경 구독
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow()

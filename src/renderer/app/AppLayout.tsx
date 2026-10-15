@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Outlet } from 'react-router'
+import { Outlet, useLocation } from 'react-router'
+import { CrashBoundary } from '../features/crash'
 import { TopBarContext } from '../components/TopBar'
 import { cn } from '../lib/cn'
 import { usePlatform } from './platform'
@@ -13,6 +14,7 @@ import { useSlots } from './slots'
  */
 export function AppLayout() {
   const slots = useSlots()
+  const { pathname } = useLocation()
   const insetTitleBar = usePlatform() === 'darwin'
   const [topBarNode, setTopBarNode] = useState<HTMLDivElement | null>(null)
 
@@ -45,7 +47,10 @@ export function AppLayout() {
         )}
         <main className="min-h-0 flex-1 overflow-y-auto" data-testid="main">
           <TopBarContext.Provider value={topBarNode}>
-            <Outlet />
+            {/* 화면 렌더 오류는 보고하고 대체 화면을 그린다. 다른 화면으로 가면 초기화된다. */}
+            <CrashBoundary key={pathname}>
+              <Outlet />
+            </CrashBoundary>
           </TopBarContext.Provider>
         </main>
       </div>

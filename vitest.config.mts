@@ -16,6 +16,8 @@ export default defineConfig({
       '@renderer': resolve(import.meta.dirname, 'src/renderer')
     }
   },
+  // 작업 폴더마다 node_modules 를 공유하므로 변환 캐시는 프로젝트별로 둔다.
+  cacheDir: '.vite-cache',
   test: {
     include: ['src/**/*.test.{ts,tsx}', 'tests/unit/**/*.test.{ts,tsx}'],
     environment: 'node'
