@@ -7,7 +7,8 @@ export default defineConfig({
   define: {
     __GDESK_GITHUB_CLIENT_ID__: JSON.stringify(''),
     __GDESK_REPO__: JSON.stringify(''),
-    __GDESK_TEST_BUILD__: JSON.stringify(false)
+    __GDESK_TEST_BUILD__: JSON.stringify(false),
+    __GDESK_MAC_SIGNED__: JSON.stringify(false)
   },
   resolve: {
     alias: {

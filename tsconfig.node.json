@@ -20,6 +20,7 @@
   },
   "include": [
     "electron.vite.config.mts",
+    "electron-builder.ts",
     "vitest.config.mts",
     "playwright.config.ts",
     "eslint.config.mjs",
