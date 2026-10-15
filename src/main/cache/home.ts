@@ -10,11 +10,16 @@ import { STAR_HOME_WINDOW_DAYS } from '@shared/domain/stats'
 import { isUnansweredContribution } from '../domain/contribution'
 import type { UnansweredOptions } from '../domain/contribution'
 import { composeFailedCi } from '../domain/failed-ci'
-import { listIncomingIssueRecords } from './issues'
-import { countUnreadNotifications, listNotifications } from './notifications'
+import { isIncomingIssuesComplete, listIncomingIssueRecords } from './issues'
+import {
+  countUnreadNotifications,
+  isNotificationListComplete,
+  listNotifications
+} from './notifications'
 import {
   countIncomingPullRequests,
   countReviewRequests,
+  isIncomingPullRequestsComplete,
   listIncomingPullRequestRecords,
   listMyPullRequests,
   listReviewRequests
@@ -58,7 +63,9 @@ export function listUnansweredContributions(
   const limit = options.limit
   return {
     count: items.length,
-    items: limit !== undefined && limit > 0 ? items.slice(0, limit) : items
+    items: limit !== undefined && limit > 0 ? items.slice(0, limit) : items,
+    // 들어온 항목을 다 받지 못한 저장소가 있으면 더 있을 수 있다
+    complete: isIncomingPullRequestsComplete(db) && isIncomingIssuesComplete(db)
   }
 }
 
@@ -110,18 +117,19 @@ export function getHomeSummary(
   const limit = options.limit ?? 5
   const starWindowDays = options.starWindowDays ?? STAR_HOME_WINDOW_DAYS
   return {
-    reviewRequests: {
-      count: countReviewRequests(db),
-      items: listReviewRequests(db, { limit })
-    },
+    reviewRequests: (() => {
+      const page = listReviewRequests(db, { limit })
+      return { count: page.totalCount, items: page.items, complete: page.complete }
+    })(),
     unreadNotifications: {
       count: countUnreadNotifications(db),
-      items: listNotifications(db, { unreadOnly: true, limit })
+      items: listNotifications(db, { unreadOnly: true, limit }),
+      complete: isNotificationListComplete(db)
     },
     failedCi: composeFailedCi(
       detailTrackedRepoIds,
       listTrackedRepoHeads(db, detailTrackedRepoIds),
-      listMyPullRequests(db)
+      listMyPullRequests(db).items
     ),
     unansweredContributions: listUnansweredContributions(db, {
       excludeBots: options.excludeBots,

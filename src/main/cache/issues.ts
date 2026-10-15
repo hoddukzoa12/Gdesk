@@ -1,10 +1,13 @@
 import type { DatabaseSync } from 'node:sqlite'
 import type { IssueLabel, IssueRow } from '@shared/domain/issue'
+import type { ListPage } from '@shared/domain/list'
 import { withTransaction } from '../db/transaction'
 import { limitClause } from './pull-requests'
+import type { ListWriteOptions } from './pull-requests'
 import { bool, jsonValue, num, str, strOrNull, sqlBool } from './rows'
 import type { Row } from './rows'
-import { replaceScope, repoScope } from './scopes'
+import { incomingSummary, repoScope, scopeMeta, writeScope } from './scopes'
+import type { ScopeTables, ScopeWriteMode } from './scopes'
 import type { IssueRecord } from './types'
 
 /**
@@ -12,7 +15,13 @@ import type { IssueRecord } from './types'
  */
 export type IssueScope = 'mine' | 'assigned'
 
-const TABLES = { items: 'cache_issues', scopes: 'cache_issue_scopes', idColumn: 'issue_id' }
+const TABLES: ScopeTables = {
+  kind: 'issue',
+  items: 'cache_issues',
+  scopes: 'cache_issue_scopes',
+  idColumn: 'issue_id',
+  repoCountColumn: 'open_issue_count'
+}
 
 const COLUMNS = `i.id, i.repo_id, i.repo_full_name, i.number, i.title, i.url, i.author_login,
   i.author_avatar_url, i.author_is_bot, i.author_association, i.viewer_is_author, i.labels,
@@ -86,38 +95,41 @@ function upsert(db: DatabaseSync, issues: readonly IssueRecord[]): void {
   }
 }
 
-function replace(db: DatabaseSync, scope: string, issues: readonly IssueRecord[]): void {
+function write(
+  db: DatabaseSync,
+  scope: string,
+  issues: readonly IssueRecord[],
+  options: ListWriteOptions,
+  mode: ScopeWriteMode
+): void {
   withTransaction(db, () => {
     upsert(db, issues)
-    replaceScope(
-      db,
-      TABLES,
-      scope,
-      issues.map((i) => i.id)
-    )
+    writeScope(db, TABLES, scope, issues, options.totalCount, mode)
   })
 }
 
-/** 나에게 할당된·내가 올린 이슈 목록 전체를 바꾼다 */
+/** 나에게 할당된·내가 올린 이슈 목록 전체를 바꾼다. totalCount 는 검색 결과 총수 */
 export function replaceIssues(
   db: DatabaseSync,
   scope: IssueScope,
-  issues: readonly IssueRecord[]
+  issues: readonly IssueRecord[],
+  options: ListWriteOptions = {}
 ): void {
-  replace(db, scope, issues)
+  write(db, scope, issues, options, 'replace')
 }
 
-/** 저장소 하나의 열린 이슈 전체를 바꾼다 */
+/** 저장소 하나의 열린 이슈를 쓴다. 잘린 목록이면 기존 행을 줄이지 않고 합친다(replaceRepoPullRequests 와 같음) */
 export function replaceRepoIssues(
   db: DatabaseSync,
   repoId: number,
-  issues: readonly IssueRecord[]
+  issues: readonly IssueRecord[],
+  options: ListWriteOptions = {}
 ): void {
-  replace(db, repoScope(repoId), issues)
+  write(db, repoScope(repoId), issues, options, 'window')
 }
 
-function listScope(db: DatabaseSync, scope: string, limit?: number): IssueRow[] {
-  return db
+function scopePage(db: DatabaseSync, scope: string, limit?: number): ListPage<IssueRow> {
+  const items = db
     .prepare(
       `SELECT ${COLUMNS} FROM cache_issues i
        JOIN cache_issue_scopes s ON s.issue_id = i.id AND s.scope = ?
@@ -125,6 +137,7 @@ function listScope(db: DatabaseSync, scope: string, limit?: number): IssueRow[] 
     )
     .all(scope)
     .map(toIssueRow)
+  return { items, ...scopeMeta(db, TABLES, scope) }
 }
 
 const INCOMING_FROM = `FROM cache_issues i
@@ -132,12 +145,23 @@ const INCOMING_FROM = `FROM cache_issues i
   WHERE i.viewer_is_author = 0 AND EXISTS (
     SELECT 1 FROM cache_issue_scopes s WHERE s.issue_id = i.id AND s.scope = 'repo:' || i.repo_id)`
 
-/** 들어온 이슈 (spec §4.6): 내 저장소 집합의 열린 이슈 중 내가 쓰지 않은 것 */
-export function listIncomingIssues(db: DatabaseSync, options: { limit?: number } = {}): IssueRow[] {
-  return db
-    .prepare(`SELECT ${COLUMNS} ${INCOMING_FROM} ${ORDER}${limitClause(options.limit)}`)
-    .all()
-    .map(toIssueRow)
+/** 들어온 이슈 (spec §4.6): 내 저장소 집합의 열린 이슈 중 내가 쓰지 않은 것. totalCount 는 저장소별 전체 수 기준 */
+export function listIncomingIssues(
+  db: DatabaseSync,
+  options: { limit?: number } = {}
+): ListPage<IssueRow> {
+  return {
+    items: db
+      .prepare(`SELECT ${COLUMNS} ${INCOMING_FROM} ${ORDER}${limitClause(options.limit)}`)
+      .all()
+      .map(toIssueRow),
+    ...incomingSummary(db, TABLES)
+  }
+}
+
+/** 들어온 이슈 근거를 다 받았는가 */
+export function isIncomingIssuesComplete(db: DatabaseSync): boolean {
+  return incomingSummary(db, TABLES).complete
 }
 
 /** "응답 없는 새 기여" 판정용 */
@@ -146,13 +170,19 @@ export function listIncomingIssueRecords(db: DatabaseSync): IssueRecord[] {
 }
 
 /** 나에게 할당된 열린 이슈 */
-export function listAssignedIssues(db: DatabaseSync, options: { limit?: number } = {}): IssueRow[] {
-  return listScope(db, 'assigned', options.limit)
+export function listAssignedIssues(
+  db: DatabaseSync,
+  options: { limit?: number } = {}
+): ListPage<IssueRow> {
+  return scopePage(db, 'assigned', options.limit)
 }
 
 /** 내가 올린 열린 이슈 */
-export function listMyIssues(db: DatabaseSync, options: { limit?: number } = {}): IssueRow[] {
-  return listScope(db, 'mine', options.limit)
+export function listMyIssues(
+  db: DatabaseSync,
+  options: { limit?: number } = {}
+): ListPage<IssueRow> {
+  return scopePage(db, 'mine', options.limit)
 }
 
 /** 저장소 상세의 열린 이슈 */
@@ -160,6 +190,6 @@ export function listRepoIssues(
   db: DatabaseSync,
   repoId: number,
   options: { limit?: number } = {}
-): IssueRow[] {
-  return listScope(db, repoScope(repoId), options.limit)
+): ListPage<IssueRow> {
+  return scopePage(db, repoScope(repoId), options.limit)
 }

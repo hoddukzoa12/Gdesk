@@ -8,7 +8,7 @@ export { collectRepoOpenItems } from './items'
 export type { RepoOpenItems, RepoOpenItemsOptions, RepoOpenItemsTarget } from './items'
 export { NOTIFICATIONS_PATH, collectNotifications } from './notifications'
 export type { NotificationsOptions, NotificationsResult } from './notifications'
-export { OPERATIONS, REST_ENDPOINTS, SEARCH_QUERIES } from './queries'
+export { LIST_LIMITS, OPERATIONS, RESPONSE_SAMPLE, REST_ENDPOINTS, SEARCH_QUERIES } from './queries'
 export type { OperationName } from './queries'
 export {
   SYNC_SCOPES,
@@ -38,3 +38,4 @@ export {
   collectMyPullRequests,
   collectReviewRequests
 } from './search'
+export type { SearchOptions } from './search'

@@ -51,3 +51,19 @@ export function clearOrgRestrictions(db: DatabaseSync, orgLogin?: string): void 
   else
     db.prepare('DELETE FROM cache_org_restrictions WHERE org_key = ?').run(orgLogin.toLowerCase())
 }
+
+/**
+ * 이번 수집에서 제한이 나오지 않은 조직의 안내를 지운다(그 조직의 정보를 다시 받을 수 있게 됨).
+ * 내 저장소 집합을 모두 받은 뒤 그때 만난 제한 목록을 넘긴다. 조직을 모르는 제한은 org_key '' 로 다룬다.
+ */
+export function clearOrgRestrictionsExcept(
+  db: DatabaseSync,
+  stillRestricted: readonly OrgRestrictionInput[]
+): void {
+  const keep = new Set(stillRestricted.map((r) => (r.orgLogin ?? '').toLowerCase()))
+  const remove = db.prepare('DELETE FROM cache_org_restrictions WHERE org_key = ?')
+  for (const row of db.prepare('SELECT org_key FROM cache_org_restrictions').all()) {
+    const key = str(row, 'org_key')
+    if (!keep.has(key)) remove.run(key)
+  }
+}

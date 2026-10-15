@@ -1,21 +1,30 @@
 import type { DatabaseSync } from 'node:sqlite'
 import type { CiStatus } from '@shared/domain/ci'
+import type { ListPage } from '@shared/domain/list'
 import type { PrReviewStatus, PullRequestRow } from '@shared/domain/pr'
 import { CI_STATUSES } from '@shared/domain/ci'
 import { PR_REVIEW_STATUSES } from '@shared/domain/pr'
 import { withTransaction } from '../db/transaction'
 import { bool, num, str, strOrNull, sqlBool } from './rows'
 import type { Row } from './rows'
-import { replaceScope, repoScope } from './scopes'
+import { incomingSummary, repoScope, scopeMeta, writeScope } from './scopes'
+import type { ScopeTables, ScopeWriteMode } from './scopes'
 import type { PullRequestRecord } from './types'
 
 /** 저장소와 무관한 PR 목록 */
 export type PullRequestScope = 'mine' | 'review_requested'
 
-const TABLES = {
+const TABLES: ScopeTables = {
+  kind: 'pr',
   items: 'cache_pull_requests',
   scopes: 'cache_pull_request_scopes',
-  idColumn: 'pr_id'
+  idColumn: 'pr_id',
+  repoCountColumn: 'open_pr_count'
+}
+
+/** 쓰기 옵션. totalCount 는 GitHub 의 전체 개수(검색 issueCount·연결 totalCount). 없으면 받은 개수 */
+export interface ListWriteOptions {
+  totalCount?: number
 }
 
 const COLUMNS = `p.id, p.repo_id, p.repo_full_name, p.number, p.title, p.url, p.author_login,
@@ -103,34 +112,40 @@ function upsert(db: DatabaseSync, prs: readonly PullRequestRecord[]): void {
   }
 }
 
-function replace(db: DatabaseSync, scope: string, prs: readonly PullRequestRecord[]): void {
+function write(
+  db: DatabaseSync,
+  scope: string,
+  prs: readonly PullRequestRecord[],
+  options: ListWriteOptions,
+  mode: ScopeWriteMode
+): void {
   withTransaction(db, () => {
     upsert(db, prs)
-    replaceScope(
-      db,
-      TABLES,
-      scope,
-      prs.map((p) => p.id)
-    )
+    writeScope(db, TABLES, scope, prs, options.totalCount, mode)
   })
 }
 
-/** 내가 올린 PR·리뷰 요청 목록 전체를 바꾼다 */
+/** 내가 올린 PR·리뷰 요청 목록 전체를 바꾼다. totalCount 는 검색 결과 총수 */
 export function replacePullRequests(
   db: DatabaseSync,
   scope: PullRequestScope,
-  prs: readonly PullRequestRecord[]
+  prs: readonly PullRequestRecord[],
+  options: ListWriteOptions = {}
 ): void {
-  replace(db, scope, prs)
+  write(db, scope, prs, options, 'replace')
 }
 
-/** 저장소 하나의 열린 PR 전체를 바꾼다(들어온 PR·상세 화면의 근거) */
+/**
+ * 저장소 하나의 열린 PR 을 쓴다(들어온 PR·상세 화면의 근거). totalCount 는 그 저장소의 열린 PR 전체 수.
+ * 상한에 잘린 목록이면 기존 행을 줄이지 않고 합친다(상세 수집의 작은 상한이 목록 수집 결과를 줄이지 않게).
+ */
 export function replaceRepoPullRequests(
   db: DatabaseSync,
   repoId: number,
-  prs: readonly PullRequestRecord[]
+  prs: readonly PullRequestRecord[],
+  options: ListWriteOptions = {}
 ): void {
-  replace(db, repoScope(repoId), prs)
+  write(db, repoScope(repoId), prs, options, 'window')
 }
 
 function listScope(db: DatabaseSync, scope: string, limit?: number): Row[] {
@@ -143,25 +158,35 @@ function listScope(db: DatabaseSync, scope: string, limit?: number): Row[] {
     .all(scope)
 }
 
+function scopePage(db: DatabaseSync, scope: string, limit?: number): ListPage<PullRequestRow> {
+  return {
+    items: listScope(db, scope, limit).map(toPullRequestRow),
+    ...scopeMeta(db, TABLES, scope)
+  }
+}
+
 export function limitClause(limit: number | undefined): string {
   return limit !== undefined && limit > 0 ? ` LIMIT ${Math.floor(limit)}` : ''
 }
 
-/** 들어온 PR 의 조건: 내 저장소 집합의 열린 PR(저장소 범위) 중 내가 쓰지 않은 것 */
+/** 들어온 PR 의 행: 내 저장소 집합의 열린 PR(저장소 범위) 중 내가 쓰지 않은 것 */
 const INCOMING_FROM = `FROM cache_pull_requests p
   JOIN cache_repositories r ON r.id = p.repo_id AND r.is_mine = 1
   WHERE p.viewer_is_author = 0 AND EXISTS (
     SELECT 1 FROM cache_pull_request_scopes s WHERE s.pr_id = p.id AND s.scope = 'repo:' || p.repo_id)`
 
-/** 들어온 PR (spec §4.4), 최근 갱신 순 */
+/** 들어온 PR (spec §4.4), 최근 갱신 순. totalCount 는 저장소별 전체 열린 수 기준 */
 export function listIncomingPullRequests(
   db: DatabaseSync,
   options: { limit?: number } = {}
-): PullRequestRow[] {
-  return db
-    .prepare(`SELECT ${COLUMNS} ${INCOMING_FROM} ${ORDER}${limitClause(options.limit)}`)
-    .all()
-    .map(toPullRequestRow)
+): ListPage<PullRequestRow> {
+  return {
+    items: db
+      .prepare(`SELECT ${COLUMNS} ${INCOMING_FROM} ${ORDER}${limitClause(options.limit)}`)
+      .all()
+      .map(toPullRequestRow),
+    ...incomingSummary(db, TABLES)
+  }
 }
 
 /** "응답 없는 새 기여" 판정용: 들어온 PR 의 판정 재료 포함 */
@@ -169,35 +194,34 @@ export function listIncomingPullRequestRecords(db: DatabaseSync): PullRequestRec
   return db.prepare(`SELECT ${COLUMNS} ${INCOMING_FROM} ${ORDER}`).all().map(toPullRequestRecord)
 }
 
+/** 들어온 PR 전체 수(목록 상한에 잘리지 않음) */
 export function countIncomingPullRequests(db: DatabaseSync): number {
-  return num(db.prepare(`SELECT COUNT(*) AS n ${INCOMING_FROM}`).get() ?? {}, 'n')
+  return incomingSummary(db, TABLES).totalCount
+}
+
+/** 들어온 PR 근거를 다 받았는가 */
+export function isIncomingPullRequestsComplete(db: DatabaseSync): boolean {
+  return incomingSummary(db, TABLES).complete
 }
 
 /** 내가 올린 열린 PR (spec §4.4), 저장소 무관 */
 export function listMyPullRequests(
   db: DatabaseSync,
   options: { limit?: number } = {}
-): PullRequestRow[] {
-  return listScope(db, 'mine', options.limit).map(toPullRequestRow)
+): ListPage<PullRequestRow> {
+  return scopePage(db, 'mine', options.limit)
 }
 
-/** 나 또는 내 팀에 리뷰가 요청된 열린 PR (spec §4.5) */
+/** 나 또는 내 팀에 리뷰가 요청된 열린 PR (spec §4.5). totalCount 는 검색 결과 총수 */
 export function listReviewRequests(
   db: DatabaseSync,
   options: { limit?: number } = {}
-): PullRequestRow[] {
-  return listScope(db, 'review_requested', options.limit).map(toPullRequestRow)
+): ListPage<PullRequestRow> {
+  return scopePage(db, 'review_requested', options.limit)
 }
 
 export function countReviewRequests(db: DatabaseSync): number {
-  return num(
-    db
-      .prepare(
-        "SELECT COUNT(*) AS n FROM cache_pull_request_scopes WHERE scope = 'review_requested'"
-      )
-      .get() ?? {},
-    'n'
-  )
+  return scopeMeta(db, TABLES, 'review_requested').totalCount
 }
 
 /** 저장소 상세의 열린 PR 목록 */
@@ -205,8 +229,8 @@ export function listRepoPullRequests(
   db: DatabaseSync,
   repoId: number,
   options: { limit?: number } = {}
-): PullRequestRow[] {
-  return listScope(db, repoScope(repoId), options.limit).map(toPullRequestRow)
+): ListPage<PullRequestRow> {
+  return scopePage(db, repoScope(repoId), options.limit)
 }
 
 /** 이 저장소에서 내가 올린 열린 PR (어느 목록에서 받았든) */

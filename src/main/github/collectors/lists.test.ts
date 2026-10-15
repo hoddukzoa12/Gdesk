@@ -240,8 +240,11 @@ describe('collectRepoOpenItems', () => {
     expect(result.repos.find((r) => r.repoId === 2)).toEqual({
       repoId: 2,
       pullRequests: [],
-      issues: []
+      issues: [],
+      pullRequestTotal: 0,
+      issueTotal: 0
     })
+    expect(repo1).toMatchObject({ pullRequestTotal: 2, issueTotal: 1 })
   })
 
   it('묶음 크기대로 나눠 요청하고, 조직 제한 묶음은 건너뛴다', async () => {
@@ -308,6 +311,7 @@ describe('검색 목록', () => {
     const result = await collectReviewRequests({ client })
     expect(calls[0]?.graphql?.variables.q).toContain('review-requested:@me')
     expect(result.items.map((p) => p.id)).toEqual(['R'])
+    expect(result.totalCount).toBe(1)
   })
 
   it('이슈 목록에 PR 은 섞이지 않는다', async () => {
@@ -349,5 +353,56 @@ describe('검색 목록', () => {
     expect(calls[1]?.graphql?.variables.cursor).toBe('c1')
     expect(result.complete).toBe(false)
     expect(result.items.map((i) => i.id)).toEqual(['I1', 'I2'])
+  })
+})
+
+describe('검색 쿼리', () => {
+  it('보관 저장소를 빼는 조건이 없다(spec 에 없는 제외)', () => {
+    for (const q of Object.values(SEARCH_QUERIES)) expect(q).not.toContain('archived')
+  })
+})
+
+describe('응답 없는 새 기여의 재료: 최근 코멘트·리뷰', () => {
+  function serve(pr: Record<string, unknown>) {
+    return fakeGitHub({
+      graphql: {
+        [OPERATIONS.repoOpenItems]: () => ({
+          data: {
+            viewer: { login: 'me' },
+            nodes: [
+              {
+                databaseId: 1,
+                openPullRequests: { totalCount: 1, nodes: [pr] },
+                openIssues: { totalCount: 0, nodes: [] }
+              }
+            ]
+          }
+        })
+      }
+    })
+  }
+  const target = [{ id: 1, nodeId: 'R_1', openPullRequestCount: 1, openIssueCount: 0 }]
+  const many = (n: number, assoc: string) =>
+    Array.from({ length: n }, () => ({ authorAssociation: assoc }))
+
+  it.each([
+    [
+      '최근 50개 안에 메인테이너 답글',
+      { totalCount: 80, nodes: [...many(49, 'NONE'), { authorAssociation: 'MEMBER' }] },
+      true
+    ],
+    ['전부 받았고 외부인만', { totalCount: 3, nodes: many(3, 'NONE') }, false],
+    [
+      '더 있는데 받은 것 중엔 없음 → 응답한 것으로 봄(보수적)',
+      { totalCount: 80, nodes: many(50, 'NONE') },
+      true
+    ]
+  ] as const)('%s', async (_name, comments, expected) => {
+    const { client, calls } = serve(rawPr('P', 1, { comments }))
+    const result = await collectRepoOpenItems(target, { client })
+    expect(calls[0]?.graphql?.query).toContain('comments(last: $responseCount)')
+    expect(calls[0]?.graphql?.query).toContain('reviews(last: $responseCount)')
+    expect(calls[0]?.graphql?.variables.responseCount).toBe(50)
+    expect(result.repos[0]?.pullRequests[0]?.hasWriteHolderResponse).toBe(expected)
   })
 })

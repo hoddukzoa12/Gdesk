@@ -6,6 +6,7 @@ import {
   getNotification,
   listNotifications,
   markNotificationRead,
+  mergeNotifications,
   removeNotification,
   replaceNotifications,
   restoreNotification
@@ -57,5 +58,40 @@ describe('알림 캐시', () => {
     restoreNotification(db, prev!)
     expect(getNotification(db, '3')).toEqual(prev)
     expect(removeNotification(db, 'nope')).toBeNull()
+  })
+
+  it('완료한 스레드는 같은 갱신 시각으로 다시 와도 숨기고, 새 활동이면 다시 보인다', () => {
+    removeNotification(db, '3')
+    // 완료 전에 시작한 갱신이 같은 스레드를 돌려줌
+    replaceNotifications(db, [
+      notificationRecord('3', { updatedAt: '2026-10-02T00:00:00Z' }),
+      notificationRecord('1')
+    ])
+    expect(getNotification(db, '3')).toBeNull()
+    mergeNotifications(db, [notificationRecord('3', { updatedAt: '2026-10-02T00:00:00Z' })])
+    expect(getNotification(db, '3')).toBeNull()
+    // 새 활동
+    replaceNotifications(db, [notificationRecord('3', { updatedAt: '2026-10-09T00:00:00Z' })])
+    expect(getNotification(db, '3')?.updatedAt).toBe('2026-10-09T00:00:00Z')
+    // 기록이 지워졌으므로 다시 완료하기 전까지는 계속 보인다
+    replaceNotifications(db, [notificationRecord('3', { updatedAt: '2026-10-09T00:00:00Z' })])
+    expect(getNotification(db, '3')).not.toBeNull()
+  })
+
+  it('완료를 되돌리면 완료 기록도 지운다', () => {
+    const prev = removeNotification(db, '3')
+    restoreNotification(db, prev!)
+    replaceNotifications(db, [notificationRecord('3', { updatedAt: '2026-10-02T00:00:00Z' })])
+    expect(getNotification(db, '3')).not.toBeNull()
+  })
+
+  it('mergeNotifications 는 기존 스레드를 지우지 않고 넣거나 갱신한다', () => {
+    mergeNotifications(db, [notificationRecord('9'), notificationRecord('1', { state: 'read' })])
+    expect(
+      listNotifications(db)
+        .map((n) => n.threadId)
+        .sort()
+    ).toEqual(['1', '2', '3', '9'])
+    expect(getNotification(db, '1')?.state).toBe('read')
   })
 })

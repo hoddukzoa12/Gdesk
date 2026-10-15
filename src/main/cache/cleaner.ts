@@ -16,6 +16,8 @@ export const CACHE_TABLES = [
   'cache_stargazers',
   'cache_repo_details',
   'cache_sync_state',
+  'cache_notification_done',
+  'cache_list_meta',
   'cache_org_restrictions'
 ] as const
 

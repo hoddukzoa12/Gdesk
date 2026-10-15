@@ -18,6 +18,8 @@ export interface ListResult<T> {
   complete: boolean
   /** 수집 중 만난 조직 접근 제한(캐시에 기록할 것) */
   orgRestrictions: OrgRestriction[]
+  /** GitHub 가 알려 준 전체 개수(검색 issueCount). 모르면 null */
+  totalCount: number | null
 }
 
 /**

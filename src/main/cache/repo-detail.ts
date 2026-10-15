@@ -43,8 +43,13 @@ export function saveRepositoryDetail(
   const repoId = detail.repository.id
   withTransaction(db, () => {
     upsertRepositories(db, [detail.repository], now)
-    replaceRepoPullRequests(db, repoId, detail.openPullRequests)
-    replaceRepoIssues(db, repoId, detail.openIssues)
+    // 상세의 상한(기본 30)이 목록 수집(기본 50)보다 작아도 잘린 목록은 합치므로 행이 줄지 않는다
+    replaceRepoPullRequests(db, repoId, detail.openPullRequests, {
+      totalCount: detail.repository.openPullRequestCount
+    })
+    replaceRepoIssues(db, repoId, detail.openIssues, {
+      totalCount: detail.repository.openIssueCount
+    })
 
     db.prepare('DELETE FROM cache_commits WHERE repo_id = ?').run(repoId)
     const commit = db.prepare(
@@ -250,14 +255,18 @@ export function getRepositoryDetail(
   const meta = db.prepare('SELECT * FROM cache_repo_details WHERE repo_id = ?').get(repoId)
   const limit = options.limit ?? 30
   const commits = listCommits(db, repoId)
+  const prs = listRepoPullRequests(db, repoId, { limit })
+  const issues = listRepoIssues(db, repoId, { limit })
   return {
     repository,
     detailSyncedAt: meta === undefined ? null : num(meta, 'synced_at'),
     openPullRequestCount: repository.openPullRequestCount,
-    openPullRequests: listRepoPullRequests(db, repoId, { limit }),
+    openPullRequests: prs.items,
+    openPullRequestsComplete: prs.complete && prs.items.length >= prs.totalCount,
     myPullRequests: listMyPullRequestsInRepo(db, repoId),
     openIssueCount: repository.openIssueCount,
-    openIssues: listRepoIssues(db, repoId, { limit }),
+    openIssues: issues.items,
+    openIssuesComplete: issues.complete && issues.items.length >= issues.totalCount,
     commits,
     latestCommitCi: summarizeCi(commits.map((c) => c.ciStatus)),
     latestRelease:

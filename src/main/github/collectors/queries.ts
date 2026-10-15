@@ -27,14 +27,32 @@ export const REST_ENDPOINTS = {
 
 /** 검색 쿼리(가짜 서버가 변수 q 를 확인할 때 쓸 수 있다) */
 export const SEARCH_QUERIES = {
-  myPullRequests: 'is:pr is:open author:@me archived:false sort:updated-desc',
-  reviewRequests: 'is:pr is:open review-requested:@me archived:false sort:updated-desc',
-  assignedIssues: 'is:issue is:open assignee:@me archived:false sort:updated-desc',
-  myIssues: 'is:issue is:open author:@me archived:false sort:updated-desc'
+  myPullRequests: 'is:pr is:open author:@me sort:updated-desc',
+  reviewRequests: 'is:pr is:open review-requested:@me sort:updated-desc',
+  assignedIssues: 'is:issue is:open assignee:@me sort:updated-desc',
+  myIssues: 'is:issue is:open author:@me sort:updated-desc'
 } as const
 
-/** 응답 없는 새 기여 판정에 쓰는 코멘트·리뷰 개수(앞에서부터) */
-export const RESPONSE_SAMPLE = 20
+/**
+ * 응답 없는 새 기여 판정에 쓰는 코멘트·리뷰 개수(조정 가능, 변수 $responseCount).
+ * 메인테이너 답글은 대개 나중에 달리므로 가장 최근 것(last)부터 받는다.
+ * 알려진 근사: 전체가 이보다 많은데 받은 것 중 쓰기 권한자가 없으면 응답한 것으로 본다(보수적).
+ */
+export const RESPONSE_SAMPLE = 50
+
+/** 목록 상한 기본값(조정 가능). 잘린 목록은 캐시가 완전하지 않음으로 표시한다 */
+export const LIST_LIMITS = {
+  /** 저장소마다 받는 열린 PR·이슈 수(들어온 목록) */
+  repoOpenItems: 50,
+  /** 저장소 상세의 열린 PR·이슈 수 */
+  detailOpenItems: 30,
+  /** 검색 목록 페이지 크기·최대 페이지 수 */
+  searchPageSize: 50,
+  searchMaxPages: 4,
+  /** 알림 페이지 크기·최대 페이지 수 */
+  notificationsPerPage: 50,
+  notificationsMaxPages: 5
+} as const
 
 const REPOSITORY_FRAGMENT = `
 fragment GdeskRepo on Repository {
@@ -77,8 +95,8 @@ fragment GdeskPullRequest on PullRequest {
   authorAssociation
   author { __typename login avatarUrl }
   repository { databaseId nameWithOwner }
-  comments(first: ${RESPONSE_SAMPLE}) { totalCount nodes { authorAssociation } }
-  reviews(first: ${RESPONSE_SAMPLE}) { totalCount nodes { authorAssociation } }
+  comments(last: $responseCount) { totalCount nodes { authorAssociation } }
+  reviews(last: $responseCount) { totalCount nodes { authorAssociation } }
   commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
 }`
 
@@ -95,7 +113,7 @@ fragment GdeskIssue on Issue {
   author { __typename login avatarUrl }
   repository { databaseId nameWithOwner }
   labels(first: 10) { nodes { name color } }
-  comments(first: ${RESPONSE_SAMPLE}) { totalCount nodes { authorAssociation } }
+  comments(last: $responseCount) { totalCount nodes { authorAssociation } }
 }`
 
 const RELEASE_FRAGMENT = `
@@ -145,7 +163,7 @@ query GdeskStarredRepositories($cursor: String, $pageSize: Int!) {
 ${REPOSITORY_FRAGMENT}`
 
 export const REPO_OPEN_ITEMS_QUERY = `
-query GdeskRepoOpenItems($ids: [ID!]!, $itemCount: Int!) {
+query GdeskRepoOpenItems($ids: [ID!]!, $itemCount: Int!, $responseCount: Int!) {
   viewer { login }
   nodes(ids: $ids) {
     ... on Repository {
@@ -174,7 +192,7 @@ ${ISSUE_FRAGMENT}`
 
 function searchQuery(operationName: string, fragment: 'GdeskPullRequest' | 'GdeskIssue'): string {
   return `
-query ${operationName}($q: String!, $cursor: String, $pageSize: Int!) {
+query ${operationName}($q: String!, $cursor: String, $pageSize: Int!, $responseCount: Int!) {
   viewer { login }
   search(query: $q, type: ISSUE, first: $pageSize, after: $cursor) {
     issueCount
@@ -191,7 +209,13 @@ export const ASSIGNED_ISSUES_QUERY = searchQuery(OPERATIONS.assignedIssues, 'Gde
 export const MY_ISSUES_QUERY = searchQuery(OPERATIONS.myIssues, 'GdeskIssue')
 
 export const REPOSITORY_DETAIL_QUERY = `
-query GdeskRepositoryDetail($id: ID!, $itemCount: Int!, $commitCount: Int!, $releaseCount: Int!) {
+query GdeskRepositoryDetail(
+  $id: ID!
+  $itemCount: Int!
+  $commitCount: Int!
+  $releaseCount: Int!
+  $responseCount: Int!
+) {
   viewer { login }
   node(id: $id) {
     ... on Repository {

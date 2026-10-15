@@ -7,7 +7,9 @@ import {
   ASSIGNED_ISSUES_QUERY,
   MY_ISSUES_QUERY,
   MY_PULL_REQUESTS_QUERY,
+  LIST_LIMITS,
   OPERATIONS,
+  RESPONSE_SAMPLE,
   REVIEW_REQUESTS_QUERY,
   SEARCH_QUERIES
 } from './queries'
@@ -16,28 +18,41 @@ import { collectPages } from './repositories'
 import type { PagedOptions } from './repositories'
 
 /**
- * 검색 기반 목록. 검색 결과 상한(1000)과 요청 한도를 생각해 기본 50개씩 최대 4쪽만 받는다.
+ * 검색 기반 목록. 검색 결과 상한(1000)과 요청 한도를 생각해 기본 50개씩 최대 4쪽만 받는다(조정 가능).
+ * 전체 개수는 검색의 issueCount 로 돌려주므로 수치는 상한에 잘리지 않는다.
  */
+export interface SearchOptions extends PagedOptions {
+  /** 응답 없는 새 기여 판정용 최근 코멘트·리뷰 수. 기본 RESPONSE_SAMPLE */
+  responseCount?: number
+}
 
 interface SearchData<T> {
   viewer?: { login?: string | null } | null
-  search?: { pageInfo?: RawPageInfo | null; nodes?: (T | null)[] | null } | null
+  search?: {
+    issueCount?: number | null
+    pageInfo?: RawPageInfo | null
+    nodes?: (T | null)[] | null
+  } | null
 }
 
 async function search<Raw, Out extends { id: string }>(
   client: GitHubClient,
-  options: PagedOptions,
+  options: SearchOptions,
   doc: string,
   operationName: string,
   q: string,
   map: (raw: Raw, viewerLogin: string | null) => Out | null
 ): Promise<ListResult<Out>> {
   const result = await collectPages<Out>(
-    { ...options, pageSize: options.pageSize ?? 50, maxPages: options.maxPages ?? 4 },
+    {
+      ...options,
+      pageSize: options.pageSize ?? LIST_LIMITS.searchPageSize,
+      maxPages: options.maxPages ?? LIST_LIMITS.searchMaxPages
+    },
     async (cursor, pageSize) => {
       const res = await client.graphql<SearchData<Raw>>(
         doc,
-        { q, cursor, pageSize },
+        { q, cursor, pageSize, responseCount: options.responseCount ?? RESPONSE_SAMPLE },
         { operationName, signal: options.signal }
       )
       const viewer = res.data.viewer?.login ?? null
@@ -46,7 +61,8 @@ async function search<Raw, Out extends { id: string }>(
           .map((n) => map(n, viewer))
           .filter((x): x is Out => x !== null),
         pageInfo: res.data.search?.pageInfo,
-        orgRestrictions: res.orgRestrictions
+        orgRestrictions: res.orgRestrictions,
+        totalCount: res.data.search?.issueCount ?? null
       }
     }
   )
@@ -64,7 +80,7 @@ function issueOnly(raw: RawIssue, viewer: string | null): IssueRecord | null {
 
 /** 내가 올린 열린 PR (spec §4.4), 저장소 무관 */
 export async function collectMyPullRequests(
-  options: PagedOptions = {}
+  options: SearchOptions = {}
 ): Promise<ListResult<PullRequestRecord>> {
   const result = await search(
     resolveClient(options),
@@ -80,7 +96,7 @@ export async function collectMyPullRequests(
 
 /** 나 또는 내가 속한 팀에 리뷰가 요청된 열린 PR (spec §4.5). review-requested:@me 는 팀 요청도 포함한다 */
 export async function collectReviewRequests(
-  options: PagedOptions = {}
+  options: SearchOptions = {}
 ): Promise<ListResult<PullRequestRecord>> {
   return search(
     resolveClient(options),
@@ -94,7 +110,7 @@ export async function collectReviewRequests(
 
 /** 나에게 할당된 열린 이슈 (PR 제외) */
 export async function collectAssignedIssues(
-  options: PagedOptions = {}
+  options: SearchOptions = {}
 ): Promise<ListResult<IssueRecord>> {
   return search(
     resolveClient(options),
@@ -108,7 +124,7 @@ export async function collectAssignedIssues(
 
 /** 내가 올린 열린 이슈 (PR 제외) */
 export async function collectMyIssues(
-  options: PagedOptions = {}
+  options: SearchOptions = {}
 ): Promise<ListResult<IssueRecord>> {
   const result = await search(
     resolveClient(options),

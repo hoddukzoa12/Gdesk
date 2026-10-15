@@ -11,6 +11,7 @@ export {
 } from './home'
 export type { HomeSummaryOptions, StarChangeOptions } from './home'
 export {
+  isIncomingIssuesComplete,
   listAssignedIssues,
   listIncomingIssues,
   listMyIssues,
@@ -22,8 +23,10 @@ export type { IssueScope } from './issues'
 export {
   countUnreadNotifications,
   getNotification,
+  isNotificationListComplete,
   listNotifications,
   markNotificationRead,
+  mergeNotifications,
   removeNotification,
   replaceNotifications,
   restoreNotification
@@ -37,6 +40,7 @@ export type { OrgRestrictionInput } from './org-restrictions'
 export {
   countIncomingPullRequests,
   countReviewRequests,
+  isIncomingPullRequestsComplete,
   listIncomingPullRequests,
   listMyPullRequests,
   listMyPullRequestsInRepo,
@@ -45,7 +49,7 @@ export {
   replacePullRequests,
   replaceRepoPullRequests
 } from './pull-requests'
-export type { PullRequestScope } from './pull-requests'
+export type { ListWriteOptions, PullRequestScope } from './pull-requests'
 export {
   getRepositoryDetail,
   getStarGrowth,

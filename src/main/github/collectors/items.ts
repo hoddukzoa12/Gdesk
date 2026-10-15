@@ -3,13 +3,13 @@ import type { OrgRestriction } from '../client'
 import { orgRestrictionsFrom, resolveClient } from './common'
 import type { CollectorOptions } from './common'
 import { compact, mapIssue, mapPullRequest } from './map'
-import { OPERATIONS, REPO_OPEN_ITEMS_QUERY } from './queries'
+import { LIST_LIMITS, OPERATIONS, REPO_OPEN_ITEMS_QUERY, RESPONSE_SAMPLE } from './queries'
 import type { RawConnection, RawIssue, RawPullRequest } from './raw'
 
 /**
  * 내 저장소 집합의 열린 PR·이슈 (들어온 PR·이슈, 응답 없는 새 기여의 재료).
  * 저장소 목록 쿼리가 준 열린 수가 0 인 저장소는 요청하지 않고, 나머지는 노드 ID 묶음으로 한 번에 받는다.
- * 저장소마다 최근 갱신 순 itemCount 개(기본 50)까지만 받는다.
+ * 저장소마다 최근 갱신 순 itemCount 개(기본 50, 조정 가능)까지만 받고, 전체 수(totalCount)를 함께 돌려준다.
  */
 export interface RepoOpenItemsTarget {
   id: number
@@ -22,13 +22,18 @@ export interface RepoOpenItems {
   repoId: number
   pullRequests: PullRequestRecord[]
   issues: IssueRecord[]
+  /** 그 저장소의 열린 PR 전체 수(GitHub totalCount). 받은 수보다 크면 잘린 것 */
+  pullRequestTotal: number
+  issueTotal: number
 }
 
 export interface RepoOpenItemsOptions extends CollectorOptions {
   /** 한 요청에 묶을 저장소 수. 기본 10 */
   batchSize?: number
-  /** 저장소마다 받을 PR·이슈 수. 기본 50 */
+  /** 저장소마다 받을 PR·이슈 수. 기본 LIST_LIMITS.repoOpenItems(50) */
   itemCount?: number
+  /** 응답 없는 새 기여 판정용 최근 코멘트·리뷰 수. 기본 RESPONSE_SAMPLE(50) */
+  responseCount?: number
 }
 
 interface OpenItemsData {
@@ -56,7 +61,8 @@ export async function collectRepoOpenItems(
 }> {
   const client = resolveClient(options)
   const batchSize = Math.max(1, options.batchSize ?? 10)
-  const itemCount = Math.min(100, Math.max(1, options.itemCount ?? 50))
+  const itemCount = Math.min(100, Math.max(1, options.itemCount ?? LIST_LIMITS.repoOpenItems))
+  const responseCount = Math.min(100, Math.max(1, options.responseCount ?? RESPONSE_SAMPLE))
   const repos: RepoOpenItems[] = []
   const orgRestrictions: OrgRestriction[] = []
   let viewerLogin: string | null = null
@@ -64,7 +70,7 @@ export async function collectRepoOpenItems(
   const toFetch: (RepoOpenItemsTarget & { nodeId: string })[] = []
   for (const t of targets) {
     if (t.openPullRequestCount <= 0 && t.openIssueCount <= 0) {
-      repos.push({ repoId: t.id, pullRequests: [], issues: [] })
+      repos.push({ repoId: t.id, pullRequests: [], issues: [], pullRequestTotal: 0, issueTotal: 0 })
     } else if (t.nodeId) {
       toFetch.push({ ...t, nodeId: t.nodeId })
     }
@@ -76,7 +82,7 @@ export async function collectRepoOpenItems(
     try {
       res = await client.graphql<OpenItemsData>(
         REPO_OPEN_ITEMS_QUERY,
-        { ids: batch.map((t) => t.nodeId), itemCount },
+        { ids: batch.map((t) => t.nodeId), itemCount, responseCount },
         { operationName: OPERATIONS.repoOpenItems, signal: options.signal }
       )
     } catch (error) {
@@ -91,14 +97,18 @@ export async function collectRepoOpenItems(
     batch.forEach((target, index) => {
       const node = nodes[index]
       if (!node) return
+      const pullRequests = compact(node.openPullRequests?.nodes)
+        .map((p) => mapPullRequest(p, viewerLogin))
+        .filter((p): p is PullRequestRecord => p !== null)
+      const issues = compact(node.openIssues?.nodes)
+        .map((x) => mapIssue(x, viewerLogin))
+        .filter((x): x is IssueRecord => x !== null)
       repos.push({
         repoId: target.id,
-        pullRequests: compact(node.openPullRequests?.nodes)
-          .map((p) => mapPullRequest(p, viewerLogin))
-          .filter((p): p is PullRequestRecord => p !== null),
-        issues: compact(node.openIssues?.nodes)
-          .map((x) => mapIssue(x, viewerLogin))
-          .filter((x): x is IssueRecord => x !== null)
+        pullRequests,
+        issues,
+        pullRequestTotal: Math.max(node.openPullRequests?.totalCount ?? 0, pullRequests.length),
+        issueTotal: Math.max(node.openIssues?.totalCount ?? 0, issues.length)
       })
     })
   }

@@ -2,6 +2,7 @@ import type { NotificationRecord } from '../../cache/types'
 import { resolveClient } from './common'
 import type { CollectorOptions } from './common'
 import { mapNotification } from './map'
+import { LIST_LIMITS } from './queries'
 import type { RawNotification } from './raw'
 
 /**
@@ -41,9 +42,9 @@ export async function collectNotifications(
   options: NotificationsOptions = {}
 ): Promise<NotificationsResult> {
   const client = resolveClient(options)
-  const maxPages = Math.max(1, options.maxPages ?? 5)
+  const maxPages = Math.max(1, options.maxPages ?? LIST_LIMITS.notificationsMaxPages)
   const first = await client.getConditional<RawNotification[]>(NOTIFICATIONS_PATH, {
-    query: { all: true, per_page: options.perPage ?? 50 },
+    query: { all: true, per_page: options.perPage ?? LIST_LIMITS.notificationsPerPage },
     etag: options.etag,
     lastModified: options.lastModified,
     signal: options.signal

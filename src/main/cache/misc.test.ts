@@ -6,7 +6,7 @@ import { listPins, pinRepo } from '../pins/pins.service'
 import { CACHE_TABLES, clearCache, initCache } from './cleaner'
 import { listOrgRestrictions, recordOrgRestrictions } from './org-restrictions'
 import { replaceRepoIssues } from './issues'
-import { replaceNotifications } from './notifications'
+import { removeNotification, replaceNotifications } from './notifications'
 import { replacePullRequests, replaceRepoPullRequests } from './pull-requests'
 import { saveRepositoryDetail } from './repo-detail'
 import { replaceMyRepositories, replaceStarredRepositories } from './repositories'
@@ -64,7 +64,8 @@ function fillEverything(db: DatabaseSync): void {
   replaceRepoPullRequests(db, 1, [prRecord('p', 1)])
   replacePullRequests(db, 'mine', [prRecord('m', 2, { viewerIsAuthor: true })])
   replaceRepoIssues(db, 1, [issueRecord('i', 1)])
-  replaceNotifications(db, [notificationRecord('n')])
+  replaceNotifications(db, [notificationRecord('n'), notificationRecord('done')])
+  removeNotification(db, 'done')
   updateSyncState(db, 'notifications', { lastSyncedAt: 1, etag: 'W/"x"' })
   recordOrgRestrictions(db, [{ reason: 'saml_enforcement', orgLogin: 'acme', message: 'SAML' }])
 }

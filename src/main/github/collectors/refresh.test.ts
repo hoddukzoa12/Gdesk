@@ -1,8 +1,12 @@
 import type { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { openDatabase } from '../../db/connection'
-import { listOrgRestrictions } from '../../cache/org-restrictions'
-import { listNotifications, replaceNotifications } from '../../cache/notifications'
+import { listOrgRestrictions, recordOrgRestrictions } from '../../cache/org-restrictions'
+import {
+  listNotifications,
+  removeNotification,
+  replaceNotifications
+} from '../../cache/notifications'
 import { getRepository, listMyRepositories, replaceMyRepositories } from '../../cache/repositories'
 import { getSyncState, updateSyncState } from '../../cache/sync-state'
 import { listIncomingIssues } from '../../cache/issues'
@@ -17,7 +21,16 @@ import {
   refreshRepoOpenItems,
   refreshRepositoryDetails
 } from './refresh'
-import { fakeGitHub, json, orgRestrictionError, rawIssue, rawPr, rawRepo } from './test-server'
+import {
+  TEST_BASE,
+  fakeGitHub,
+  json,
+  link,
+  orgRestrictionError,
+  rawIssue,
+  rawPr,
+  rawRepo
+} from './test-server'
 
 const NOW = Date.UTC(2026, 9, 15, 12)
 
@@ -96,8 +109,8 @@ describe('refresh (수집 → 캐시)', () => {
       }
     })
     await refreshRepoOpenItems({ db, client, now: NOW })
-    expect(listIncomingPullRequests(db).map((p) => p.id)).toEqual(['P'])
-    expect(listIncomingIssues(db).map((i) => i.id)).toEqual(['I'])
+    expect(listIncomingPullRequests(db).items.map((p) => p.id)).toEqual(['P'])
+    expect(listIncomingIssues(db).items.map((i) => i.id)).toEqual(['I'])
   })
 
   it('알림 304: 캐시를 그대로 두고 폴링 간격만 갱신', async () => {
@@ -192,4 +205,102 @@ describe('refresh (수집 → 캐시)', () => {
     expect(detail?.detailSyncedAt).toBe(NOW)
     expect(getSyncState(db, 'repo:1').lastSyncedAt).toBe(NOW)
   })
+
+  it('알림 페이지 한도에 닿으면(불완전) 기존 알림을 지우지 않고 합친다', async () => {
+    replaceNotifications(db, [notificationRecord('old', { updatedAt: '2026-01-01T00:00:00Z' })])
+    const { client } = fakeGitHub({
+      rest: {
+        'GET /notifications': (url) =>
+          json([thread(url.searchParams.get('page') ?? '1')], 200, {
+            link: link({
+              next: `${TEST_BASE}/notifications?page=${Number(url.searchParams.get('page') ?? 1) + 1}`
+            })
+          })
+      }
+    })
+    await refreshNotifications({ db, client, now: NOW, maxPages: 2 })
+    expect(
+      listNotifications(db)
+        .map((n) => n.threadId)
+        .sort()
+    ).toEqual(['1', '2', 'old'])
+  })
+
+  it('완료한 알림은 같은 갱신 시각으로 다시 와도 숨고, 새 활동이면 다시 보인다', async () => {
+    let updatedAt = '2026-10-10T00:00:00Z'
+    const { client } = fakeGitHub({
+      rest: { 'GET /notifications': () => json([thread('7', { updated_at: updatedAt })]) }
+    })
+    await refreshNotifications({ db, client, now: NOW })
+    expect(removeNotification(db, '7')).not.toBeNull()
+    await refreshNotifications({ db, client, now: NOW })
+    expect(listNotifications(db)).toEqual([])
+    updatedAt = '2026-10-12T00:00:00Z'
+    await refreshNotifications({ db, client, now: NOW })
+    expect(listNotifications(db).map((n) => n.threadId)).toEqual(['7'])
+  })
+
+  it('내 저장소를 다시 모두 받으면 이번에 제한이 없던 조직의 안내를 지운다', async () => {
+    let restricted = true
+    const { client } = fakeGitHub({
+      graphql: {
+        [OPERATIONS.myRepositories]: () => ({
+          data: {
+            viewer: {
+              login: 'me',
+              repositories: { pageInfo: { hasNextPage: false }, nodes: [rawRepo(1)] }
+            }
+          },
+          errors: restricted ? [orgRestrictionError('acme')] : []
+        })
+      }
+    })
+    recordOrgRestrictions(db, [{ reason: 'saml_enforcement', orgLogin: 'other', message: 'x' }])
+    await refreshMyRepositories({ db, client, now: NOW })
+    expect(listOrgRestrictions(db).map((r) => r.orgLogin)).toEqual(['acme'])
+    restricted = false
+    await refreshMyRepositories({ db, client, now: NOW })
+    expect(listOrgRestrictions(db)).toEqual([])
+  })
+
+  it('저장소 상세가 성공하면 그 조직의 제한 안내를 지운다', async () => {
+    recordOrgRestrictions(db, [{ reason: 'saml_enforcement', orgLogin: 'me', message: 'x' }])
+    const { client } = fakeGitHub({
+      graphql: {
+        [OPERATIONS.repositoryDetail]: () => ({
+          data: {
+            viewer: { login: 'me' },
+            node: {
+              ...rawRepo(1),
+              openPullRequests: { totalCount: 0, nodes: [] },
+              openIssues: { totalCount: 0, nodes: [] },
+              defaultBranchRef: { name: 'main', target: { history: { nodes: [] } } },
+              latestRelease: null,
+              releases: { totalCount: 0, nodes: [] },
+              languages: { totalSize: 0, edges: [] }
+            }
+          }
+        })
+      },
+      rest: {
+        'GET /repos/me/repo1/contributors': () => json([]),
+        'GET /repos/me/repo1/stargazers': () => json([])
+      }
+    })
+    replaceMyRepositories(db, [repoRecord(1)])
+    await refreshRepositoryDetails({ db, client, repoIds: [1], now: NOW })
+    expect(listOrgRestrictions(db)).toEqual([])
+  })
 })
+
+function thread(id: string, patch: Record<string, unknown> = {}) {
+  return {
+    id,
+    unread: true,
+    reason: 'mention',
+    updated_at: '2026-10-10T00:00:00Z',
+    subject: { title: `t${id}`, url: null, type: 'Issue' },
+    repository: { id: 1, full_name: 'me/repo1', html_url: 'https://github.com/me/repo1' },
+    ...patch
+  }
+}

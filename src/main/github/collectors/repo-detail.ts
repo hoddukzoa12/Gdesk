@@ -12,7 +12,7 @@ import type { GitHubClient, OrgRestriction, RestResponse } from '../client'
 import { orgRestrictionsFrom, repoPath, resolveClient } from './common'
 import type { CollectorOptions } from './common'
 import { compact, mapCommit, mapIssue, mapPullRequest, mapRelease, mapRepository } from './map'
-import { OPERATIONS, REPOSITORY_DETAIL_QUERY } from './queries'
+import { LIST_LIMITS, OPERATIONS, REPOSITORY_DETAIL_QUERY, RESPONSE_SAMPLE } from './queries'
 import type { RawContributor, RawRepositoryDetail, RawRestRepository, RawStargazer } from './raw'
 
 /**
@@ -36,8 +36,10 @@ export interface RepoDetailOptions extends CollectorOptions {
   now?: number
   /** 스타 시각을 받을 기간(일). 기본 30 */
   starDays?: number
-  /** 열린 PR·이슈 수. 기본 30 */
+  /** 열린 PR·이슈 수. 기본 LIST_LIMITS.detailOpenItems(30) */
   itemCount?: number
+  /** 응답 없는 새 기여 판정용 최근 코멘트·리뷰 수. 기본 RESPONSE_SAMPLE(50) */
+  responseCount?: number
   /** 기본 브랜치 최근 커밋 수. 기본 7 */
   commitCount?: number
   /** 릴리스 수. 기본 20 */
@@ -118,7 +120,8 @@ async function collectOne(
     REPOSITORY_DETAIL_QUERY,
     {
       id: nodeId,
-      itemCount: options.itemCount ?? 30,
+      itemCount: options.itemCount ?? LIST_LIMITS.detailOpenItems,
+      responseCount: options.responseCount ?? RESPONSE_SAMPLE,
       commitCount: options.commitCount ?? 7,
       releaseCount: options.releaseCount ?? 20
     },

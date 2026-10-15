@@ -1,7 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { openDatabase } from '../db/connection'
-import { replacePullRequests } from './pull-requests'
+import { replacePullRequests, replaceRepoPullRequests } from './pull-requests'
 import { getRepositoryDetail, listTrackedRepoHeads, saveRepositoryDetail } from './repo-detail'
 import { getRepository, replaceMyRepositories, setRepositoryAccessStatus } from './repositories'
 import { detailRecord, issueRecord, prRecord, repoRecord } from './test-fixtures'
@@ -129,6 +129,45 @@ describe('저장소 상세 캐시', () => {
       [2, null]
     ])
     expect(getRepository(db, 2)).not.toBeNull()
+  })
+  it('상한이 작은 상세 수집이 목록 수집이 저장한 열린 PR 을 줄이지 않는다', () => {
+    replaceMyRepositories(db, [repoRecord(1, { openPullRequestCount: 3 })])
+    replaceRepoPullRequests(
+      db,
+      1,
+      [
+        prRecord('p1', 1, { updatedAt: '2026-10-03T00:00:00Z' }),
+        prRecord('p2', 1, { updatedAt: '2026-10-02T00:00:00Z' }),
+        prRecord('p3', 1, { updatedAt: '2026-10-01T00:00:00Z' })
+      ],
+      { totalCount: 3 }
+    )
+    saveRepositoryDetail(
+      db,
+      detailRecord(repoRecord(1, { openPullRequestCount: 3 }), {
+        openPullRequests: [prRecord('p1', 1, { updatedAt: '2026-10-04T00:00:00Z' })]
+      }),
+      NOW
+    )
+    const d = getRepositoryDetail(db, 1, { now: NOW })!
+    expect(d.openPullRequests.map((p) => p.id)).toEqual(['p1', 'p2', 'p3'])
+    expect(d.openPullRequestsComplete).toBe(true)
+    expect(d.openIssuesComplete).toBe(true)
+  })
+
+  it('상세 목록이 잘렸으면 완전하지 않다고 알린다', () => {
+    saveRepositoryDetail(
+      db,
+      detailRecord(repoRecord(1, { openPullRequestCount: 40, openIssueCount: 9 }), {
+        openPullRequests: [prRecord('p1', 1)],
+        openIssues: [issueRecord('i1', 1)]
+      }),
+      NOW
+    )
+    const d = getRepositoryDetail(db, 1, { now: NOW })!
+    expect(d.openPullRequestCount).toBe(40)
+    expect(d.openPullRequestsComplete).toBe(false)
+    expect(d.openIssuesComplete).toBe(false)
   })
 })
 

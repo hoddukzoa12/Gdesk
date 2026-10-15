@@ -26,6 +26,7 @@ async function collectPages<T>(
     items: T[]
     pageInfo: RawPageInfo | null | undefined
     orgRestrictions: OrgRestriction[]
+    totalCount?: number | null
   }>
 ): Promise<ListResult<T>> {
   const pageSize = Math.min(100, Math.max(1, options.pageSize ?? 100))
@@ -33,6 +34,7 @@ async function collectPages<T>(
   const items: T[] = []
   const orgRestrictions: OrgRestriction[] = []
   let cursor: string | null = null
+  let totalCount: number | null = null
   for (let page = 0; page < maxPages; page++) {
     let result
     try {
@@ -41,15 +43,16 @@ async function collectPages<T>(
       const restrictions = orgRestrictionsFrom(error)
       if (!restrictions) throw error
       orgRestrictions.push(...restrictions)
-      return { items, complete: false, orgRestrictions }
+      return { items, complete: false, orgRestrictions, totalCount }
     }
+    totalCount = result.totalCount ?? totalCount
     items.push(...result.items)
     orgRestrictions.push(...result.orgRestrictions)
     const next = result.pageInfo?.hasNextPage ? (result.pageInfo.endCursor ?? null) : null
-    if (next === null) return { items, complete: true, orgRestrictions }
+    if (next === null) return { items, complete: true, orgRestrictions, totalCount }
     cursor = next
   }
-  return { items, complete: false, orgRestrictions }
+  return { items, complete: false, orgRestrictions, totalCount }
 }
 
 interface MyRepositoriesData {

@@ -6,6 +6,9 @@ import type { Migration } from '../db/migrations'
  * - 저장소 기본 키는 GitHub 숫자 저장소 ID. 이름이 바뀌어도 같은 행을 갱신한다.
  * - PR·이슈 기본 키는 GraphQL 노드 ID. 목록 소속은 scope 표로 따로 둔다
  *   (`mine`, `review_requested`, `assigned`, `repo:<저장소 ID>`).
+ * - cache_list_meta: 목록별 전체 개수(GitHub totalCount·issueCount)와 완전성. 상한에 잘린 목록이어도
+ *   수치는 전체 개수로 보여 주고, 화면은 "GitHub 에서 더 보기"를 띄울 수 있다.
+ * - cache_notification_done: 완료(done)한 알림 스레드와 그때의 갱신 시각. 새 활동 전에는 다시 보이지 않게 한다.
  */
 export const migration: Migration = {
   id: '0100_cache',
@@ -185,6 +188,17 @@ export const migration: Migration = {
         etag TEXT,
         last_modified TEXT,
         poll_interval INTEGER
+      );
+
+      CREATE TABLE cache_notification_done (
+        thread_id TEXT PRIMARY KEY,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE cache_list_meta (
+        scope TEXT PRIMARY KEY,
+        total_count INTEGER NOT NULL,
+        complete INTEGER NOT NULL
       );
 
       CREATE TABLE cache_org_restrictions (

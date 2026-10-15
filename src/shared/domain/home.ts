@@ -33,9 +33,12 @@ export interface StarChangeItem {
 }
 
 export interface CountedList<T> {
+  /** 전체 개수(목록 상한에 잘리지 않은 값) */
   count: number
   /** 최근 순 일부 */
   items: T[]
+  /** 근거 목록을 GitHub 에서 다 받았는가. false 면 실제로 더 있을 수 있다 */
+  complete: boolean
 }
 
 /** Home 카드 다섯 종류 (spec §4.2) */
