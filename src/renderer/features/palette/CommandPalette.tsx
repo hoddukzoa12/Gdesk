@@ -25,12 +25,18 @@ import { usePreferences } from '@renderer/app/preferences'
 import { Kbd, Spinner, openExternal } from '@renderer/components'
 import { requestClone } from '@renderer/features/clone'
 import { scopeForPathname } from '@renderer/features/sidebar/refreshScope'
-import { useSyncStatus } from '@renderer/features/sidebar/useSyncStatus'
+import { useSyncStatus } from '@renderer/lib/hooks/useSyncStatus'
 import { cn } from '@renderer/lib/cn'
 import { invoke } from '@renderer/lib/ipc'
 import { COMMANDS, filterCommands } from './commands'
 import type { LabeledCommand, PaletteAction } from './commands'
-import { buildCloneSection, buildSections, flattenItems, moveIndex } from './palette-logic'
+import {
+  blockedGitHubState,
+  buildCloneSection,
+  buildSections,
+  flattenItems,
+  moveIndex
+} from './palette-logic'
 import type {
   GitHubSectionState,
   PaletteItem,
@@ -103,15 +109,16 @@ function useLocalSearch(query: string | null): LocalSearchResult | null {
   return result !== null && result.query === query ? result.data : null
 }
 
-/** GitHub 저장소 검색: 입력이 멈추고 debounceMs 뒤, online 일 때만 */
+/** GitHub 저장소 검색: 입력이 멈추고 debounceMs 뒤, 연결 상태가 online 일 때만 */
 function useGitHubSearch(
   query: string | null,
-  offline: boolean,
+  blocked: GitHubSectionState | null,
   debounceMs: number
 ): GitHubSectionState {
   const [result, setResult] = useState<{ query: string; data: GitHubSearchResult } | null>(null)
+  const isBlocked = blocked !== null
   useEffect(() => {
-    if (query === null || offline) return
+    if (query === null || isBlocked) return
     let alive = true
     const timer = setTimeout(() => {
       invoke('search:github', { text: query })
@@ -126,9 +133,9 @@ function useGitHubSearch(
       alive = false
       clearTimeout(timer)
     }
-  }, [query, offline, debounceMs])
+  }, [query, isBlocked, debounceMs])
   if (query === null) return { status: 'idle' }
-  if (offline) return { status: 'offline' }
+  if (blocked) return blocked
   if (result === null || result.query !== query) return { status: 'loading' }
   return result.data
 }
@@ -153,7 +160,8 @@ function PaletteDialog({ debounceMs }: { debounceMs: number }) {
   const { pathname } = useLocation()
   const { setTheme, setLanguage } = usePreferences()
   const sync = useSyncStatus()
-  const offline = sync?.connection === 'offline'
+  // 오프라인·세션 만료·요청 한도면 GitHub 검색을 보내지 않고 그 상태를 안내한다
+  const blocked = useMemo(() => blockedGitHubState(sync?.connection), [sync?.connection])
 
   const [mode, setMode] = useState<Mode>('default')
   const [text, setText] = useState('')
@@ -163,7 +171,7 @@ function PaletteDialog({ debounceMs }: { debounceMs: number }) {
 
   const query = normalizeSearchText(text)
   const local = useLocalSearch(query)
-  const github = useGitHubSearch(mode === 'default' ? query : null, offline, debounceMs)
+  const github = useGitHubSearch(mode === 'default' ? query : null, blocked, debounceMs)
   const myRepos = useQuery({
     queryKey: ['query:repositories', { includeForks: true, includeArchived: true }],
     queryFn: () => invoke('query:repositories', { includeForks: true, includeArchived: true }),

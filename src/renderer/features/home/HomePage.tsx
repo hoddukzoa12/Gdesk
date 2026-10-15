@@ -1,15 +1,13 @@
-import { useCallback, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { SlidersHorizontal } from 'lucide-react'
-import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import '@shared/ipc/queries'
-import '@shared/ipc/settings'
 import type { HomeSummary } from '@shared/domain/home'
 import { resolveHomeCards, type HomeCardId } from '@shared/domain/homeCards'
-import type { Settings } from '@shared/domain/settings'
 import { Button, ErrorState, PageHeader, Spinner } from '@renderer/components'
-import { useIpcEvent, useIpcQuery } from '@renderer/lib/ipc'
+import { useSettings } from '@renderer/lib/hooks/useSettings'
+import { useIpcQuery } from '@renderer/lib/ipc'
 import {
   FailedCiCard,
   ReviewRequestsCard,
@@ -26,24 +24,13 @@ const CARD_RENDERERS: Record<HomeCardId, (home: HomeSummary) => ReactNode> = {
   starChanges: (home) => <StarChangesCard data={home.starChanges} />
 }
 
-/** 설정의 홈 카드 순서·표시. 설정이 바뀌면(`settings:changed`) 바로 반영한다. */
-function useHomeCardSettings() {
-  const queryClient = useQueryClient()
-  const settings = useIpcQuery('settings:get')
-  const onChanged = useCallback(
-    (next: Settings) => queryClient.setQueryData(['settings:get'], next),
-    [queryClient]
-  )
-  useIpcEvent('settings:changed', onChanged)
-  return settings
-}
-
 /** Home: 할 일 요약 카드 (spec §4.2). */
 export function HomePage() {
   const { t } = useTranslation('home')
   const navigate = useNavigate()
   const home = useIpcQuery('query:home')
-  const settings = useHomeCardSettings()
+  // 설정의 홈 카드 순서·표시. 설정이 바뀌면(`settings:changed`) 바로 반영한다
+  const settings = useSettings()
 
   // 설정을 못 읽으면 기본 카드 구성을 쓴다
   const settingsReady = settings.isSuccess || settings.isError

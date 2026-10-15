@@ -17,6 +17,8 @@
     "loading": "Searching GitHub…",
     "empty": "No repositories found on GitHub",
     "offline": "Offline — GitHub search is unavailable",
+    "session_expired": "Session expired — sign in again to search GitHub",
+    "api_limited": "GitHub request limit reached — GitHub search is unavailable for now",
     "rate_limited": "GitHub search limit reached. Try again in a minute.",
     "error": "Couldn’t search GitHub",
     "cloneEmpty": "No repositories match"

@@ -261,6 +261,27 @@ describe('빠른 검색창', () => {
     expect(invoke).not.toHaveBeenCalledWith('search:github', expect.anything())
   })
 
+  it.each([
+    ['session_expired', 'session_expired', 'Session expired'],
+    ['rate_limited', 'api_limited', 'request limit']
+  ] as const)(
+    '연결이 %s 이면 GitHub 를 부르지 않고 %s 안내를 보인다',
+    async (status, note, text) => {
+      connection = status
+      stub()
+      renderPalette()
+      act(() => openPalette())
+      await waitFor(() => expect(invoke).toHaveBeenCalledWith('sync:getStatus'))
+      type('gdesk-demo')
+      await screen.findByTestId('palette-item-repo-101')
+      const shown = screen.getByTestId('palette-note-github')
+      expect(shown.dataset.note).toBe(note)
+      expect(shown.textContent).toContain(text)
+      await new Promise((r) => setTimeout(r, 10))
+      expect(invoke).not.toHaveBeenCalledWith('search:github', expect.anything())
+    }
+  )
+
   it('메인이 한도로 거절하면 안내를 보인다', async () => {
     github = { status: 'rate_limited' }
     renderPalette()

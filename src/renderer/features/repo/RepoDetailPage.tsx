@@ -6,7 +6,6 @@ import '@shared/ipc/actions'
 import '@shared/ipc/pins'
 import '@shared/ipc/queries'
 import '@shared/ipc/sync'
-import type { ActionAvailability } from '@shared/domain/actions'
 import type { RepoDetailQueryResult } from '@shared/domain/queries'
 import {
   Avatar,
@@ -24,6 +23,7 @@ import {
   openExternal,
   type BreadcrumbItem
 } from '@renderer/components'
+import { useActionAvailability } from '@renderer/lib/hooks/useActionAvailability'
 import { invoke, queryClient, useIpcEvent, useIpcQuery } from '@renderer/lib/ipc'
 import { RepoHeader } from './RepoHeader'
 import { IssuesTab, MyPullsTab, OverviewTab, ReleasesTab } from './RepoTabs'
@@ -47,20 +47,9 @@ function useViewedRepo(repoId: number | null): void {
   }, [repoId])
 }
 
-function setAvailability(availability: ActionAvailability): void {
-  queryClient.setQueryData(['actions:getAvailability'], availability)
-}
-
 function invalidateRepoDetail(): void {
   // 고정은 data:changed 를 보내지 않으므로 pins:changed 로 다시 읽는다
   void queryClient.invalidateQueries({ queryKey: ['query:repoDetail'] })
-}
-
-/** 쓰기 동작 가능 여부: 한 번 읽고 actions:availability 로 갱신 */
-function useActionAvailability(): ActionAvailability | undefined {
-  const query = useIpcQuery('actions:getAvailability')
-  useIpcEvent('actions:availability', setAvailability)
-  return query.data
 }
 
 /** `#/repos/:repoId` — 저장소 상세 화면(spec §4.9, 참고 이미지) */

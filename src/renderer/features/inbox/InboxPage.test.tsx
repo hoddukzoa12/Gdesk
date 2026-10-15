@@ -109,6 +109,9 @@ describe('InboxPage', () => {
     expect(within(screen.getByTestId('inbox-row-1')).getByText('Review requested')).toBeTruthy()
     expect(within(screen.getByTestId('inbox-row-3')).getByText('Weird new reason')).toBeTruthy()
     expect(within(screen.getByTestId('inbox-row-1')).getByText('o/a')).toBeTruthy()
+    // 안 읽은 행은 접근성 이름에 상태를 앞에 붙인다
+    expect(screen.getByRole('button', { name: 'Unread: Title 1' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Title 3' })).toBeTruthy()
   })
 
   it('안 읽음 탭·저장소·사유 필터', async () => {
@@ -133,7 +136,7 @@ describe('InboxPage', () => {
   it('안 읽은 행을 누르면 페이지를 열고 읽음 처리한다', async () => {
     renderPage()
     await ready()
-    fireEvent.click(screen.getByRole('button', { name: 'Title 1' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Unread: Title 1' }))
     await vi.waitFor(() =>
       expect(calls('actions:markRead')).toEqual([['actions:markRead', { threadId: '1' }]])
     )
@@ -155,7 +158,7 @@ describe('InboxPage', () => {
     markReadResult = { ok: false, reason: 'failed', message: 'Server error' }
     renderPage()
     await ready()
-    fireEvent.click(screen.getByRole('button', { name: 'Title 1' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Unread: Title 1' }))
     const error = await screen.findByTestId('inbox-error-1')
     expect(error.textContent).toContain('Server error')
   })
@@ -177,14 +180,17 @@ describe('InboxPage', () => {
     await ready()
     expect((screen.getByTestId('inbox-done-1') as HTMLButtonElement).disabled).toBe(true)
     expect(screen.getByTestId('inbox-blocked-hint').textContent).toMatch(/offline/i)
-    fireEvent.click(screen.getByRole('button', { name: 'Title 1' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Unread: Title 1' }))
     await vi.waitFor(() => expect(calls('app:openExternal')).toHaveLength(1))
     await act(async () => {})
     expect(calls('actions:markRead')).toHaveLength(0)
 
     // 다시 온라인이 되면 이벤트로 버튼이 켜진다
+    // (조회 캐시 알림은 react-query 가 다음 차례에 화면에 반영한다)
     await act(async () => emitAvailability?.({ available: true }))
-    expect((screen.getByTestId('inbox-done-1') as HTMLButtonElement).disabled).toBe(false)
+    await vi.waitFor(() =>
+      expect((screen.getByTestId('inbox-done-1') as HTMLButtonElement).disabled).toBe(false)
+    )
     expect(screen.queryByTestId('inbox-blocked-hint')).toBeNull()
   })
 

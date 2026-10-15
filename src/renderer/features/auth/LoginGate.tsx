@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { usePlatform } from '@renderer/app/platform'
 import { cn } from '@renderer/lib/cn'
-import { useSession } from './hooks'
+import { useSession } from '@renderer/lib/hooks/useSession'
 import { LoginScreen } from './LoginScreen'
 import { isGateState } from './messages'
 

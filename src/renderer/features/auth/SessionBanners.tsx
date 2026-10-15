@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next'
 import '@shared/ipc/auth'
 import { Banner, openExternal } from '@renderer/components'
 import { invoke } from '@renderer/lib/ipc'
-import { useSession, useSyncStatus } from './hooks'
+import { useSession } from '@renderer/lib/hooks/useSession'
+import { useSyncStatus } from '@renderer/lib/hooks/useSyncStatus'
 import {
   CONNECTIONS_URL,
   ORG_REASON_KEYS,

@@ -10,7 +10,7 @@ import { cn } from '@renderer/lib/cn'
 import { invoke } from '@renderer/lib/ipc'
 import { footerText } from './footerText'
 import { scopeForPathname } from './refreshScope'
-import { useSyncStatus } from './useSyncStatus'
+import { useSyncStatus } from '@renderer/lib/hooks/useSyncStatus'
 
 /** ⌘R(맥) / Ctrl+R(그 외) 인가 */
 export function isRefreshShortcut(

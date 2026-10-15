@@ -9,7 +9,7 @@ import { AppearanceSection } from './AppearanceSection'
 import { CloneSection } from './CloneSection'
 import { HomeCardsSection } from './HomeCardsSection'
 import { LinkedFoldersSection } from './LinkedFoldersSection'
-import { useSettings, useUpdateSettings } from './useSettings'
+import { useSettings, useUpdateSettings } from '@renderer/lib/hooks/useSettings'
 
 /** 설정 화면(spec §4.13). 주소에 해시(#home-cards 등)가 있으면 그 항목으로 스크롤한다. */
 export function SettingsPage() {

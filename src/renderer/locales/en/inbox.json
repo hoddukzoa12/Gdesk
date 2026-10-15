@@ -35,6 +35,7 @@
     "other": "Notification"
   },
   "unread": "Unread",
+  "unreadLabel": "Unread: {{title}}",
   "done": "Done",
   "doneLabel": "Mark “{{title}}” as done",
   "list": "Notifications",

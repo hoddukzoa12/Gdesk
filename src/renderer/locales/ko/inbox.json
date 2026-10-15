@@ -35,6 +35,7 @@
     "other": "알림"
   },
   "unread": "안 읽음",
+  "unreadLabel": "안 읽음: {{title}}",
   "done": "완료",
   "doneLabel": "“{{title}}” 완료 처리",
   "list": "알림",

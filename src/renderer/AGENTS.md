@@ -2,7 +2,7 @@
 
 ## 맡는 것
 
-React 화면 전체: 앱 틀(사이드바, 상단 막대, 본문), 기능별 화면(`features/*`), 공용 부품(`components/`), 테마(`theme/`), 번역(`locales/`), 메인 호출 도우미(`lib/ipc.ts`).
+React 화면 전체: 앱 틀(사이드바, 상단 막대, 본문), 기능별 화면(`features/*`), 공용 부품(`components/`), 테마(`theme/`), 번역(`locales/`), 메인 호출 도우미(`lib/ipc.ts`), 여러 기능이 함께 쓰는 훅(`lib/hooks/`).
 
 ## 맡지 않는 것
 
@@ -41,6 +41,7 @@ React 화면 전체: 앱 틀(사이드바, 상단 막대, 본문), 기능별 화
 - `useIpcQuery(channel, req)`는 react-query 키 `[channel, req]`로 읽는다. 설정은 `staleTime: Infinity`, 포커스 때 다시 읽지 않음, 재시도 없음이다.
 - `data:changed`가 오면 `query:`로 시작하는 쿼리만 모두 무효화된다(`main.tsx`에서 한 번 설치).
 - `query:`가 아닌 채널은 스스로 따라가야 한다. 그렇지 않으면 화면이 영원히 옛 값을 보인다.
+- 설정·동기화 상태·세션·쓰기 가능 여부는 `lib/hooks/`의 `useSettings`(저장은 `useUpdateSettings`), `useSyncStatus`, `useSession`, `useActionAvailability`로 읽는다. 아래 이벤트를 이미 따라가므로 기능 폴더에 같은 훅을 다시 만들지 않는다. 실행 OS는 `app/platform.ts`의 `usePlatform`을 쓴다.
 
 | 채널                      | 따라갈 이벤트                                   |
 | ------------------------- | ----------------------------------------------- |

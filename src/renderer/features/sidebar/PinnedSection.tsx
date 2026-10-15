@@ -1,4 +1,4 @@
-import { useState, type DragEvent, type KeyboardEvent } from 'react'
+import { useId, useState, type DragEvent, type KeyboardEvent } from 'react'
 import { BookMarked, GripVertical, X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
@@ -28,6 +28,8 @@ export function PinnedSection() {
   const { pathname } = useLocation()
   const [dragId, setDragId] = useState<number | null>(null)
   const [overId, setOverId] = useState<number | null>(null)
+  // Alt+↑/↓ 안내는 title(마우스)만으로는 화면 낭독기에 전해지지 않으므로 숨긴 설명으로도 둔다
+  const hintId = useId()
 
   const pinned = data?.pinned ?? []
 
@@ -101,9 +103,15 @@ export function PinnedSection() {
             onDrop={(e) => onDrop(e, item.repoId)}
             onDragEnd={onDragEnd}
             onKeyDown={(e) => onKeyDown(e, index)}
+            hintId={hintId}
           />
         ))}
       </ul>
+      {pinned.length > 0 && (
+        <span id={hintId} className="sr-only" data-testid="sidebar-pinned-reorder-hint">
+          {t('pinned.reorderKeyboardHint')}
+        </span>
+      )}
     </SidebarSection>
   )
 }
@@ -120,6 +128,8 @@ interface PinnedRowProps {
   onDrop: (e: DragEvent) => void
   onDragEnd: () => void
   onKeyDown: (e: KeyboardEvent) => void
+  /** 키보드 순서 바꾸기 안내 요소의 id */
+  hintId: string
 }
 
 function PinnedRow({
@@ -133,7 +143,8 @@ function PinnedRow({
   onDragOver,
   onDrop,
   onDragEnd,
-  onKeyDown
+  onKeyDown,
+  hintId
 }: PinnedRowProps) {
   const { t } = useTranslation('sidebar')
   const notFetched = !item.cached
@@ -178,6 +189,7 @@ function PinnedRow({
         }
         active={active}
         onClick={onOpen}
+        describedBy={hintId}
       />
       {(unavailable || notFetched) && (
         <Button

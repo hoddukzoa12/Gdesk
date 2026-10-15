@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import '@shared/ipc/auth'
 import { Avatar, Button } from '@renderer/components'
 import { invoke } from '@renderer/lib/ipc'
-import { useSession } from '../auth/hooks'
+import { useSession } from '@renderer/lib/hooks/useSession'
 import { ConfirmDialog, SettingsSection } from './ui'
 
 /** 계정: 아바타·로그인 이름·로그인 방식, 확인 후 로그아웃. */

@@ -4,7 +4,10 @@ import { Dialog } from 'radix-ui'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import type { CloneFailureCode, CloneProgressEvent, OpenOutcome } from '@shared/domain/local'
+import { usePlatform } from '@renderer/app/platform'
 import { Button, Spinner } from '@renderer/components'
+import { useActionAvailability } from '@renderer/lib/hooks/useActionAvailability'
+import { useSettings } from '@renderer/lib/hooks/useSettings'
 import { invoke, useIpcEvent } from '@renderer/lib/ipc'
 import { cn } from '@renderer/lib/cn'
 import {
@@ -14,7 +17,7 @@ import {
   linkFailureKey,
   openFailureKey
 } from './clone-logic'
-import { useCloneAvailability, usePlatform, useRefreshLinks, useSettingsSnapshot } from './hooks'
+import { useRefreshLinks } from './hooks'
 import { closeCloneDialog, useCloneDialogState, type CloneTarget } from './store'
 
 type Phase =
@@ -45,15 +48,15 @@ function newCloneId(): string {
 export function CloneDialog() {
   const { target, seq } = useCloneDialogState()
   if (!target) return null
-  return <CloneDialogBody key={seq} target={target} seq={seq} />
+  return <CloneDialogBody key={seq} target={target} />
 }
 
-function CloneDialogBody({ target, seq }: { target: CloneTarget; seq: number }) {
+function CloneDialogBody({ target }: { target: CloneTarget }) {
   const { t } = useTranslation('clone')
   const navigate = useNavigate()
-  const settings = useSettingsSnapshot(seq)
+  const settings = useSettings().data
   const platform = usePlatform()
-  const availability = useCloneAvailability()
+  const availability = useActionAvailability()
   const refreshLinks = useRefreshLinks()
 
   const [phase, setPhase] = useState<Phase>({ kind: 'form' })

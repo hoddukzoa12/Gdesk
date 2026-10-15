@@ -202,4 +202,15 @@ describe('PinnedSection', () => {
     fireEvent.keyDown(button, { key: 'ArrowDown', altKey: true })
     expect(invoke).toHaveBeenCalledWith('pins:reorder', { repoIds: [555, 101, 777] })
   })
+
+  it('행 버튼은 숨긴 Alt+↑/↓ 안내를 aria-describedby 로 가리킨다', async () => {
+    stub(online)
+    renderAt('/home', <PinnedSection />)
+    const row = await screen.findByTestId('pinned-row-101')
+    const button = within(row).getAllByRole('button')[0] as HTMLElement
+    const hint = screen.getByTestId('sidebar-pinned-reorder-hint')
+    expect(hint.id).not.toBe('')
+    expect(button.getAttribute('aria-describedby')).toBe(hint.id)
+    expect(hint.textContent).toBe('Press Alt+Up or Alt+Down to reorder')
+  })
 })

@@ -18,7 +18,9 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import type { LocalLink } from '@shared/domain/link'
 import type { OpenOutcome, OpenTarget } from '@shared/domain/local'
+import { usePlatform } from '@renderer/app/platform'
 import { Badge, Button } from '@renderer/components'
+import { useSettings } from '@renderer/lib/hooks/useSettings'
 import { invoke, useIpcQuery } from '@renderer/lib/ipc'
 import { cn } from '@renderer/lib/cn'
 import {
@@ -31,7 +33,7 @@ import {
   sshCloneUrl
 } from './clone-logic'
 import { writeClipboardText } from './clipboard'
-import { usePlatform, useRefreshLinks, useRepoLinks, useSettingsSnapshot } from './hooks'
+import { useRefreshLinks, useRepoLinks } from './hooks'
 import { requestClone } from './store'
 
 const itemClass = cn(
@@ -72,9 +74,8 @@ export function CloneOpenMenu({ repoId, owner, name, className }: CloneOpenMenuP
   const editorsQuery = useIpcQuery('local:listEditors')
   const platform = usePlatform()
   const [menuOpen, setMenuOpen] = useState(false)
-  // 메뉴를 열 때마다 설정(기본 편집기)을 새로 읽는다
-  const [openCount, setOpenCount] = useState(0)
-  const settings = useSettingsSnapshot(openCount)
+  // 설정(기본 편집기). settings:changed 를 따르므로 늘 최신 값이다
+  const settings = useSettings().data
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [message, setMessage] = useState<MenuMessage | null>(null)
 
@@ -95,7 +96,6 @@ export function CloneOpenMenu({ repoId, owner, name, className }: CloneOpenMenuP
   const onMenuOpenChange = (open: boolean): void => {
     setMenuOpen(open)
     if (open) {
-      setOpenCount((n) => n + 1)
       void editorsQuery.refetch()
     }
   }

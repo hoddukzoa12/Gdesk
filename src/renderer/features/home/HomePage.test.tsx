@@ -138,10 +138,10 @@ describe('HomePage', () => {
       'unanswered',
       'starChanges'
     ])
-    // 개수와 "+N more on GitHub"
+    // 개수와, 완전한 목록이 표시 상한에만 잘렸으면 중립적인 "+N more"
     const review = screen.getByTestId('home-card-reviewRequests')
     expect(within(review).getByText('7')).toBeTruthy()
-    expect(within(review).getByText('+6 more on GitHub')).toBeTruthy()
+    expect(within(review).getByTestId('home-card-reviewRequests-more').textContent).toBe('+6 more')
     // 빈 목록 + complete=false
     const unread = screen.getByTestId('home-card-unreadNotifications')
     expect(within(unread).getByText('You’re all caught up.')).toBeTruthy()
@@ -154,6 +154,22 @@ describe('HomePage', () => {
     expect(
       within(screen.getByTestId('home-card-starChanges')).getByText('Last 7 days')
     ).toBeTruthy()
+  })
+
+  it('근거 목록이 불완전하면(complete=false) GitHub 에 더 있을 수 있다고 알린다', async () => {
+    stub()
+    invoke.mockImplementation(async (channel: string) => {
+      if (channel === 'settings:get') return settingsWith([])
+      if (channel === 'query:home') {
+        return { ...summary, reviewRequests: { ...summary.reviewRequests, complete: false } }
+      }
+      throw new Error(`unexpected ${channel}`)
+    })
+    renderPage()
+    const more = await screen.findByTestId('home-card-reviewRequests-more')
+    expect(more.textContent).toBe('+6 more · there may be more on GitHub')
+    // 다 보여 준 완전한 목록에는 안내가 없다
+    expect(screen.queryByTestId('home-card-unanswered-more')).toBeNull()
   })
 
   it('꺼진 카드는 숨기고 설정 순서를 지킨다', async () => {
@@ -224,7 +240,7 @@ describe('HomePage', () => {
     stub()
     renderPage()
     expect(await screen.findByText('리뷰 요청')).toBeTruthy()
-    expect(screen.getByText('GitHub에 6개 더 있음')).toBeTruthy()
+    expect(screen.getByText('6개 더 있음')).toBeTruthy()
     expect(screen.getByRole('button', { name: '카드 설정' })).toBeTruthy()
   })
 })
