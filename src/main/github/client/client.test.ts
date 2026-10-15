@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ConnectionStatus } from '@shared/domain/connection'
-import { GitHubClient } from './client'
 import type { Scheduler } from './client'
+import { createGitHubClientForTests } from './testing'
 import {
   GitHubHttpError,
   GraphQLError,
@@ -65,7 +65,10 @@ function fakeClock() {
   }
 }
 
-function setup(handler: Handler, opts: { token?: string | null; lowThreshold?: number } = {}) {
+function setup(
+  handler: Handler,
+  opts: { token?: string | null; lowThreshold?: number; timeoutMs?: number } = {}
+) {
   const clock = fakeClock()
   const calls: { url: string; init: RequestInit }[] = []
   const fetchFn = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
@@ -73,13 +76,14 @@ function setup(handler: Handler, opts: { token?: string | null; lowThreshold?: n
     calls.push({ url, init: init ?? {} })
     return handler(url, init ?? {})
   })
-  const client = new GitHubClient({
+  const client = createGitHubClientForTests({
     tokenProvider: () => (opts.token === undefined ? TOKEN : opts.token),
     fetch: fetchFn as unknown as typeof fetch,
     baseUrl: BASE,
     now: clock.now,
     scheduler: clock.scheduler,
-    lowRateLimitThreshold: opts.lowThreshold
+    lowRateLimitThreshold: opts.lowThreshold,
+    requestTimeoutMs: opts.timeoutMs
   })
   const statuses: ConnectionStatus[] = []
   client.onStatusChange((s) => statuses.push(s))
@@ -310,7 +314,7 @@ describe('한도 초과 시 미루기', () => {
 
   it('getStatus 는 타이머가 안 돌아도 시각으로 판단한다', async () => {
     let now = NOW
-    const client = new GitHubClient({
+    const client = createGitHubClientForTests({
       tokenProvider: () => TOKEN,
       baseUrl: BASE,
       fetch: (async () =>
@@ -649,5 +653,102 @@ describe('dispose', () => {
     expect(clock.pending()).toBe(1)
     client.dispose()
     expect(clock.pending()).toBe(0)
+  })
+})
+
+describe('리뷰 보완', () => {
+  const OAUTH_MSG =
+    'Although you appear to have the correct authorization credentials, the `acme` organization has enabled OAuth App access restrictions, meaning that data access to third-parties is limited.'
+
+  it('data 없이 조직 제한과 다른 오류가 섞이면 GraphQLError 가 orgRestrictions 를 담는다', async () => {
+    const { client } = setup(() =>
+      json({
+        data: null,
+        errors: [
+          { type: 'FORBIDDEN', message: OAUTH_MSG, path: ['organization'] },
+          { type: 'NOT_FOUND', message: 'Could not resolve to a Repository', path: ['repository'] }
+        ]
+      })
+    )
+    const err = (await client.graphql('{ a }').catch((e: unknown) => e)) as GraphQLError
+    expect(err).toBeInstanceOf(GraphQLError)
+    expect(err).not.toBeInstanceOf(OrgAccessRestrictedError)
+    expect(err.errors).toHaveLength(2)
+    expect(err.orgRestrictions).toEqual([
+      expect.objectContaining({ reason: 'oauth_app_restriction', orgLogin: 'acme' })
+    ])
+  })
+
+  it('조직 제한이 없는 GraphQLError 의 orgRestrictions 는 빈 배열', async () => {
+    const { client } = setup(() => json({ errors: [{ type: 'NOT_FOUND', message: 'nope' }] }))
+    const err = (await client.graphql('{ a }').catch((e: unknown) => e)) as GraphQLError
+    expect(err.orgRestrictions).toEqual([])
+  })
+
+  /** signal 이 끊길 때까지 응답하지 않는 fetch */
+  const hang: Handler = (_url, init) =>
+    new Promise<Response>((_resolve, reject) => {
+      const signal = init.signal
+      if (!signal) return
+      if (signal.aborted) reject(new DOMException('aborted', 'AbortError'))
+      signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+    })
+
+  it('응답이 기본 30초 안에 오지 않으면 offline', async () => {
+    const { client, clock, statuses } = setup(hang)
+    const pending = client.get('/x').catch((e: unknown) => e)
+    await new Promise((resolve) => setImmediate(resolve))
+    clock.advance(29_999)
+    expect(client.getStatus()).toBe('online')
+    clock.advance(1)
+    const err = await pending
+    expect(err).toBeInstanceOf(OfflineError)
+    expect((err as Error).message).toMatch(/timed out/)
+    expect(client.getStatus()).toBe('offline')
+    expect(statuses).toEqual(['offline'])
+    expect(clock.pending()).toBe(0)
+  })
+
+  it('제한 시간은 조정할 수 있고, 응답이 오면 타이머를 정리한다', async () => {
+    const t = setup(hang, { timeoutMs: 5_000 })
+    const pending = t.client.graphql('{ a }').catch((e: unknown) => e)
+    await new Promise((resolve) => setImmediate(resolve))
+    t.clock.advance(5_000)
+    expect(await pending).toBeInstanceOf(OfflineError)
+
+    const ok = setup(() => json({}), { timeoutMs: 5_000 })
+    await ok.client.get('/x')
+    expect(ok.clock.pending()).toBe(0)
+  })
+
+  it('호출자가 도중에 취소하면 offline 이 아니다', async () => {
+    const { client } = setup(hang)
+    const ac = new AbortController()
+    const pending = client.get('/x', { signal: ac.signal }).catch((e: unknown) => e)
+    await new Promise((resolve) => setImmediate(resolve))
+    ac.abort()
+    expect(await pending).toMatchObject({ name: 'AbortError' })
+    expect(client.getStatus()).toBe('online')
+  })
+
+  it('토큰 없이 연결 확인하면 인증된 한도 기록을 덮어쓰지 않는다', async () => {
+    let token: string | null = TOKEN
+    const clock = fakeClock()
+    const client = createGitHubClientForTests({
+      tokenProvider: () => token,
+      baseUrl: BASE,
+      now: clock.now,
+      scheduler: clock.scheduler,
+      fetch: (async (_input: unknown, init?: RequestInit) =>
+        new Headers(init?.headers).has('authorization')
+          ? json({}, 200, rl(4000, 5000, 'core'))
+          : json({}, 200, rl(59, 60, 'core'))) as unknown as typeof fetch
+    })
+    await client.get('/user')
+    expect(client.getRateLimit('core')).toMatchObject({ remaining: 4000, limit: 5000 })
+    token = null
+    await expect(client.checkConnectivity()).resolves.toBe('online')
+    expect(client.getRateLimit('core')).toMatchObject({ remaining: 4000, limit: 5000 })
+    expect(client.isRateLimitLow('core')).toBe(false)
   })
 })

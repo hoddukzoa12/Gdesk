@@ -96,11 +96,14 @@ export interface GraphQLErrorItem {
 /** data 없이 errors 만 돌아온 GraphQL 응답 */
 export class GraphQLError extends GitHubClientError {
   readonly errors: GraphQLErrorItem[]
+  /** errors 중 조직 접근 제한으로 알아본 것 (다른 오류와 섞여 있어도 조직 안내를 보여 줄 수 있게) */
+  readonly orgRestrictions: OrgRestriction[]
 
-  constructor(errors: GraphQLErrorItem[]) {
+  constructor(errors: GraphQLErrorItem[], orgRestrictions: OrgRestriction[] = []) {
     const first = errors[0]?.message ?? 'Empty GraphQL response'
     const more = errors.length > 1 ? ` (+${errors.length - 1} more)` : ''
     super(`GraphQL error: ${first}${more}`)
     this.errors = errors
+    this.orgRestrictions = orgRestrictions
   }
 }

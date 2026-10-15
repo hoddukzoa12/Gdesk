@@ -48,8 +48,8 @@ export interface GitHubClientOptions {
   tokenProvider: TokenProvider
   /** 테스트용 가짜 fetch. 기본은 전역 fetch. */
   fetch?: typeof fetch
-  /** 단위 테스트 전용. 배포 경로는 githubApiBase() 를 쓴다(configureGitHubClient 는 이 값을 받지 않는다). */
-  baseUrl?: string
+  /** 응답 헤더를 기다리는 최대 시간(ms). 넘으면 네트워크 실패(offline)로 본다. 기본 30초 */
+  requestTimeoutMs?: number
   now?: () => number
   scheduler?: Scheduler
   /** low 신호 기준(한도 대비 비율). 기본 0.1 */
@@ -114,6 +114,30 @@ export interface GraphQLResult<T> {
 }
 
 const MAX_TIMER_MS = 2_147_483_647
+export const DEFAULT_REQUEST_TIMEOUT_MS = 30_000
+
+/**
+ * 단위 테스트가 가짜 서버 주소를 넣는 통로의 열쇠. `testing.ts` 만 쓴다.
+ * index.ts 는 이 열쇠도 testing.ts 도 내보내지 않으며, 테스트 실행(MODE=test)이 아니면 생성자가 거부한다.
+ * 배포 경로의 API 주소는 언제나 githubApiBase() (테스트 모드에서만 바뀜).
+ */
+export const TEST_BASE_URL: unique symbol = Symbol('gdesk.github.testBaseUrl')
+
+export type GitHubClientInternalOptions = GitHubClientOptions & { [TEST_BASE_URL]?: string }
+
+function isUnitTestRun(): boolean {
+  // 빌드 시 고정되는 값이라 배포 앱에서 환경 변수로 바꿀 수 없다
+  return import.meta.env?.MODE === 'test'
+}
+
+function resolveBaseUrl(options: GitHubClientInternalOptions): string {
+  const override = options[TEST_BASE_URL]
+  if (override === undefined) return githubApiBase()
+  if (!isUnitTestRun()) {
+    throw new GitHubClientError('API base URL override is only allowed in unit tests')
+  }
+  return override
+}
 
 const defaultScheduler: Scheduler = {
   setTimeout(fn, ms) {
@@ -149,6 +173,7 @@ export class GitHubClient {
   private readonly fetchFn: typeof fetch
   private readonly now: () => number
   private readonly scheduler: Scheduler
+  private readonly requestTimeoutMs: number
   private readonly rateLimits: RateLimitTracker
 
   private offline = false
@@ -158,12 +183,17 @@ export class GitHubClient {
   private recoveryTimer: { handle: unknown; at: number } | null = null
   private disposed = false
 
+  /** API 주소는 githubApiBase() 로 정해진다. options 에 baseUrl 을 넣어도 쓰지 않는다. */
   constructor(options: GitHubClientOptions) {
-    this.baseUrl = (options.baseUrl ?? githubApiBase()).replace(/\/+$/, '')
+    this.baseUrl = resolveBaseUrl(options).replace(/\/+$/, '')
     this.tokenProvider = options.tokenProvider
     this.fetchFn = options.fetch ?? ((input, init) => globalThis.fetch(input, init))
     this.now = options.now ?? Date.now
     this.scheduler = options.scheduler ?? defaultScheduler
+    this.requestTimeoutMs =
+      options.requestTimeoutMs !== undefined && options.requestTimeoutMs > 0
+        ? options.requestTimeoutMs
+        : DEFAULT_REQUEST_TIMEOUT_MS
     this.rateLimits = new RateLimitTracker({
       now: this.now,
       lowThreshold: options.lowRateLimitThreshold
@@ -216,7 +246,10 @@ export class GitHubClient {
       if (first && orgRestrictions.length === errors.length) {
         throw new OrgAccessRestrictedError(first, res.status)
       }
-      throw new GraphQLError(errors.length > 0 ? errors : [{ message: 'Empty GraphQL response' }])
+      throw new GraphQLError(
+        errors.length > 0 ? errors : [{ message: 'Empty GraphQL response' }],
+        orgRestrictions
+      )
     }
     return { data: data as TData, errors, orgRestrictions }
   }
@@ -454,15 +487,34 @@ export class GitHubClient {
     headers.delete('Authorization')
     if (token) headers.set('Authorization', `Bearer ${token}`)
 
+    // 응답 헤더가 제한 시간 안에 오지 않으면 끊고 네트워크 실패로 본다
+    const timeout = new AbortController()
+    let timedOut = false
+    const timer = this.scheduler.setTimeout(
+      () => {
+        timedOut = true
+        timeout.abort()
+      },
+      Math.min(MAX_TIMER_MS, this.requestTimeoutMs)
+    )
+    const signal = options.signal
+      ? AbortSignal.any([options.signal, timeout.signal])
+      : timeout.signal
+
     let res: Response
     try {
       res = await this.fetchFn(options.url, {
         method: options.method,
         headers,
         body: options.body,
-        signal: options.signal
+        signal
       })
     } catch (error) {
+      if (timedOut) {
+        this.offline = true
+        this.refreshStatus()
+        throw new OfflineError(`request timed out after ${this.requestTimeoutMs}ms`)
+      }
       // 호출자가 취소한 것은 네트워크 실패가 아니다
       if (options.signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {
         throw error
@@ -470,12 +522,15 @@ export class GitHubClient {
       this.offline = true
       this.refreshStatus()
       throw new OfflineError(redact(describeNetworkError(error), token))
+    } finally {
+      this.scheduler.clearTimeout(timer)
     }
 
     // 어떤 응답이든 받았으면 연결은 살아 있다
     this.offline = false
     const info = parseRateLimitHeaders(res.headers, resource)
-    if (info) this.rateLimits.record(info)
+    // 토큰 없는 연결 확인의 한도(비인증 60회)는 인증된 한도 기록을 덮어쓰지 않는다
+    if (info && token) this.rateLimits.record(info)
     // 상태 알림은 응답을 분류한 뒤에 한 번만 한다 (401·한도 응답에서 잠깐 online 으로 보이지 않게)
     return { res, token, resource: info?.resource ?? resource }
   }
@@ -580,8 +635,17 @@ export class GitHubClient {
   }
 }
 
+/** 배포용 팩토리. API 주소는 언제나 githubApiBase() */
 export function createGitHubClient(options: GitHubClientOptions): GitHubClient {
-  return new GitHubClient(options)
+  const { tokenProvider, fetch, now, scheduler, lowRateLimitThreshold, requestTimeoutMs } = options
+  return new GitHubClient({
+    tokenProvider,
+    fetch,
+    now,
+    scheduler,
+    lowRateLimitThreshold,
+    requestTimeoutMs
+  })
 }
 
 // ───────────────────────── 도우미 ─────────────────────────
