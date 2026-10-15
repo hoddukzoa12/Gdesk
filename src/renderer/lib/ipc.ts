@@ -7,6 +7,7 @@ import type {
   InvokeChannel,
   InvokeResponse
 } from '@shared/ipc/contract'
+import '@shared/ipc/data'
 
 /** 화면에서 메인으로 요청을 보내는 유일한 통로. */
 export function invoke<C extends InvokeChannel>(
@@ -42,4 +43,16 @@ export function useIpcEvent<E extends EventChannel>(
   listener: (payload: EventPayload<E>) => void
 ): void {
   useEffect(() => window.gdesk.on(event, listener), [event, listener])
+}
+
+/**
+ * 캐시 변경 알림(`data:changed`)을 받으면 메인 조회 채널(`query:` 로 시작)을 모두 다시 읽는다.
+ * 앱 시작 시 한 번 설치한다(main.tsx).
+ */
+export function installDataChangedInvalidation(): () => void {
+  return window.gdesk.on('data:changed', () => {
+    void queryClient.invalidateQueries({
+      predicate: (q) => typeof q.queryKey[0] === 'string' && q.queryKey[0].startsWith('query:')
+    })
+  })
 }

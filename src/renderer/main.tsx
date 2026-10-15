@@ -5,9 +5,11 @@ import { I18nextProvider } from 'react-i18next'
 import { RouterProvider } from 'react-router'
 import { AppProviders } from './app/AppProviders'
 import { i18n } from './app/i18n'
-import { queryClient } from './lib/ipc'
+import { installDataChangedInvalidation, queryClient } from './lib/ipc'
 import { router } from './app/router'
 import './theme/theme.css'
+
+installDataChangedInvalidation()
 
 const root = document.getElementById('root')
 if (!root) throw new Error('root element missing')
