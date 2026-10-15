@@ -1,0 +1,21 @@
+{
+  "title": "Starred",
+  "search": {
+    "label": "Search starred repositories",
+    "placeholder": "Find a starred repository…"
+  },
+  "badges": {
+    "archived": "Archived",
+    "unavailable": "Unavailable"
+  },
+  "stars": "Stars",
+  "starredAt": "Starred",
+  "noDescription": "No description",
+  "error": "Couldn’t load starred repositories.",
+  "empty": {
+    "title": "No starred repositories yet",
+    "description": "Repositories you star on GitHub appear here after syncing.",
+    "filteredTitle": "No matching repositories",
+    "filteredDescription": "Try a different search."
+  }
+}

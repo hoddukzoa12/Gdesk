@@ -1,0 +1,21 @@
+{
+  "title": "스타",
+  "search": {
+    "label": "스타한 저장소 검색",
+    "placeholder": "스타한 저장소 찾기…"
+  },
+  "badges": {
+    "archived": "보관됨",
+    "unavailable": "사용할 수 없음"
+  },
+  "stars": "스타",
+  "starredAt": "스타",
+  "noDescription": "설명 없음",
+  "error": "스타한 저장소를 불러오지 못했습니다.",
+  "empty": {
+    "title": "아직 스타한 저장소가 없습니다",
+    "description": "GitHub 에서 스타한 저장소가 동기화 후 여기에 표시됩니다.",
+    "filteredTitle": "조건에 맞는 저장소가 없습니다",
+    "filteredDescription": "다른 검색어를 사용해 보세요."
+  }
+}

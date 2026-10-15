@@ -1,0 +1,35 @@
+{
+  "pinned": {
+    "title": "고정",
+    "empty": "저장소 화면에서 저장소를 고정하세요",
+    "notFetched": "아직 불러오지 않았습니다",
+    "reorderHint": "끌어서 순서 바꾸기 (Alt+↑/↓)",
+    "remove": "고정에서 {{name}} 제거"
+  },
+  "yourRepositories": {
+    "title": "내 저장소",
+    "empty": "아직 저장소가 없습니다"
+  },
+  "repo": {
+    "stars": "스타 {{value}}개",
+    "openPullRequests": "열린 PR {{value}}개",
+    "unavailable": "사용할 수 없음"
+  },
+  "footer": {
+    "synced": "동기화 {{time}}",
+    "neverSynced": "아직 동기화하지 않음",
+    "offline": "오프라인 · {{time}} 정보",
+    "offlineNoData": "오프라인",
+    "rateLimited": "요청 한도 대기 · {{time}}에 재개",
+    "rateLimitedNoTime": "요청 한도 대기 중",
+    "sessionExpired": "세션 만료 · {{time}} 정보",
+    "sessionExpiredNoData": "세션 만료",
+    "syncing": "동기화하는 중…",
+    "refresh": "새로고침 ({{shortcut}})"
+  },
+  "banner": {
+    "offlineTitle": "오프라인 ·",
+    "offline": "{{time}} 정보를 표시하고 있습니다. 연결이 돌아오면 자동으로 다시 갱신합니다.",
+    "offlineNoData": "아직 받은 정보가 없습니다. 연결이 돌아오면 자동으로 다시 갱신합니다."
+  }
+}

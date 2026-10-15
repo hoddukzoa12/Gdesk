@@ -1,0 +1,35 @@
+{
+  "pinned": {
+    "title": "Pinned",
+    "empty": "Pin repositories from Repositories",
+    "notFetched": "Not loaded yet",
+    "reorderHint": "Drag to reorder (Alt+↑/↓)",
+    "remove": "Remove {{name}} from Pinned"
+  },
+  "yourRepositories": {
+    "title": "Your repositories",
+    "empty": "No repositories yet"
+  },
+  "repo": {
+    "stars": "Stars: {{value}}",
+    "openPullRequests": "Open pull requests: {{value}}",
+    "unavailable": "Unavailable"
+  },
+  "footer": {
+    "synced": "Synced {{time}}",
+    "neverSynced": "Not synced yet",
+    "offline": "Offline · data from {{time}}",
+    "offlineNoData": "Offline",
+    "rateLimited": "Rate limited · resumes at {{time}}",
+    "rateLimitedNoTime": "Rate limited · waiting",
+    "sessionExpired": "Session expired · data from {{time}}",
+    "sessionExpiredNoData": "Session expired",
+    "syncing": "Syncing…",
+    "refresh": "Refresh ({{shortcut}})"
+  },
+  "banner": {
+    "offlineTitle": "You’re offline.",
+    "offline": "Showing data from {{time}}. Updates resume automatically when the connection returns.",
+    "offlineNoData": "No data has been loaded yet. Updates resume automatically when the connection returns."
+  }
+}
