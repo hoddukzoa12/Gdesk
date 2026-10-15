@@ -1,0 +1,51 @@
+{
+  "title": "Home",
+  "customize": "Customize",
+  "loadError": "Couldn’t load your to-do summary.",
+  "more": "+{{count}} more on GitHub",
+  "mayBeMore": "There may be more on GitHub",
+  "cards": {
+    "reviewRequests": {
+      "title": "Review requests",
+      "empty": "No pull requests are waiting for your review."
+    },
+    "unreadNotifications": {
+      "title": "Unread notifications",
+      "empty": "You’re all caught up."
+    },
+    "failedCi": {
+      "title": "Failed CI",
+      "repos": "Default branches",
+      "pullRequests": "My pull requests",
+      "empty": "No failing checks."
+    },
+    "unanswered": {
+      "title": "Unanswered new contributions",
+      "empty": "Every new contribution has a response."
+    },
+    "starChanges": {
+      "title": "Star change",
+      "subtitle": "Last {{count}} days",
+      "total": "Stars gained in the last {{count}} days",
+      "empty": "Pin a repository to track its stars.",
+      "truncatedHint": "Star history is incomplete"
+    }
+  },
+  "kind": {
+    "pullRequest": "Pull request",
+    "issue": "Issue"
+  },
+  "reason": {
+    "assign": "Assigned",
+    "author": "Author",
+    "ci_activity": "CI activity",
+    "comment": "Comment",
+    "manual": "Subscribed",
+    "mention": "Mention",
+    "review_requested": "Review requested",
+    "security_alert": "Security alert",
+    "state_change": "State change",
+    "subscribed": "Watching",
+    "team_mention": "Team mention"
+  }
+}

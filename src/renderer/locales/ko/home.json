@@ -1,0 +1,51 @@
+{
+  "title": "홈",
+  "customize": "카드 설정",
+  "loadError": "할 일 요약을 불러오지 못했습니다.",
+  "more": "GitHub에 {{count}}개 더 있음",
+  "mayBeMore": "GitHub에 더 있을 수 있습니다",
+  "cards": {
+    "reviewRequests": {
+      "title": "리뷰 요청",
+      "empty": "리뷰를 기다리는 PR이 없습니다."
+    },
+    "unreadNotifications": {
+      "title": "읽지 않은 알림",
+      "empty": "새 알림이 없습니다."
+    },
+    "failedCi": {
+      "title": "실패한 CI",
+      "repos": "기본 브랜치",
+      "pullRequests": "내 PR",
+      "empty": "실패한 검사가 없습니다."
+    },
+    "unanswered": {
+      "title": "응답 없는 새 기여",
+      "empty": "모든 새 기여에 응답했습니다."
+    },
+    "starChanges": {
+      "title": "스타 변화",
+      "subtitle": "최근 {{count}}일",
+      "total": "최근 {{count}}일 동안 늘어난 스타",
+      "empty": "저장소를 고정하면 스타 변화를 볼 수 있습니다.",
+      "truncatedHint": "스타 기록이 일부만 있습니다"
+    }
+  },
+  "kind": {
+    "pullRequest": "PR",
+    "issue": "이슈"
+  },
+  "reason": {
+    "assign": "담당 지정",
+    "author": "작성자",
+    "ci_activity": "CI 활동",
+    "comment": "댓글",
+    "manual": "구독",
+    "mention": "멘션",
+    "review_requested": "리뷰 요청",
+    "security_alert": "보안 경고",
+    "state_change": "상태 변경",
+    "subscribed": "지켜보는 중",
+    "team_mention": "팀 멘션"
+  }
+}
