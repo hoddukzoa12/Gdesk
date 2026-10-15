@@ -10,6 +10,9 @@ import { initUpdater } from './updater/updater'
 import { initCrashReporting } from './crash'
 import { initLocal } from './local'
 import { disposeSync, initSync } from './sync'
+import { installAppMenu } from './menu'
+import { onPinsChanged } from './pins/pins.service'
+import { notifyDataChanged } from './ipc/data-events'
 import { registerAllIpc } from './ipc/registry'
 import { createMainWindow, installNavigationGuards } from './window'
 
@@ -33,6 +36,9 @@ app.whenReady().then(async () => {
 
   // ── IPC 등록 (src/main/**/*.ipc.ts 자동 수집) ──
   registerAllIpc()
+  installAppMenu()
+  // 고정이 바뀌면 고정 여부를 보여 주는 조회(사이드바·저장소 목록·상세)를 다시 읽게 한다.
+  onPinsChanged(() => notifyDataChanged(['sidebar', 'repositories', 'home']))
 
   // 401 구독 + 테스트 모드 자동 로그인(화면 테스트가 로그인 화면을 건너뛰도록 창 생성 전에 기다린다).
   await startAuth(client)
