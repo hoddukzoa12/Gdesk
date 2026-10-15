@@ -24,6 +24,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.104.3",
     "clsx": "^2.1.1",
+    "dugite": "^3.2.3",
     "i18next": "^26.4.5",
     "lucide-react": "^1.57.0",
     "radix-ui": "^1.8.1",
@@ -58,6 +59,7 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
+      "dugite",
       "electron",
       "esbuild"
     ]
