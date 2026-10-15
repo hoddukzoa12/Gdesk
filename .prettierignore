@@ -1,0 +1,9 @@
+out
+dist
+release
+coverage
+node_modules
+playwright-report
+test-results
+pnpm-lock.yaml
+.dryforge

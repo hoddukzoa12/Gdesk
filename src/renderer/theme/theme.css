@@ -1,0 +1,67 @@
+@import 'tailwindcss';
+
+/*
+ * 테마 색 변수. 화면 코드는 색을 직접 쓰지 않고 아래 토큰(bg-bg, text-fg, border-border ...)만 쓴다.
+ * 다크는 참고 이미지 기준. 세부 색은 앱 틀 작업에서 다듬는다.
+ */
+:root,
+:root[data-theme='dark'] {
+  --color-bg: #0d0f12;
+  --color-bg-elevated: #15181d;
+  --color-bg-subtle: #1b1f25;
+  --color-border: #262b33;
+  --color-fg: #e6e8eb;
+  --color-fg-muted: #8b929c;
+  --color-accent: #e8913a;
+  --color-success: #3fb950;
+  --color-danger: #f85149;
+  --color-warning: #d29922;
+  --color-neutral: #6e7681;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --color-bg: #ffffff;
+  --color-bg-elevated: #f6f8fa;
+  --color-bg-subtle: #eef1f4;
+  --color-border: #d8dee4;
+  --color-fg: #1f2328;
+  --color-fg-muted: #59636e;
+  --color-accent: #c4651a;
+  --color-success: #1a7f37;
+  --color-danger: #cf222e;
+  --color-warning: #9a6700;
+  --color-neutral: #6e7781;
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-bg: var(--color-bg);
+  --color-bg-elevated: var(--color-bg-elevated);
+  --color-bg-subtle: var(--color-bg-subtle);
+  --color-border: var(--color-border);
+  --color-fg: var(--color-fg);
+  --color-fg-muted: var(--color-fg-muted);
+  --color-accent: var(--color-accent);
+  --color-success: var(--color-success);
+  --color-danger: var(--color-danger);
+  --color-warning: var(--color-warning);
+  --color-neutral: var(--color-neutral);
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+  background: var(--color-bg);
+  color: var(--color-fg);
+}

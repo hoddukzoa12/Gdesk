@@ -1,0 +1,37 @@
+import { resolve } from 'node:path'
+import { defineConfig } from 'electron-vite'
+import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
+
+// 빌드 시 주입되는 값. 비밀 키는 절대 넣지 않는다(공개 client ID와 저장소 주소만).
+const buildDefines = {
+  __GDESK_GITHUB_CLIENT_ID__: JSON.stringify(process.env.GDESK_GITHUB_CLIENT_ID ?? ''),
+  __GDESK_REPO__: JSON.stringify(process.env.GDESK_REPO ?? ''),
+  // 화면 테스트 전용 빌드에서만 true. 배포 빌드에서는 테스트 모드를 켤 수 없다.
+  __GDESK_TEST_BUILD__: JSON.stringify(process.env.GDESK_TEST_BUILD === '1')
+}
+
+const alias = {
+  '@shared': resolve(import.meta.dirname, 'src/shared')
+}
+
+export default defineConfig({
+  main: {
+    define: buildDefines,
+    resolve: { alias }
+  },
+  preload: {
+    define: buildDefines,
+    resolve: { alias }
+  },
+  renderer: {
+    define: buildDefines,
+    resolve: {
+      alias: {
+        ...alias,
+        '@renderer': resolve(import.meta.dirname, 'src/renderer')
+      }
+    },
+    plugins: [react(), tailwindcss()]
+  }
+})

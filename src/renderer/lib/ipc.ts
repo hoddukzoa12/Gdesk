@@ -1,0 +1,45 @@
+import { useEffect } from 'react'
+import { QueryClient, useQuery, type UseQueryResult } from '@tanstack/react-query'
+import type {
+  EventChannel,
+  EventPayload,
+  InvokeArgs,
+  InvokeChannel,
+  InvokeResponse
+} from '@shared/ipc/contract'
+
+/** 화면에서 메인으로 요청을 보내는 유일한 통로. */
+export function invoke<C extends InvokeChannel>(
+  channel: C,
+  ...args: InvokeArgs<C>
+): Promise<InvokeResponse<C>> {
+  return window.gdesk.invoke(channel, ...args)
+}
+
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { staleTime: Infinity, refetchOnWindowFocus: false, retry: false }
+  }
+})
+
+/**
+ * 메인의 조회 채널을 react-query 로 읽는다. 쿼리 키는 `[channel, request]`.
+ * 데이터 갱신 알림을 받으면 `queryClient.invalidateQueries({ queryKey: [channel] })` 로 다시 읽는다.
+ */
+export function useIpcQuery<C extends InvokeChannel>(
+  channel: C,
+  ...args: InvokeArgs<C>
+): UseQueryResult<InvokeResponse<C>> {
+  return useQuery({
+    queryKey: [channel, ...args],
+    queryFn: () => invoke(channel, ...args)
+  })
+}
+
+/** 메인 이벤트 구독(컴포넌트 수명 동안). */
+export function useIpcEvent<E extends EventChannel>(
+  event: E,
+  listener: (payload: EventPayload<E>) => void
+): void {
+  useEffect(() => window.gdesk.on(event, listener), [event, listener])
+}

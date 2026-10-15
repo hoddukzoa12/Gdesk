@@ -3,3 +3,16 @@ github app.jpeg
 
 # dryforge 작업 폴더
 .dryforge
+
+# 의존성·빌드 산출물 (node_modules는 슬래시 없이: 작업 폴더 심볼릭 링크도 무시)
+node_modules
+out
+dist
+release
+coverage
+test-results
+playwright-report
+*.log
+.DS_Store
+.env
+.env.*
