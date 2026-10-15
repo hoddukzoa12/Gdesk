@@ -234,6 +234,37 @@ function notifications(ctx: RestContext, req: RestRequest): FakeResponse {
   return json(items, 200, meta)
 }
 
+/**
+ * `GET /search/repositories?q=`: 한정자(`in:name` 같은 `키:값`)는 무시하고, 남은 낱말이 모두
+ * 저장소 이름(owner/name)이나 설명에 들어 있으면 맞는 것으로 본다. 스타 많은 순.
+ */
+function searchRepositories(ctx: RestContext, req: RestRequest): FakeResponse {
+  const q = (req.query.get('q') ?? '').trim()
+  if (q === '') {
+    return json(
+      {
+        message: 'Validation Failed',
+        errors: [{ resource: 'Search', field: 'q', code: 'missing' }],
+        documentation_url: 'https://docs.github.com/rest/search/search#search-repositories'
+      },
+      422
+    )
+  }
+  const terms = q
+    .split(/\s+/)
+    .filter((w) => w !== '' && !w.includes(':'))
+    .map((w) => w.toLowerCase())
+  const list = ctx.state.repos
+    .filter((repo) => {
+      const haystack = `${fullName(repo)} ${repo.description ?? ''}`.toLowerCase()
+      return terms.every((w) => haystack.includes(w))
+    })
+    .sort((a, b) => b.stargazers.length - a.stargazers.length || a.id - b.id)
+    .map((repo) => ({ ...restRepository(ctx, repo), score: 1 }))
+  const { items, headers } = paginate(ctx, req, list, 30)
+  return json({ total_count: list.length, incomplete_results: false, items }, 200, headers)
+}
+
 const RE = {
   thread: /^\/notifications\/threads\/([^/]+)$/,
   repositoryById: /^\/repositories\/(\d+)$/,
@@ -298,6 +329,8 @@ export function handleRest(ctx: RestContext, req: RestRequest): FakeResponse | n
     }
     return null
   }
+
+  if (path === '/search/repositories' && method === 'GET') return searchRepositories(ctx, req)
 
   if ((m = RE.repositoryById.exec(path)) && method === 'GET') {
     const repo = ctx.state.repos.find((r) => r.id === Number(m?.[1]))
