@@ -1,0 +1,100 @@
+{
+  "title": "Settings",
+  "sectionsLabel": "Settings sections",
+  "saveError": "Couldn’t save this setting. Try again.",
+  "account": {
+    "title": "Account",
+    "notSignedIn": "You’re not signed in.",
+    "tokenKind": "Sign-in method",
+    "tokenKinds": {
+      "classic": "Personal access token (classic)",
+      "fine_grained": "Fine-grained personal access token",
+      "oauth": "Signed in with the browser"
+    },
+    "signOut": "Sign out",
+    "signOutTitle": "Sign out of Gdesk?",
+    "signOutDescription": "Your saved settings and linked folders stay on this computer. You’ll need to sign in again to see your GitHub data.",
+    "cancel": "Cancel",
+    "confirmSignOut": "Sign out"
+  },
+  "appearance": {
+    "title": "Appearance",
+    "language": "Language",
+    "languageHint": "By default Gdesk uses your computer’s language.",
+    "languages": {
+      "system": "System",
+      "en": "English",
+      "ko": "한국어"
+    },
+    "theme": "Theme",
+    "themeHint": "By default Gdesk follows your computer’s light or dark setting.",
+    "themes": {
+      "system": "System",
+      "dark": "Dark",
+      "light": "Light"
+    }
+  },
+  "clone": {
+    "title": "Clone",
+    "folder": "Default clone folder",
+    "folderHint": "New clones go into this folder. Changing it scans the new folder for repositories.",
+    "change": "Change…",
+    "protocol": "Clone address",
+    "protocolHint": "SSH needs an SSH key added to your GitHub account.",
+    "protocols": {
+      "https": "HTTPS",
+      "ssh": "SSH"
+    },
+    "editor": "Default editor",
+    "editorNone": "None (pick automatically)",
+    "editorMissing": "{{name}} (not found)",
+    "noEditors": "No supported editors were found on this computer. Folders open with the system’s default app instead.",
+    "editorsLoading": "Looking for editors…"
+  },
+  "homeCards": {
+    "title": "Home cards",
+    "hint": "Choose which cards appear on Home and in what order.",
+    "show": "Show {{name}}",
+    "moveUp": "Move {{name}} up",
+    "moveDown": "Move {{name}} down"
+  },
+  "folders": {
+    "title": "Linked folders",
+    "hint": "Unlinking only makes Gdesk forget the link. The folder itself is never deleted.",
+    "empty": "No folders are linked yet. Clone a repository or link a folder from its page.",
+    "loadError": "Couldn’t load linked folders.",
+    "missing": "Missing",
+    "unlink": "Unlink",
+    "relink": "Relink…",
+    "unlinkLabel": "Unlink {{path}}",
+    "relinkLabel": "Relink {{path}}",
+    "unlinkTitle": "Unlink this folder?",
+    "unlinkDescription": "Gdesk will forget the link to {{path}}. The folder and its files stay on your computer.",
+    "cancel": "Cancel",
+    "confirmUnlink": "Unlink",
+    "rescan": "Rescan folders",
+    "rescanning": "Scanning…",
+    "rescanSummary": "Scan finished. Repositories found: {{found}} · Newly linked: {{added}} · Missing: {{missing}}",
+    "rescanError": "Couldn’t scan your folders.",
+    "unlinkError": "Couldn’t unlink this folder.",
+    "relinkErrors": {
+      "link_not_found": "This link no longer exists.",
+      "path_not_found": "That folder doesn’t exist.",
+      "not_git": "That folder isn’t the top of a Git repository.",
+      "not_github": "That repository has no GitHub remote.",
+      "different_repo": "That folder belongs to a different repository.",
+      "unresolved": "Couldn’t check the folder’s GitHub remote. You may be offline.",
+      "failed": "Couldn’t relink this folder."
+    }
+  },
+  "about": {
+    "title": "About",
+    "version": "Version",
+    "updates": "Updates",
+    "download": "Download",
+    "restart": "Restart to update",
+    "disabledHint": "This is a development or test build, so Gdesk doesn’t check for updates.",
+    "unavailableHint": "No release source is configured for this build, so updates can’t be checked.",
+    "notifyHint": "This build can’t update itself. Download the new version from the release page."
+  }
+}
