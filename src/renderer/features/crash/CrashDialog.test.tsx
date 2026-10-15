@@ -1,0 +1,154 @@
+// @vitest-environment jsdom
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { I18nextProvider } from 'react-i18next'
+import type { GdeskApi } from '@shared/ipc/contract'
+import type { CrashReport } from '@shared/domain/crash'
+import { i18n } from '@renderer/app/i18n'
+import en from '@renderer/locales/en/crash.json'
+import ko from '@renderer/locales/ko/crash.json'
+import { CrashDialog } from './CrashDialog'
+
+// 번역 자동 수집(import.meta.glob)은 vitest 의 모듈 캐시가 새 파일을 놓칠 수 있어 직접 넣는다
+i18n.addResourceBundle('en', 'crash', en, true, true)
+i18n.addResourceBundle('ko', 'crash', ko, true, true)
+
+const report: CrashReport = {
+  id: 'crash-1',
+  process: 'renderer',
+  appVersion: '1.0.0',
+  osName: 'macOS',
+  osVersion: '15.1.0',
+  message: 'TypeError: x is undefined',
+  stack: 'at render (~/app.js:1:1)',
+  title: '[crash] renderer: TypeError: x is undefined',
+  body: '## Error report\n\n- Gdesk: 1.0.0\n\nat render (~/app.js:1:1)',
+  sendMode: 'issue'
+}
+
+let invoke: ReturnType<typeof vi.fn>
+let listeners: Map<string, (payload: unknown) => void>
+let pending: CrashReport[]
+
+function stub(): void {
+  listeners = new Map()
+  invoke = vi.fn(async (channel: string) => {
+    if (channel === 'crash:pending') return pending
+    if (channel === 'crash:openIssue') return { opened: true, truncated: false }
+    if (channel === 'crash:copy') return { copied: true }
+    if (channel === 'crash:reportRenderer') return { accepted: true }
+    return undefined
+  })
+  const api: GdeskApi = {
+    invoke: invoke as unknown as GdeskApi['invoke'],
+    on: ((event: string, listener: (payload: unknown) => void) => {
+      listeners.set(event, listener)
+      return () => listeners.delete(event)
+    }) as GdeskApi['on']
+  }
+  window.gdesk = api
+}
+
+function renderDialog() {
+  return render(
+    <I18nextProvider i18n={i18n}>
+      <CrashDialog />
+    </I18nextProvider>
+  )
+}
+
+async function show(r: CrashReport): Promise<void> {
+  await act(async () => listeners.get('crash:show')?.({ report: r }))
+}
+
+beforeEach(async () => {
+  pending = []
+  stub()
+  await i18n.changeLanguage('en')
+})
+afterEach(cleanup)
+
+describe('CrashDialog', () => {
+  it('오류가 없으면 아무것도 그리지 않는다', async () => {
+    renderDialog()
+    await act(async () => {})
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('crash:show 를 받으면 지운 보고 내용을 읽기 전용으로 미리 보여 준다', async () => {
+    renderDialog()
+    await show(report)
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    expect(screen.getByText('Gdesk ran into a problem')).toBeTruthy()
+    const preview = screen.getByRole('textbox') as HTMLTextAreaElement
+    expect(preview.readOnly).toBe(true)
+    expect(preview.value).toBe(`${report.title}\n\n${report.body}`)
+    // 자동으로 보내지 않는다
+    expect(invoke).not.toHaveBeenCalledWith('crash:openIssue', expect.anything())
+    expect(invoke).not.toHaveBeenCalledWith('crash:copy', expect.anything())
+  })
+
+  it('보내기는 저장소가 있으면 새 이슈 페이지를 연다', async () => {
+    renderDialog()
+    await show(report)
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Send' })))
+    expect(invoke).toHaveBeenCalledWith('crash:openIssue', { id: 'crash-1' })
+    expect(screen.getByText(/Opened the new issue page/)).toBeTruthy()
+  })
+
+  it('저장소가 없으면 보내기는 클립보드에 복사하고 복사했다고 알린다', async () => {
+    renderDialog()
+    await show({ ...report, sendMode: 'copy' })
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Send' })))
+    expect(invoke).toHaveBeenCalledWith('crash:copy', { id: 'crash-1' })
+    expect(invoke).not.toHaveBeenCalledWith('crash:openIssue', expect.anything())
+    expect(screen.getByText('Copied to the clipboard.')).toBeTruthy()
+  })
+
+  it('닫기를 누르면 사라지고 메인에 알린다', async () => {
+    renderDialog()
+    await show(report)
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Close' })))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(invoke).toHaveBeenCalledWith('crash:dismiss', { id: 'crash-1' })
+  })
+
+  it('여러 보고서는 하나씩 차례로 보여 준다', async () => {
+    renderDialog()
+    await show(report)
+    await show({ ...report, id: 'crash-2', title: 'second' })
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Close' })))
+    expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toContain('second')
+  })
+
+  it('창이 뜨기 전에 난 오류도 대기 목록에서 가져와 보여 준다', async () => {
+    pending = [report]
+    renderDialog()
+    expect(await screen.findByRole('dialog')).toBeTruthy()
+    expect(invoke).toHaveBeenCalledWith('crash:pending')
+  })
+
+  it('화면의 처리되지 않은 오류와 거부를 메인으로 보낸다', async () => {
+    renderDialog()
+    await act(async () => {})
+    const error = new Error('render boom')
+    window.dispatchEvent(new ErrorEvent('error', { error, message: 'render boom' }))
+    const rejection = new Event('unhandledrejection') as Event & { reason?: unknown }
+    rejection.reason = 'nope'
+    window.dispatchEvent(rejection)
+    expect(invoke).toHaveBeenCalledWith('crash:reportRenderer', {
+      message: 'Error: render boom',
+      stack: error.stack
+    })
+    expect(invoke).toHaveBeenCalledWith('crash:reportRenderer', { message: 'nope', stack: null })
+  })
+
+  it('한국어 문구', async () => {
+    await i18n.changeLanguage('ko')
+    renderDialog()
+    await show(report)
+    expect(screen.getByText('오류가 발생했습니다')).toBeTruthy()
+    expect(screen.getByRole('button', { name: '보내기' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '닫기' })).toBeTruthy()
+  })
+})
