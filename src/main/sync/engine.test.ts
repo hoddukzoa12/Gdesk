@@ -289,6 +289,52 @@ describe('SyncEngine', () => {
       expect(h.count('notifications')).toBe(4)
     })
 
+    it('수동 알림 새로고침은 다음 자동 폴링을 뒤로 민다(최소 간격 지킴)', async () => {
+      h = setup()
+      h.engine.setWindowsOpen(true)
+      await flush()
+      expect(h.count('notifications')).toBe(1)
+
+      await vi.advanceTimersByTimeAsync(40 * SEC)
+      await h.engine.refresh('inbox')
+      expect(h.count('notifications')).toBe(2)
+      // 원래 60초 자리에서는 폴링하지 않는다
+      await vi.advanceTimersByTimeAsync(20 * SEC)
+      expect(h.count('notifications')).toBe(2)
+      // 수동 요청(40초)으로부터 60초 뒤
+      await vi.advanceTimersByTimeAsync(40 * SEC - 1)
+      expect(h.count('notifications')).toBe(2)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(h.count('notifications')).toBe(3)
+    })
+
+    it('home 새로고침도 알림 폴링을 밀고 X-Poll-Interval 을 따른다', async () => {
+      h = setup()
+      h.engine.setWindowsOpen(true)
+      await flush()
+      await vi.advanceTimersByTimeAsync(30 * SEC)
+      h.setPollInterval(120)
+      await h.engine.refresh('home')
+      expect(h.count('notifications')).toBe(2)
+      await vi.advanceTimersByTimeAsync(120 * SEC - 1)
+      expect(h.count('notifications')).toBe(2)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(h.count('notifications')).toBe(3)
+    })
+
+    it('수동 알림 요청이 실패해도 다음 폴링은 최소 간격 뒤', async () => {
+      h = setup()
+      h.engine.setWindowsOpen(true)
+      await flush()
+      await vi.advanceTimersByTimeAsync(50 * SEC)
+      vi.mocked(h.refresh.notifications).mockRejectedValueOnce(new Error('x'))
+      await h.engine.refresh('inbox')
+      await vi.advanceTimersByTimeAsync(60 * SEC - 1)
+      expect(h.refresh.notifications).toHaveBeenCalledTimes(2)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(h.refresh.notifications).toHaveBeenCalledTimes(3)
+    })
+
     it('간격을 바꿀 수 있다', async () => {
       h = setup({ overrides: { intervals: { notificationsMs: 2 * MIN, listsMs: 10 * MIN } } })
       h.engine.setWindowsOpen(true)
@@ -693,6 +739,26 @@ describe('SyncEngine', () => {
       const n = h.statuses.length
       h.setStatus('online')
       expect(h.statuses.length).toBe(n)
+    })
+
+    it('세션 만료·로그인 중에는 저장된 정보의 시각을 유지한다(시작 때 포함)', async () => {
+      h = setup({ lastSyncedAt: START - 3 * MIN })
+      h.setSession({ state: 'expired' })
+      expect(h.engine.getStatus().lastSyncedAt).toBe(START - 3 * MIN)
+      h.setSession({ state: 'signing_in' })
+      expect(h.engine.getStatus().lastSyncedAt).toBe(START - 3 * MIN)
+      h.engine.dispose()
+
+      h = setup({ session: { state: 'expired' }, lastSyncedAt: START - 7 * MIN })
+      expect(h.engine.getStatus().lastSyncedAt).toBe(START - 7 * MIN)
+      h.engine.dispose()
+
+      h = setup({ session: { state: 'signing_in' }, lastSyncedAt: START - 8 * MIN })
+      expect(h.engine.getStatus().lastSyncedAt).toBe(START - 8 * MIN)
+      h.engine.dispose()
+
+      h = setup({ session: { state: 'signed_out' }, lastSyncedAt: START - 9 * MIN })
+      expect(h.engine.getStatus().lastSyncedAt).toBeNull()
     })
 
     it('로그아웃하면 마지막 동기화 시각을 비운다', async () => {

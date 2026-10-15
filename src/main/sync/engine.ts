@@ -173,7 +173,8 @@ export class SyncEngine {
     this.listsLowRatio = options.listsLowRatio ?? 0.05
     this.session = { ...options.session.get() }
     this.pinned = [...options.pins.list()]
-    this.lastSyncedAt = this.session.state === 'signed_in' ? this.safeLastSyncedAt() : null
+    // 세션 만료·로그인 중에도 저장된 정보를 보여 주므로 그 시각을 둔다. 로그아웃만 비운다
+    this.lastSyncedAt = this.session.state === 'signed_out' ? null : this.safeLastSyncedAt()
 
     this.unsubscribers.push(
       options.connection.onStatusChange(() => {
@@ -338,7 +339,7 @@ export class SyncEngine {
     this.session = { ...session }
     if (previous.state !== session.state) {
       // 로그아웃하면 캐시가 지워진다. 로그인하면 저장된 값을 다시 읽는다
-      this.lastSyncedAt = session.state === 'signed_in' ? this.safeLastSyncedAt() : null
+      this.lastSyncedAt = session.state === 'signed_out' ? null : this.safeLastSyncedAt()
       this.reconcile()
     }
     this.emitStatus()
@@ -461,6 +462,21 @@ export class SyncEngine {
       )
       return [...KEYS.notifications]
     })
+    this.pushBackNotificationsPoll()
+  }
+
+  /**
+   * 수동 새로고침을 포함해 알림을 요청했으면 다음 자동 폴링을 그 요청으로부터
+   * max(기본 주기, X-Poll-Interval) 뒤로 민다(GitHub 최소 간격, 실패해도 같다).
+   */
+  private pushBackNotificationsPoll(): void {
+    const group = this.groups.notifications
+    const earliest =
+      this.lastNotificationsAttempt +
+      Math.max(this.intervals.notificationsMs, this.lastNotificationsPollMs)
+    if (group.dueAt >= earliest) return
+    group.dueAt = earliest
+    if (!group.running) this.schedule('notifications')
   }
 
   private runUnit(
