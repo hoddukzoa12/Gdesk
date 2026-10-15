@@ -108,7 +108,7 @@ Gdesk는 한 사람이 자기 컴퓨터에서 쓰는 앱이다. 앱 자체의 �
 
 - 모든 창: `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`, `webSecurity: true`.
 - CSP: `default-src 'self'`, `script-src 'self'`, `connect-src 'self'`(개발 서버 웹소켓만 추가), `img-src 'self' https: data:`. 화면은 네트워크 요청을 할 수 없고, GitHub가 준 아바타 같은 https 이미지만 띄운다.
-- 앱 창 안의 다른 페이지 이동은 모두 막는다(개발 서버 주소만 예외). 새 창 요청은 거부하고, http(s)면 기본 브라우저로 넘긴다.
+- 앱 창 안의 다른 페이지 이동은 모두 막는다. 예외는 포장되지 않은 개발 실행(`!app.isPackaged`)에서의 개발 서버 주소(`ELECTRON_RENDERER_URL`)뿐이다. 배포 앱은 이 환경 변수를 보지 않는다. 새 창 요청은 거부하고, http(s)면 기본 브라우저로 넘긴다.
 - 외부 링크(`app:openExternal`, 오류 보고 이슈, 다운로드 페이지, 기기 인증 주소)는 `https:`·`http:`만 연다. `file:`, `javascript:` 등은 열지 않고 `opened: false`.
 - 배포 빌드의 앱 메뉴에는 개발자 도구가 없다.
 
