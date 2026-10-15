@@ -1,6 +1,6 @@
-import { Navigate, createHashRouter, type RouteObject } from 'react-router'
-import { AppLayout } from './AppLayout'
+import { createHashRouter, type RouteObject } from 'react-router'
 import type { FeatureRouteModule } from './route-types'
+import { buildRoutes } from './routes'
 
 /**
  * 기능 라우트 자동 수집: `src/renderer/features/<기능>/route.tsx` 가 `routes` 를 내보낸다.
@@ -9,10 +9,4 @@ import type { FeatureRouteModule } from './route-types'
 const modules = import.meta.glob<FeatureRouteModule>('../features/*/route.tsx', { eager: true })
 const featureRoutes: RouteObject[] = Object.values(modules).flatMap((m) => m.routes)
 
-export const router = createHashRouter([
-  {
-    path: '/',
-    element: <AppLayout />,
-    children: [{ index: true, element: <Navigate to="/home" replace /> }, ...featureRoutes]
-  }
-])
+export const router = createHashRouter(buildRoutes(featureRoutes))
