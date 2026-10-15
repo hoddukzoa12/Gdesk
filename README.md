@@ -57,8 +57,8 @@ pnpm dist:dir     # 설치 파일 없이 앱 폴더만 빠르게 만들기 (rele
 pnpm dist         # 지금 OS 용 설치 파일 만들기 (release/)
 ```
 
-로컬 빌드는 서명하지 않는다. 맥에서 키체인 인증서 자동 탐색을 확실히 끄려면
-`CSC_IDENTITY_AUTO_DISCOVERY=false pnpm dist` 로 실행한다.
+로컬 빌드는 `CSC_LINK`(또는 `CSC_NAME`)를 넣지 않으면 서명하지 않는다. 키체인에 인증서가 있어도 쓰지 않는다.
+서명하는 방법은 [docs/signing.md](docs/signing.md) 를 본다.
 
 ## 빌드 설정 / Build configuration
 

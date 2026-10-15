@@ -24,7 +24,7 @@ Gdesk 설치 파일은 **서명용 비밀값이 있을 때만** 서명·공증�
 
 ### 비밀값이 없을 때(서명 안 된 맥 빌드)
 
-- 서명을 건너뛴다(`identity: null`, `CSC_IDENTITY_AUTO_DISCOVERY=false`). 빌드는 성공한다.
+- 서명을 건너뛴다(`identity: null`, CI 는 `CSC_IDENTITY_AUTO_DISCOVERY=false` 도 넣는다). 빌드는 성공한다.
 - 자동 설치는 하지 않는다. 서명 안 된 앱은 macOS 업데이트 장치(Squirrel.Mac)가 설치를 거부하기 때문이다.
   대신 새 버전이 있으면 **"새 버전 있음" 알림**을 띄우고, 버튼을 누르면 GitHub Releases 다운로드 페이지를 연다.
 - 사용자는 처음 열 때 경고를 볼 수 있다. 앱을 응용 프로그램 폴더로 옮긴 뒤
@@ -78,8 +78,12 @@ CSC_IDENTITY_AUTO_DISCOVERY=false pnpm dist:dir    # 앱 폴더만(빠름)
 ```
 
 로컬에서 서명하려면 `CSC_LINK`(또는 키체인의 인증서 이름 `CSC_NAME`)와 `CSC_KEY_PASSWORD` 를 넣고,
-자동 업데이트를 쓰려면 `GDESK_MAC_SIGNED=1` 도 함께 넣는다. `GDESK_MAC_SIGNED=1` 인데 인증서가 없으면
-빌드 설정이 일부러 실패시킨다(서명 안 된 앱이 자동 설치를 시도하지 않게).
+자동 업데이트를 쓰려면 `GDESK_MAC_SIGNED=1` 도 함께 넣는다.
+
+- 서명할 때는 `CSC_IDENTITY_AUTO_DISCOVERY=false` 를 **같이 넣지 않는다**(`CSC_NAME` 을 함께 줄 때만 괜찮다).
+  이 값이 false 이면 electron-builder 가 `CSC_LINK` 로 가져온 인증서를 찾지 않는다.
+- 인증서를 넣었는데 서명이 실제로 안 되면 `forceCodeSigning` 때문에 빌드가 실패한다(조용히 서명 없는 앱이 나가지 않게).
+- `GDESK_MAC_SIGNED=1` 인데 인증서가 없으면 빌드 설정이 일부러 실패시킨다(서명 안 된 앱이 자동 설치를 시도하지 않게).
 
 ## 내장 git 과 CPU
 

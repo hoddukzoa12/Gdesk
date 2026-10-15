@@ -112,11 +112,15 @@ const config: Configuration = {
     entitlementsInherit: 'build/entitlements.mac.plist',
     // 인증서가 없으면 서명을 건너뛴다(null). 있으면 CSC_LINK/CSC_NAME 으로 서명한다.
     identity: macCert ? undefined : null,
+    // 인증서가 있는데 서명이 실제로 안 되면(인증서 오류 등) 조용히 넘어가지 않고 빌드를 실패시킨다.
+    // GDESK_MAC_SIGNED=1 로 만든 앱이 서명 없이 나가면 맥 자동 업데이트가 설치 단계에서 깨진다.
+    forceCodeSigning: macCert,
     notarize: macNotarize
   },
   // 윈도우 서명: WIN_CSC_LINK / WIN_CSC_KEY_PASSWORD 가 있으면 electron-builder 가 알아서 서명한다.
   win: {
-    target: [{ target: 'nsis', arch: ['x64'] }]
+    target: [{ target: 'nsis', arch: ['x64'] }],
+    forceCodeSigning: has('WIN_CSC_LINK')
   },
   nsis: {
     oneClick: true,

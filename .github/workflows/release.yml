@@ -66,8 +66,6 @@ jobs:
       # 앱이 업데이트를 확인할 저장소와 OAuth App 공개 client ID(비밀값 아님)
       GDESK_REPO: ${{ github.repository }}
       GDESK_GITHUB_CLIENT_ID: ${{ vars.GDESK_GITHUB_CLIENT_ID || secrets.GDESK_GITHUB_CLIENT_ID }}
-      # 키체인 자동 탐색을 끈다. 인증서는 아래에서 CSC_LINK 로만 넘긴다.
-      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
     steps:
       - uses: actions/checkout@v5
 
@@ -117,6 +115,9 @@ jobs:
                   echo "::warning::APPLE_ID/APPLE_APP_SPECIFIC_PASSWORD/APPLE_TEAM_ID 가 없어 공증을 건너뜁니다."
                 fi
               else
+                # 인증서가 없을 때만 키체인 자동 탐색을 끈다. CSC_LINK 와 함께 끄면
+                # electron-builder 가 가져온 인증서를 찾지 않아 서명 없이 빌드된다.
+                put CSC_IDENTITY_AUTO_DISCOVERY false
                 echo "::notice::CSC_LINK 가 없어 서명 안 된 맥 앱을 만듭니다(업데이트는 새 버전 알림만)."
               fi
               ;;
