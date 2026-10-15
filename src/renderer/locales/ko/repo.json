@@ -1,0 +1,116 @@
+{
+  "crumb": "저장소",
+  "loading": "저장소를 불러오는 중…",
+  "loadingHint": "GitHub에서 받아 오고 있어요. 도착하면 화면이 바로 바뀝니다.",
+  "invalid": "올바른 저장소 주소가 아닙니다.",
+  "loadFailed": "저장소를 불러오지 못했습니다.",
+  "unavailable": {
+    "title": "사용할 수 없는 저장소입니다 (삭제되었거나 접근 권한 없음)",
+    "description": "저장소가 삭제되었거나 더 이상 접근할 수 없습니다.",
+    "badge": "사용할 수 없음"
+  },
+  "tabs": {
+    "label": "저장소 구역",
+    "overview": "개요",
+    "myPulls": "내 풀 리퀘스트",
+    "issues": "이슈",
+    "releases": "릴리스"
+  },
+  "visibility": {
+    "public": "공개",
+    "private": "비공개"
+  },
+  "badges": {
+    "archived": "보관됨",
+    "fork": "포크"
+  },
+  "meta": {
+    "label": "저장소 정보",
+    "language": "주 언어",
+    "branch": "기본 브랜치",
+    "license": "라이선스",
+    "updated": "{{time}} 업데이트"
+  },
+  "actions": {
+    "openOnGitHub": "GitHub에서 열기",
+    "star": "스타",
+    "starred": "스타함",
+    "starCount": "스타 {{n}}개",
+    "fork": "포크",
+    "forkCount": "포크 {{n}}개",
+    "pin": "고정",
+    "unpin": "고정 해제",
+    "clone": "클론",
+    "cloneUnavailable": "아직 클론할 수 없습니다"
+  },
+  "blocked": {
+    "offline": "오프라인 상태입니다",
+    "session_expired": "로그인 세션이 만료되었습니다",
+    "rate_limited": "GitHub 요청 한도에 도달했습니다",
+    "signed_out": "로그아웃 상태입니다"
+  },
+  "errors": {
+    "star": "스타를 바꾸지 못했습니다.",
+    "pin": "고정을 바꾸지 못했습니다."
+  },
+  "metrics": {
+    "openPulls": "열린 풀 리퀘스트",
+    "ci": "{{branch}} CI, 최근 커밋 7개",
+    "ciNoBranch": "CI, 최근 커밋 7개",
+    "latestRelease": "최신 릴리스",
+    "stars": "스타, 최근 30일",
+    "thisMonth": "최근 한 달",
+    "starsTrend": "최근 30일 동안 하루에 늘어난 스타",
+    "partial": "스타 시각을 일부 받지 못해 실제보다 적게 보일 수 있습니다.",
+    "none": "—"
+  },
+  "pulls": {
+    "title": "열린 풀 리퀘스트",
+    "mineTitle": "내가 연 풀 리퀘스트",
+    "allOnGitHub": "GitHub에서 모두 보기",
+    "empty": "열린 풀 리퀘스트가 없습니다",
+    "mineEmpty": "이 저장소에 내가 연 풀 리퀘스트가 없습니다",
+    "draft": "초안",
+    "openedBy": "#{{number}} · {{author}} · {{time}} 열림",
+    "review": {
+      "approved": "승인됨",
+      "changes_requested": "변경 요청됨",
+      "review_required": "리뷰 필요"
+    }
+  },
+  "commits": {
+    "title": "최근 커밋",
+    "history": "기록",
+    "empty": "아직 커밋이 없습니다"
+  },
+  "issues": {
+    "title": "열린 이슈",
+    "empty": "열린 이슈가 없습니다"
+  },
+  "releases": {
+    "title": "릴리스",
+    "empty": "아직 릴리스가 없습니다",
+    "latest": "최신",
+    "prerelease": "사전 릴리스",
+    "draft": "초안"
+  },
+  "about": {
+    "title": "소개",
+    "noDescription": "설명이 없습니다.",
+    "readme": "README",
+    "topics": "토픽"
+  },
+  "languages": {
+    "title": "언어",
+    "empty": "감지된 언어가 없습니다",
+    "other": "기타",
+    "bar": "언어 비율"
+  },
+  "contributors": {
+    "title": "기여자",
+    "empty": "아직 기여자가 없습니다",
+    "more": "+{{n}}"
+  },
+  "comments": "댓글 {{n}}개",
+  "moreOnGitHub": "GitHub에서 더 보기"
+}

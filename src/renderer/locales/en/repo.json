@@ -1,0 +1,116 @@
+{
+  "crumb": "Repository",
+  "loading": "Loading repository…",
+  "loadingHint": "Fetching it from GitHub. This page updates when it arrives.",
+  "invalid": "This repository address isn’t valid.",
+  "loadFailed": "Couldn’t load this repository.",
+  "unavailable": {
+    "title": "This repository is unavailable (deleted or no access)",
+    "description": "It may have been deleted, or you no longer have access to it.",
+    "badge": "Unavailable"
+  },
+  "tabs": {
+    "label": "Repository sections",
+    "overview": "Overview",
+    "myPulls": "Your pull requests",
+    "issues": "Issues",
+    "releases": "Releases"
+  },
+  "visibility": {
+    "public": "Public",
+    "private": "Private"
+  },
+  "badges": {
+    "archived": "Archived",
+    "fork": "Fork"
+  },
+  "meta": {
+    "label": "Repository details",
+    "language": "Primary language",
+    "branch": "Default branch",
+    "license": "License",
+    "updated": "Updated {{time}}"
+  },
+  "actions": {
+    "openOnGitHub": "Open on GitHub",
+    "star": "Star",
+    "starred": "Starred",
+    "starCount": "{{n}} stars",
+    "fork": "Fork",
+    "forkCount": "{{n}} forks",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "clone": "Clone",
+    "cloneUnavailable": "Cloning isn’t available yet"
+  },
+  "blocked": {
+    "offline": "You’re offline",
+    "session_expired": "Your session has expired",
+    "rate_limited": "GitHub rate limit reached",
+    "signed_out": "You’re signed out"
+  },
+  "errors": {
+    "star": "Couldn’t update the star.",
+    "pin": "Couldn’t update the pin."
+  },
+  "metrics": {
+    "openPulls": "Open pull requests",
+    "ci": "CI on {{branch}}, last 7 commits",
+    "ciNoBranch": "CI, last 7 commits",
+    "latestRelease": "Latest release",
+    "stars": "Stars, last 30 days",
+    "thisMonth": "this month",
+    "starsTrend": "New stars per day over the last 30 days",
+    "partial": "Some star times couldn’t be loaded, so this may be lower than the real number.",
+    "none": "—"
+  },
+  "pulls": {
+    "title": "Open pull requests",
+    "mineTitle": "Your open pull requests",
+    "allOnGitHub": "All on GitHub",
+    "empty": "No open pull requests",
+    "mineEmpty": "You have no open pull requests in this repository",
+    "draft": "Draft",
+    "openedBy": "#{{number}} opened {{time}} by {{author}}",
+    "review": {
+      "approved": "Approved",
+      "changes_requested": "Changes requested",
+      "review_required": "Review required"
+    }
+  },
+  "commits": {
+    "title": "Recent commits",
+    "history": "History",
+    "empty": "No commits yet"
+  },
+  "issues": {
+    "title": "Open issues",
+    "empty": "No open issues"
+  },
+  "releases": {
+    "title": "Releases",
+    "empty": "No releases yet",
+    "latest": "Latest",
+    "prerelease": "Pre-release",
+    "draft": "Draft"
+  },
+  "about": {
+    "title": "About",
+    "noDescription": "No description provided.",
+    "readme": "README",
+    "topics": "Topics"
+  },
+  "languages": {
+    "title": "Languages",
+    "empty": "No languages detected",
+    "other": "Other",
+    "bar": "Language breakdown"
+  },
+  "contributors": {
+    "title": "Contributors",
+    "empty": "No contributors yet",
+    "more": "+{{n}}"
+  },
+  "comments": "Comments: {{n}}",
+  "moreOnGitHub": "More on GitHub"
+}
