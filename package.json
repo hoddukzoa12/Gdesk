@@ -19,7 +19,7 @@
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "test": "vitest run --passWithNoTests",
-    "test:e2e": "cross-env GDESK_TEST_BUILD=1 electron-vite build && playwright test --pass-with-no-tests",
+    "test:e2e": "cross-env GDESK_TEST_BUILD=1 GDESK_GITHUB_CLIENT_ID=gdesk-e2e-client electron-vite build && playwright test --pass-with-no-tests",
     "dist": "electron-vite build && electron-builder --publish never",
     "dist:dir": "electron-vite build && electron-builder --dir --publish never"
   },

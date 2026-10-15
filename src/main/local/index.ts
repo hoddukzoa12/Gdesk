@@ -3,6 +3,7 @@ import { shell } from 'electron'
 import '@shared/ipc/local'
 import { getAuthService, getToken } from '../auth'
 import { getDb } from '../db/db'
+import { isTestMode } from '../config'
 import { cloneRepository, readGitHubRemotes } from '../git'
 import { getGitHubClient } from '../github/client'
 import { notifyDataChanged } from '../ipc/data-events'
@@ -25,7 +26,15 @@ export function createDefaultLocalDeps(): LocalDeps {
     db: getDb,
     settings: () => getSettings(getDb()),
     readRemotes: (dir) => readGitHubRemotes(dir),
-    clone: (options) => cloneRepository(options),
+    clone: (options) => {
+      // 화면 테스트 전용: 가짜 GitHub 의 git 저장소에서 클론한다(테스트 빌드 + 테스트 모드에서만).
+      const testGitBase = isTestMode() ? process.env.GDESK_TEST_GIT_BASE : undefined
+      return testGitBase
+        ? cloneRepository(options, {
+            sourceUrl: `${testGitBase.replace(/\/+$/, '')}/${options.owner}/${options.name}.git`
+          })
+        : cloneRepository(options)
+    },
     sessionState: () => {
       try {
         return getAuthService().getSession().state

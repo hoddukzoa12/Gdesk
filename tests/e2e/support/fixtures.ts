@@ -68,6 +68,7 @@ function testEnv(server: FakeGitHub, userDataDir: string, token: string | null) 
   env.GDESK_TEST_MODE = '1'
   env.GDESK_TEST_API_BASE = server.apiBase
   env.GDESK_TEST_WEB_BASE = server.webBase
+  env.GDESK_TEST_GIT_BASE = server.webBase
   env.GDESK_TEST_USER_DATA = userDataDir
   if (token !== null) env.GDESK_TEST_TOKEN = token
   return env
