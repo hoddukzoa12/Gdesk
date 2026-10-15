@@ -1,0 +1,12 @@
+{
+  "title": "Review requests",
+  "empty": {
+    "title": "No review requests",
+    "description": "Open pull requests that ask you or your team for a review appear here."
+  },
+  "more": {
+    "text": "Showing {{shown}} of {{total}}.",
+    "link": "More on GitHub"
+  },
+  "error": "Couldn’t load review requests."
+}

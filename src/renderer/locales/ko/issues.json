@@ -1,0 +1,34 @@
+{
+  "title": "이슈",
+  "tabs": {
+    "label": "이슈 목록",
+    "incoming": "들어온 이슈",
+    "assigned": "나에게 할당",
+    "mine": "내가 올린 이슈"
+  },
+  "empty": {
+    "incoming": {
+      "title": "들어온 이슈가 없습니다",
+      "description": "다른 사람이 내 저장소에 올린 열린 이슈가 여기에 표시됩니다."
+    },
+    "assigned": {
+      "title": "나에게 할당된 이슈가 없습니다",
+      "description": "나에게 할당된 열린 이슈가 여기에 표시됩니다."
+    },
+    "mine": {
+      "title": "내가 올린 열린 이슈가 없습니다",
+      "description": "어느 저장소든 내가 올린 열린 이슈가 여기에 표시됩니다."
+    }
+  },
+  "row": {
+    "label": "{{repo}}#{{number}} {{title}}",
+    "labels": "라벨",
+    "comments_one": "댓글 {{count}}개",
+    "comments_other": "댓글 {{count}}개"
+  },
+  "more": {
+    "text": "전체 {{total}}개 중 {{shown}}개를 보여 줍니다.",
+    "link": "GitHub에서 더 보기"
+  },
+  "error": "이슈 목록을 불러오지 못했습니다."
+}
