@@ -1,0 +1,58 @@
+{
+  "title": "빠른 검색",
+  "button": "검색",
+  "open": "빠른 검색 열기 ({{shortcut}})",
+  "placeholder": "저장소·PR·이슈를 찾거나 명령을 입력하세요…",
+  "results": "검색 결과",
+  "noResults": "맞는 명령이 없습니다",
+  "sections": {
+    "commands": "명령",
+    "repositories": "저장소",
+    "pullRequests": "풀 리퀘스트",
+    "issues": "이슈",
+    "github": "GitHub",
+    "clone": "내 저장소"
+  },
+  "notes": {
+    "loading": "GitHub 에서 찾는 중…",
+    "empty": "GitHub 에서 찾은 저장소가 없습니다",
+    "offline": "오프라인 — GitHub 검색을 쓸 수 없습니다",
+    "rate_limited": "GitHub 검색 한도에 걸렸습니다. 1분 뒤에 다시 해 보세요.",
+    "error": "GitHub 에서 찾지 못했습니다",
+    "cloneEmpty": "맞는 저장소가 없습니다"
+  },
+  "commands": {
+    "go": {
+      "home": "홈으로 가기",
+      "inbox": "알림함으로 가기",
+      "pulls": "풀 리퀘스트로 가기",
+      "reviews": "리뷰 요청으로 가기",
+      "issues": "이슈로 가기",
+      "starred": "스타로 가기",
+      "repositories": "저장소로 가기",
+      "settings": "설정 열기"
+    },
+    "refresh": "지금 화면 새로고침",
+    "clone": "저장소 클론…",
+    "theme": {
+      "dark": "테마: 어둡게",
+      "light": "테마: 밝게",
+      "system": "테마: 시스템 설정 따름"
+    },
+    "language": {
+      "en": "언어: English",
+      "ko": "언어: 한국어",
+      "system": "언어: 시스템 설정 따름"
+    }
+  },
+  "clone": {
+    "title": "저장소 클론",
+    "placeholder": "클론할 저장소를 고르세요…",
+    "back": "명령으로 돌아가기"
+  },
+  "footer": {
+    "move": "이동",
+    "open": "열기",
+    "close": "닫기"
+  }
+}

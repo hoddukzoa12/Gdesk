@@ -1,0 +1,58 @@
+{
+  "title": "Quick search",
+  "button": "Search",
+  "open": "Open quick search ({{shortcut}})",
+  "placeholder": "Search repositories, pull requests, issues, or type a command…",
+  "results": "Results",
+  "noResults": "No matching commands",
+  "sections": {
+    "commands": "Commands",
+    "repositories": "Repositories",
+    "pullRequests": "Pull requests",
+    "issues": "Issues",
+    "github": "GitHub",
+    "clone": "Your repositories"
+  },
+  "notes": {
+    "loading": "Searching GitHub…",
+    "empty": "No repositories found on GitHub",
+    "offline": "Offline — GitHub search is unavailable",
+    "rate_limited": "GitHub search limit reached. Try again in a minute.",
+    "error": "Couldn’t search GitHub",
+    "cloneEmpty": "No repositories match"
+  },
+  "commands": {
+    "go": {
+      "home": "Go to Home",
+      "inbox": "Go to Inbox",
+      "pulls": "Go to Pull requests",
+      "reviews": "Go to Review requests",
+      "issues": "Go to Issues",
+      "starred": "Go to Starred",
+      "repositories": "Go to Repositories",
+      "settings": "Open Settings"
+    },
+    "refresh": "Refresh this screen",
+    "clone": "Clone repository…",
+    "theme": {
+      "dark": "Theme: Dark",
+      "light": "Theme: Light",
+      "system": "Theme: System"
+    },
+    "language": {
+      "en": "Language: English",
+      "ko": "Language: 한국어",
+      "system": "Language: System"
+    }
+  },
+  "clone": {
+    "title": "Clone repository",
+    "placeholder": "Pick a repository to clone…",
+    "back": "Back to commands"
+  },
+  "footer": {
+    "move": "Move",
+    "open": "Open",
+    "close": "Close"
+  }
+}

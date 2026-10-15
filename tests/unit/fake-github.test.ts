@@ -18,6 +18,7 @@ import {
   collectStarredRepositories
 } from '../../src/main/github/collectors'
 import { isUnansweredContribution } from '../../src/main/domain/contribution'
+import { createSearchService } from '../../src/main/search/search.service'
 import { FIXTURE, startFakeGitHub } from '../fixtures/github'
 import type { FakeGitHub } from '../fixtures/github'
 
@@ -495,5 +496,80 @@ describe('기기 인증(device flow)', () => {
     expect(await pollForToken(deps(), code, signal)).toEqual({ kind: 'denied' })
     server.setDeviceFlowOutcome('expire')
     expect(await pollForToken(deps(), code, signal)).toEqual({ kind: 'expired' })
+  })
+})
+
+describe('저장소 검색(빠른 검색창)', () => {
+  it('GET /search/repositories 는 이름·설명으로 찾고 GitHub 검색 모양으로 준다', async () => {
+    const res = await api('/search/repositories?q=awesome&per_page=10')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('x-ratelimit-resource')).toBe('search')
+    const body = (await res.json()) as {
+      total_count: number
+      incomplete_results: boolean
+      items: { id: number; full_name: string; owner: { login: string } }[]
+    }
+    expect(body.incomplete_results).toBe(false)
+    expect(body.total_count).toBe(1)
+    expect(body.items.map((r) => r.full_name)).toEqual([R.starredOther.fullName])
+    expect(body.items[0]?.owner.login).toBe('upstream-org')
+
+    // 한정자는 무시하고 낱말은 모두 맞아야 한다. 대소문자 무관
+    const scoped = await api('/search/repositories?q=Organization+website+in:name')
+    const scopedBody = (await scoped.json()) as { items: { id: number }[] }
+    expect(scopedBody.items.map((r) => r.id)).toEqual([R.orgRead.id])
+
+    const none = await api('/search/repositories?q=zzz-nothing')
+    expect(await none.json()).toMatchObject({ total_count: 0, items: [] })
+
+    const missing = await api('/search/repositories?q=')
+    expect(missing.status).toBe(422)
+  })
+
+  it('per_page 로 잘라 주고 Link 로 다음 쪽을 알린다', async () => {
+    const res = await api('/search/repositories?q=gdesk&per_page=1')
+    const body = (await res.json()) as { total_count: number; items: unknown[] }
+    expect(body.items).toHaveLength(1)
+    expect(body.total_count).toBeGreaterThan(1)
+    expect(res.headers.get('link')).toContain('rel="next"')
+  })
+
+  it('앱의 검색 서비스가 진짜 HTTP 로 받아 행으로 바꾼다', async () => {
+    const service = createSearchService({
+      db: () => {
+        throw new Error('not used')
+      },
+      client: () => client()
+    })
+    const result = await service.github('awesome')
+    expect(result).toEqual({
+      status: 'ok',
+      items: [
+        expect.objectContaining({
+          id: R.starredOther.id,
+          owner: 'upstream-org',
+          name: 'awesome-lib',
+          fullName: R.starredOther.fullName,
+          url: `${server.webBase}/${R.starredOther.fullName}`
+        })
+      ]
+    })
+    expect(server.hasRequest('GET /search/repositories')).toBe(true)
+  })
+
+  it('캐시에 없는 저장소(노드 ID 모름)도 숫자 ID 로 상세를 받는다', async () => {
+    const { results } = await collectRepositoryDetails([{ repoId: R.orgRead.id }], {
+      client: client()
+    })
+    expect(results).toEqual([
+      expect.objectContaining({
+        repoId: R.orgRead.id,
+        status: 'ok',
+        detail: expect.objectContaining({
+          repository: expect.objectContaining({ fullName: R.orgRead.fullName })
+        })
+      })
+    ])
+    expect(server.hasRequest(`GET /repositories/${R.orgRead.id}`)).toBe(true)
   })
 })
