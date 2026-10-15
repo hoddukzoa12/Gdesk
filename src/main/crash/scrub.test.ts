@@ -6,6 +6,7 @@ const ctx: ScrubContext = {
   login: 'octo-alice',
   repos: ['acme-corp/secret-app', 'octo-alice/dotfiles', 'bob/stars.io'],
   owners: ['acme-corp', 'octo-alice', 'bob'],
+  repoNames: ['secret-app', 'dotfiles', 'stars.io'],
   secrets: ['plain-secret-value-123']
 }
 
@@ -90,8 +91,20 @@ describe('scrubText', () => {
   })
 
   it('바꾼 자리표시자를 다시 바꾸지 않는다', () => {
-    const out = scrubText('user owner and repo', { login: 'owner', repos: ['x/repo'] })
+    const out = scrubText('user owner and repo', { login: 'owner', repoNames: ['repo'] })
     expect(out).toBe('user <user> and <repo>')
+  })
+
+  it('이름만 지우는 것은 repoNames 에 있는 것뿐이다(스타한 유명 저장소 이름은 남긴다)', () => {
+    const out = scrubText('at node_modules/react/index.js via facebook/react', {
+      repos: ['facebook/react'],
+      repoNames: []
+    })
+    expect(out).toBe('at node_modules/react/index.js via <repo>')
+  })
+
+  it('짧은 저장소 이름(2자 이하)은 이름만으로는 지우지 않는다', () => {
+    expect(scrubText('a ui b', { repoNames: ['ui'] })).toBe('a ui b')
   })
 
   it('빈 문맥에서도 경로와 토큰은 지운다', () => {

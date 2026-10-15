@@ -31,11 +31,17 @@ function reportEnv(): ReportEnv {
 
 /** 지울 이름들. 로그인·DB 가 아직 준비되지 않았으면 그 부분만 비운다. */
 function scrubContext(): ScrubContext {
-  const ctx: ScrubContext & { repos: string[]; owners: string[]; secrets: string[] } = {
+  const ctx: ScrubContext & {
+    repos: string[]
+    owners: string[]
+    repoNames: string[]
+    secrets: string[]
+  } = {
     homeDir: homedir(),
     login: null,
     repos: [],
     owners: [],
+    repoNames: [],
     secrets: []
   }
   try {
@@ -52,14 +58,15 @@ function scrubContext(): ScrubContext {
   try {
     if (isDbReady()) {
       const db = getDb()
-      // 내 저장소(포크·보관 포함)와 스타한 저장소를 모두 모은다
-      const repos = [
-        ...listMyRepositories(db, { includeForks: true, includeArchived: true }),
-        ...listStarredRepositories(db)
-      ]
-      for (const repo of repos) {
+      // 내 저장소(포크·보관 포함): 전체 이름, 소유자, 이름만까지 지운다
+      for (const repo of listMyRepositories(db, { includeForks: true, includeArchived: true })) {
         if (repo.fullName) ctx.repos.push(repo.fullName)
         if (repo.owner) ctx.owners.push(repo.owner)
+        if (repo.name) ctx.repoNames.push(repo.name)
+      }
+      // 스타한 저장소: 전체 이름만 지운다(유명 저장소 이름이 스택의 패키지 경로를 망가뜨리지 않게)
+      for (const repo of listStarredRepositories(db)) {
+        if (repo.fullName) ctx.repos.push(repo.fullName)
       }
       for (const owner of listMyRepositoryOwners(db)) ctx.owners.push(owner.login)
     }
