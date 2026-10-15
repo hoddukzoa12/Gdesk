@@ -75,6 +75,7 @@
 - 화면에서 온 요청 값은 메인 처리기에서 다시 검사한다. 타입 선언은 실행 중에 강제되지 않는다.
 - 예상 가능한 실패는 던지지 않고 결과 값으로 돌려준다(`{ ok: false, reason }`, `{ kind: 'failed', code }`). 던지는 것은 잘못된 요청(검사 실패)뿐이다.
 - 화면으로 가는 값에는 토큰과 오류 객체 원문을 담지 않는다.
+- 네트워크 응답을 캐시에 쓰는 메인 코드는 계정 데이터 세대(`currentDataGuard()`)를 요청 시작 때 잡고 쓰기 직전에 확인한다. 확인 없이 쓰면 로그아웃·계정 전환 뒤에 이전 계정 데이터가 다시 들어온다.
 - 캐시를 바꾸는 메인 코드는 바꾼 뒤 `notifyDataChanged`로 영향받는 키(`home`, `inbox`, `pulls`, `reviews`, `issues`, `starred`, `repositories`, `sidebar`, `repo:<ID>`)를 알린다.
 - GraphQL 문서는 고유한 `Gdesk*` operationName을 갖고 `src/main/github/collectors/queries.ts`의 `OPERATIONS`에 등록한다. 가짜 GitHub 서버가 이 이름으로 응답을 고르므로, 이름이 없거나 등록되지 않으면 화면 테스트에서 응답을 받지 못한다.
 

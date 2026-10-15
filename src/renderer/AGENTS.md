@@ -6,7 +6,7 @@ React 화면 전체: 앱 틀(사이드바, 상단 막대, 본문), 기능별 화
 
 ## 맡지 않는 것
 
-- GitHub 호출, 토큰, git, DB, 파일 시스템, 외부 프로그램 실행. 화면은 격리되어 있다(`contextIsolation`, `sandbox`, Node 없음). 빌드된 화면의 CSP는 `index.html`의 `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://avatars.githubusercontent.com; font-src 'self' data:; connect-src 'self'`다. 이미지는 `data:`와 GitHub 아바타 호스트만 뜬다. 개발 서버에서만 `connect-src`에 `ws://localhost:*`가 더해진다(`electron.vite.config.mts`).
+- GitHub 호출, 토큰, git, DB, 파일 시스템, 외부 프로그램 실행. 화면은 격리되어 있다(`contextIsolation`, `sandbox`, Node 없음). 빌드된 화면의 CSP는 `index.html`의 `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://avatars.githubusercontent.com; font-src 'self' data:; connect-src 'self'`다. 이미지는 앱 자체(`'self'`), `data:`, GitHub 아바타 호스트만 표시한다. 개발 서버에서만 `connect-src`에 `ws://localhost:*`가 더해진다(`electron.vite.config.mts`).
 - 업무 계산(CI 판정, 응답 없는 새 기여, 스타 증가, 들어온 항목 수). 메인이 계산한 값을 그대로 보여 준다.
 - 메인·프리로드 코드 import. `electron`, `fs`, `path`, `child_process`, `os`, `crypto`, `node:*`, `**/main/**`는 ESLint가 막는다.
 - 앱 틀 파일(`app/router.tsx`, `app/routes.tsx`, `app/slots.ts`, `app/i18n.ts`, `app/AppLayout.tsx`, `app/Sidebar.tsx`)은 기능 변경에서 고치지 않는다. 기능은 자기 폴더 파일로 끼운다.

@@ -55,7 +55,7 @@ Gdesk는 서버가 없는 Electron 앱 하나다. 프로세스 셋과 외부 시
 | 검색             | `src/main/search/`                                        | 캐시 검색, GitHub 저장소 검색                                                    | 캐시, 요청 계층                                  |
 | 오류 보고        | `src/main/crash/`                                         | 오류 수집, 개인정보 지우기, 이슈 주소 만들기                                     | 로그인(이름·토큰), 캐시(저장소 이름)             |
 | 업데이트         | `src/main/updater/`                                       | 업데이트 방식 결정, electron-updater 연결                                        | electron-updater                                 |
-| 창·메뉴          | `src/main/window.ts`, `src/main/menu.ts`, `src/main/app/` | 창 보안 설정, 이동 막기, 외부 링크, 폴더 대화상자                                | Electron                                         |
+| 창·메뉴          | `src/main/window.ts`, `src/main/menu.ts`, `src/main/app/` | 창 보안 설정, 이동 막기, 외부 링크, 폴더 대화상자, en·ko 앱 메뉴                 | Electron, 설정(메뉴 언어)                        |
 | 프리로드         | `src/preload/`                                            | `invoke`·`on` 노출                                                               | Electron `contextBridge`                         |
 | 공용             | `src/shared/`                                             | 도메인 타입, 상태 값 집합, IPC 계약, 순수 판정 함수                              | 없음(어디에도 의존하지 않음)                     |
 | 화면             | `src/renderer/`                                           | 앱 틀, 기능별 화면, 공용 부품·훅, 번역, 테마                                     | 공용, 프리로드 API                               |

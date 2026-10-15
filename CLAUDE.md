@@ -57,18 +57,18 @@ github_desktop/
 
 작업 종류별:
 
-| 하려는 일                                  | 먼저 읽을 곳                                                                                                                                    |
-| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| 로그인·토큰·세션, git 인증, 오류 보고 내용 | `docs/security.md`의 토큰·인증 흐름·오류 보고 절, `src/main/AGENTS.md`의 "반드시 지킬 것"                                                       |
-| 로그아웃·계정 전환에 걸리는 데이터 추가    | `docs/business-rules.md`의 세션 상태 전이 표, `docs/standards.md`의 DB 마이그레이션 절(`CACHE_TABLES`, `clearAccountData`)                      |
-| 캐시 테이블·마이그레이션 추가              | `docs/standards.md`의 DB 마이그레이션 절(새 ID 접두사, 배포된 마이그레이션 수정 금지, `cache_` 이름과 정리 등록)                                |
-| 새 화면·화면 요소                          | `src/renderer/AGENTS.md`(route.tsx·slots.tsx·locales, `query:`가 아닌 채널 갱신), `docs/engineering-notes.md`의 "화면 데이터가 갱신되지 않는다" |
-| 새 IPC 채널                                | `docs/contracts.md`의 공통 규칙, `src/shared/AGENTS.md`의 채널 선언 예시                                                                        |
-| GitHub 요청 추가·변경                      | `docs/business-rules.md`의 자동 갱신·요청 한도 보호 절, `tests/AGENTS.md`의 가짜 서버(operationName 등록)                                       |
-| 클론·로컬 연결·폴더를 건드리는 코드        | `docs/business-rules.md`의 클론·로컬 연결 절, `docs/security.md`의 폴더 절                                                                      |
-| 동기화 주기·상세 추적                      | `docs/business-rules.md`의 자동 갱신 절, `docs/tracking/decisions/0002-detail-only-for-tracked-repos.md`                                        |
-| 포장·서명·릴리스                           | `docs/operations.md`, `docs/engineering-notes.md`의 패키징 항목들                                                                               |
-| 무엇이 끝났고 무엇이 남았는지              | `docs/tracking/status.md`, `docs/tracking/findings.md`                                                                                          |
+| 하려는 일                                  | 먼저 읽을 곳                                                                                                                                          |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 로그인·토큰·세션, git 인증, 오류 보고 내용 | `docs/security.md`의 토큰·인증 흐름·오류 보고 절, `src/main/AGENTS.md`의 "반드시 지킬 것"                                                             |
+| 로그아웃·계정 전환에 걸리는 데이터 추가    | `docs/business-rules.md`의 세션 상태 전이 표, `docs/standards.md`의 DB 마이그레이션 절(`CACHE_TABLES`, `clearAccountData`)과 캐시 쓰기 세대 확인 규칙 |
+| 캐시 테이블·마이그레이션 추가              | `docs/standards.md`의 DB 마이그레이션 절(새 ID 접두사, 배포된 마이그레이션 수정 금지, `cache_` 이름과 정리 등록)                                      |
+| 새 화면·화면 요소                          | `src/renderer/AGENTS.md`(route.tsx·slots.tsx·locales, `query:`가 아닌 채널 갱신), `docs/engineering-notes.md`의 "화면 데이터가 갱신되지 않는다"       |
+| 새 IPC 채널                                | `docs/contracts.md`의 공통 규칙, `src/shared/AGENTS.md`의 채널 선언 예시                                                                              |
+| GitHub 요청 추가·변경                      | `docs/business-rules.md`의 자동 갱신·요청 한도 보호 절, `tests/AGENTS.md`의 가짜 서버(operationName 등록)                                             |
+| 클론·로컬 연결·폴더를 건드리는 코드        | `docs/business-rules.md`의 클론·로컬 연결 절, `docs/security.md`의 폴더 절                                                                            |
+| 동기화 주기·상세 추적                      | `docs/business-rules.md`의 자동 갱신 절, `docs/tracking/decisions/0002-detail-only-for-tracked-repos.md`                                              |
+| 포장·서명·릴리스                           | `docs/operations.md`, `docs/engineering-notes.md`의 패키징 항목들                                                                                     |
+| 무엇이 끝났고 무엇이 남았는지              | `docs/tracking/status.md`, `docs/tracking/findings.md`                                                                                                |
 
 ## 문제를 발견했을 때
 
