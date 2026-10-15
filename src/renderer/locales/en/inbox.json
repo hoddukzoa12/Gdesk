@@ -1,0 +1,65 @@
+{
+  "title": "Inbox",
+  "filter": {
+    "label": "Filters",
+    "all": "All",
+    "unread": "Unread",
+    "repo": "Repository",
+    "allRepos": "All repositories",
+    "reason": "Reason",
+    "allReasons": "All reasons"
+  },
+  "reason": {
+    "review_requested": "Review requested",
+    "mention": "Mentioned",
+    "team_mention": "Team mentioned",
+    "assign": "Assigned",
+    "author": "Author",
+    "comment": "Comment",
+    "ci_activity": "CI activity",
+    "state_change": "State changed",
+    "subscribed": "Subscribed",
+    "manual": "Subscribed manually",
+    "invitation": "Invitation",
+    "security_alert": "Security alert",
+    "approval_requested": "Approval requested",
+    "member_feature_requested": "Feature requested",
+    "security_advisory_credit": "Security advisory credit"
+  },
+  "subject": {
+    "pull": "Pull request",
+    "issue": "Issue",
+    "release": "Release",
+    "discussion": "Discussion",
+    "commit": "Commit",
+    "other": "Notification"
+  },
+  "unread": "Unread",
+  "done": "Done",
+  "doneLabel": "Mark “{{title}}” as done",
+  "list": "Notifications",
+  "empty": {
+    "title": "All caught up",
+    "description": "You have no notifications to look at.",
+    "filtered": "No notifications match these filters."
+  },
+  "unavailableInbox": {
+    "title": "Inbox isn’t available",
+    "description": "This token can’t access GitHub notifications. Use a classic token or browser sign-in."
+  },
+  "incomplete": "Showing the notifications Gdesk has loaded.",
+  "moreOnGitHub": "More on GitHub",
+  "blocked": {
+    "offline": "You’re offline. Marking notifications as read or done is paused.",
+    "session_expired": "Your session has expired. Sign in again to mark notifications as read or done.",
+    "rate_limited": "GitHub’s request limit was reached. Marking notifications is paused for now.",
+    "signed_out": "Sign in to mark notifications as read or done."
+  },
+  "error": {
+    "markRead": "Couldn’t mark this notification as read: {{message}}",
+    "markDone": "Couldn’t mark this notification as done: {{message}}",
+    "open": "Couldn’t open this page in the browser.",
+    "load": "Couldn’t load notifications.",
+    "unexpected": "Something unexpected happened."
+  }
+}
