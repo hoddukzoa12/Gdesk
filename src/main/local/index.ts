@@ -12,6 +12,7 @@ import { getSettings, onSettingsChanged } from '../settings/settings.service'
 import { systemDetectEnv } from './editors'
 import { createProcessLauncher } from './launch'
 import { LocalService } from './local.service'
+import { createRecordingLauncher } from './test-launcher'
 import type { LocalDeps } from './local.service'
 
 export { LocalService } from './local.service'
@@ -60,7 +61,10 @@ export function createDefaultLocalDeps(): LocalDeps {
     token: getToken,
     notify: notifyDataChanged,
     onCloneProgress: (event) => emit('local:cloneProgress', event),
-    launcher: createProcessLauncher((path) => shell.openPath(path)),
+    // 화면 테스트에서는 실제 편집기·터미널을 띄우지 않고 기록만 한다.
+    launcher: isTestMode()
+      ? createRecordingLauncher()
+      : createProcessLauncher((path) => shell.openPath(path)),
     detect: systemDetectEnv()
   }
 }
