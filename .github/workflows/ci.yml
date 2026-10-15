@@ -1,0 +1,99 @@
+# PR 과 main 푸시마다 타입 검사·코드 규칙·단위 테스트(3개 OS)와 화면 자동 테스트를 돌린다.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    name: Check (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+
+      # pnpm 버전은 package.json 의 packageManager 를 따른다
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format
+        # 줄바꿈(CRLF) 차이를 피하려고 리눅스에서만 검사한다
+        if: runner.os == 'Linux'
+        run: pnpm exec prettier --check .
+
+      - name: Unit tests
+        run: pnpm test
+
+  e2e:
+    name: UI tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare Linux display
+        if: runner.os == 'Linux'
+        run: |
+          # Ubuntu 24.04 는 AppArmor 가 Electron 샌드박스의 사용자 네임스페이스를 막는다
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          if ! command -v xvfb-run >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb
+          fi
+
+      - name: UI tests (xvfb)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a pnpm test:e2e
+
+      - name: UI tests
+        if: runner.os != 'Linux'
+        run: pnpm test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.os }}
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
+          if-no-files-found: ignore

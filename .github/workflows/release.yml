@@ -1,0 +1,161 @@
+# 버전 태그(v*)를 올리면 맥·윈도우·리눅스 설치 파일을 만들어 GitHub Release 초안에 올린다.
+# 서명용 비밀값이 있으면 서명·공증하고, 없으면 서명만 건너뛰고 빌드는 성공한다(docs/signing.md).
+# 수동 실행(workflow_dispatch)은 게시하지 않고 설치 파일을 작업 결과물로만 올린다.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  draft:
+    name: Prepare draft release
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check tag matches package.json version
+        run: |
+          expected="v$(node -p "require('./package.json').version")"
+          if [ "$expected" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::태그 $GITHUB_REF_NAME 가 package.json 버전($expected)과 다릅니다."
+            exit 1
+          fi
+
+      # 세 OS 작업이 같은 초안에 올리도록 먼저 하나만 만든다(동시에 만들면 초안이 여러 개 생긴다)
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists"
+          else
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+              --draft --verify-tag --generate-notes --title "Gdesk $GITHUB_REF_NAME"
+          fi
+
+  build:
+    name: Build (${{ matrix.name }})
+    needs: draft
+    if: ${{ !cancelled() && (needs.draft.result == 'success' || needs.draft.result == 'skipped') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # 애플 실리콘 러너에서 arm64·x64 를 함께 만든다(내장 git 은 빌드 설정이 CPU 별로 바꿔 넣는다)
+          - name: macOS
+            os: macos-latest
+            target: --mac
+          - name: Windows
+            os: windows-latest
+            target: --win
+          - name: Linux
+            os: ubuntu-latest
+            target: --linux
+    runs-on: ${{ matrix.os }}
+    env:
+      # 앱이 업데이트를 확인할 저장소와 OAuth App 공개 client ID(비밀값 아님)
+      GDESK_REPO: ${{ github.repository }}
+      GDESK_GITHUB_CLIENT_ID: ${{ vars.GDESK_GITHUB_CLIENT_ID || secrets.GDESK_GITHUB_CLIENT_ID }}
+      # 키체인 자동 탐색을 끈다. 인증서는 아래에서 CSC_LINK 로만 넘긴다.
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # 비밀값이 있는 것만 환경 변수로 넘긴다. 빈 값을 넘기면 electron-builder 가 서명을 시도한다.
+      - name: Configure code signing
+        shell: bash
+        env:
+          MAC_CSC_LINK: ${{ secrets.CSC_LINK }}
+          MAC_CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          SECRET_APPLE_ID: ${{ secrets.APPLE_ID }}
+          SECRET_APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          SECRET_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          SECRET_WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          SECRET_WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        run: |
+          put() {
+            {
+              echo "$1<<__GDESK_ENV_EOF__"
+              printf '%s\n' "$2"
+              echo "__GDESK_ENV_EOF__"
+            } >> "$GITHUB_ENV"
+          }
+          case "$RUNNER_OS" in
+            macOS)
+              if [ -n "$MAC_CSC_LINK" ]; then
+                put CSC_LINK "$MAC_CSC_LINK"
+                put CSC_KEY_PASSWORD "$MAC_CSC_KEY_PASSWORD"
+                # 서명된 맥 앱만 뒤에서 내려받아 재시작 때 적용한다
+                put GDESK_MAC_SIGNED 1
+                echo "macOS: code signing enabled"
+                if [ -n "$SECRET_APPLE_ID" ] && [ -n "$SECRET_APPLE_APP_SPECIFIC_PASSWORD" ] && [ -n "$SECRET_APPLE_TEAM_ID" ]; then
+                  put APPLE_ID "$SECRET_APPLE_ID"
+                  put APPLE_APP_SPECIFIC_PASSWORD "$SECRET_APPLE_APP_SPECIFIC_PASSWORD"
+                  put APPLE_TEAM_ID "$SECRET_APPLE_TEAM_ID"
+                  echo "macOS: notarization enabled"
+                else
+                  echo "::warning::APPLE_ID/APPLE_APP_SPECIFIC_PASSWORD/APPLE_TEAM_ID 가 없어 공증을 건너뜁니다."
+                fi
+              else
+                echo "::notice::CSC_LINK 가 없어 서명 안 된 맥 앱을 만듭니다(업데이트는 새 버전 알림만)."
+              fi
+              ;;
+            Windows)
+              if [ -n "$SECRET_WIN_CSC_LINK" ]; then
+                put WIN_CSC_LINK "$SECRET_WIN_CSC_LINK"
+                put WIN_CSC_KEY_PASSWORD "$SECRET_WIN_CSC_KEY_PASSWORD"
+                echo "Windows: code signing enabled"
+              else
+                echo "::notice::WIN_CSC_LINK 가 없어 서명 안 된 윈도우 설치 파일을 만듭니다."
+              fi
+              ;;
+            *)
+              echo "Linux: no code signing"
+              ;;
+          esac
+
+      - name: Build app
+        run: pnpm build
+
+      - name: Package installers
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET: ${{ matrix.target }}
+          PUBLISH: ${{ github.ref_type == 'tag' && 'always' || 'never' }}
+        run: pnpm exec electron-builder "$TARGET" --publish "$PUBLISH"
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: gdesk-${{ matrix.name }}
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/*.exe
+            release/*.AppImage
+            release/*.deb
+            release/*.yml
+            release/*.blockmap
+          retention-days: 7
+          if-no-files-found: error

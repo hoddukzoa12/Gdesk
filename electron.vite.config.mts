@@ -8,7 +8,10 @@ const buildDefines = {
   __GDESK_GITHUB_CLIENT_ID__: JSON.stringify(process.env.GDESK_GITHUB_CLIENT_ID ?? ''),
   __GDESK_REPO__: JSON.stringify(process.env.GDESK_REPO ?? ''),
   // 화면 테스트 전용 빌드에서만 true. 배포 빌드에서는 테스트 모드를 켤 수 없다.
-  __GDESK_TEST_BUILD__: JSON.stringify(process.env.GDESK_TEST_BUILD === '1')
+  __GDESK_TEST_BUILD__: JSON.stringify(process.env.GDESK_TEST_BUILD === '1'),
+  // 맥 빌드가 서명·공증됐는지. CI 가 인증서 비밀값이 있을 때만 `GDESK_MAC_SIGNED=1` 로 빌드한다.
+  // 서명 안 된 맥은 자동 설치 대신 "새 버전 있음" 알림만 띄운다.
+  __GDESK_MAC_SIGNED__: JSON.stringify(process.env.GDESK_MAC_SIGNED === '1')
 }
 
 const alias = {

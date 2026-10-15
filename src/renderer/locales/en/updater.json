@@ -1,0 +1,24 @@
+{
+  "available": {
+    "title": "A new version is available",
+    "body": "Gdesk {{version}} is out. Download it from the release page.",
+    "action": "Download"
+  },
+  "ready": {
+    "title": "Update ready",
+    "body": "Restart Gdesk to apply version {{version}}.",
+    "action": "Restart now"
+  },
+  "status": {
+    "disabled": "Updates are off in development and test runs",
+    "unavailable": "Update checks aren’t configured for this build",
+    "idle": "Not checked yet",
+    "checking": "Checking for updates…",
+    "up_to_date": "You’re up to date",
+    "available": "Version {{version}} is available",
+    "downloading": "Downloading version {{version}}…",
+    "ready": "Version {{version}} will be applied on restart",
+    "error": "Couldn’t check for updates"
+  },
+  "check": "Check for updates"
+}
