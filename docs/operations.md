@@ -121,6 +121,7 @@ CSC_IDENTITY_AUTO_DISCOVERY=false pnpm dist       # 지금 OS 용 설치 파일
 - `.github/workflows/ci.yml`: PR과 `main` 푸시마다.
   - check(맥·윈도우·리눅스): 설치 → typecheck → lint → (리눅스만) prettier 검사 → 단위 테스트.
   - e2e(맥·리눅스): 설치 → (리눅스) AppArmor 조정·xvfb → `pnpm test:e2e`. 실패하면 Playwright 보고서와 `test-results`를 7일 보관한다.
+  - installers(맥·윈도우·리눅스, `main` 푸시에서만): 비밀값 없이 `CSC_IDENTITY_AUTO_DISCOVERY=false`로 설치 → `pnpm dist:dir`. 서명 비밀값이 없어도 포장이 되는지 본다(설치 파일은 올리지 않는다).
 - 같은 PR의 이전 실행은 새 푸시가 오면 취소된다.
 
 ## 릴리스

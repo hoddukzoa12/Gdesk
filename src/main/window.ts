@@ -40,7 +40,9 @@ export function createMainWindow(): BrowserWindow {
 export function installNavigationGuards(): void {
   app.on('web-contents-created', (_event, contents) => {
     contents.on('will-navigate', (event, url) => {
-      const devUrl = process.env.ELECTRON_RENDERER_URL
+      // 개발 서버 주소는 포장되지 않은 개발 실행에서만 허용한다. 배포 앱에서는 환경 변수로
+      // 앱 창의 이동 허용 범위를 넓힐 수 없다.
+      const devUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL
       if (devUrl && url.startsWith(devUrl)) return
       event.preventDefault()
     })

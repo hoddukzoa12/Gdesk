@@ -171,6 +171,65 @@ test('연결된 폴더: 목록에 보이고, 연결 해제해도 폴더는 남�
   }
 })
 
+test('연결된 폴더: 저장소에 접근할 수 없게 되면 사용할 수 없음 표시, 연결은 남고 해제할 수 있다', async ({
+  page,
+  server
+}) => {
+  const dotfiles = 102
+  const dir = await mkdtemp(join(tmpdir(), 'gdesk-e2e-link-gone-'))
+  try {
+    execFileSync('git', ['init', '-q', dir])
+    execFileSync('git', [
+      '-C',
+      dir,
+      'remote',
+      'add',
+      'origin',
+      'https://github.com/octo-maintainer/dotfiles.git'
+    ])
+
+    await waitForAppShell(page)
+    // 내 저장소 집합을 받은 뒤에 연결한다(고정하지 않은 저장소)
+    await expect
+      .poll(
+        async () =>
+          (await invoke(page, 'query:repositories', {})).items.some((r) => r.id === dotfiles),
+        { timeout: SYNC_TIMEOUT }
+      )
+      .toBe(true)
+    const outcome = await invoke(page, 'local:link', { repoId: dotfiles, path: dir })
+    if (!outcome.ok) throw new Error(`link failed: ${outcome.reason}`)
+    const link = outcome.links[0]
+    if (!link) throw new Error('no link returned')
+    expect(await invoke(page, 'pins:list')).toEqual([])
+
+    await goto(page, '/settings#folders')
+    const row = page.getByTestId(`settings-link-${link.id}`)
+    await expect(row).toHaveAttribute('data-access', 'available')
+    await expect(row.getByTestId('settings-link-unavailable')).toHaveCount(0)
+
+    server.removeRepo(dotfiles)
+    await invoke(page, 'sync:refresh', { scope: 'repositories' })
+    await expect(row.getByTestId('settings-link-unavailable')).toBeVisible({
+      timeout: SYNC_TIMEOUT
+    })
+    await expect(row).toHaveAttribute('data-access', 'unavailable')
+    // 이름은 캐시에 남은 값으로 보이고, 연결은 자동으로 지우지 않는다
+    await expect(row.getByTestId('settings-link-repo')).toHaveText('octo-maintainer/dotfiles')
+    expect(server.hasRequest(`GET /repositories/${dotfiles}`)).toBe(true)
+    const links = await invoke(page, 'local:listLinks', {})
+    expect(links.find((l) => l.id === link.id)?.accessStatus).toBe('unavailable')
+
+    // 해제 버튼으로 지울 수 있다(폴더는 남는다)
+    await page.getByTestId(`settings-link-${link.id}-unlink`).click()
+    await page.getByTestId('settings-unlink-confirm-button').click()
+    await expect(row).toHaveCount(0)
+    expect(existsSync(join(dir, '.git'))).toBe(true)
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
+})
+
 test('정보: 버전과 업데이트 꺼짐 상태를 보인다', async ({ page }) => {
   await openSettings(page)
   await invoke(page, 'settings:update', { language: 'en' })

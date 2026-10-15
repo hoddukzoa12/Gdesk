@@ -1,4 +1,5 @@
 # PR 과 main 푸시마다 타입 검사·코드 규칙·단위 테스트(3개 OS)와 화면 자동 테스트를 돌린다.
+# main 푸시에서는 서명 비밀값 없이 3개 OS 에서 포장(pnpm dist:dir)까지 해 본다.
 name: CI
 
 on:
@@ -97,3 +98,32 @@ jobs:
             test-results
           retention-days: 7
           if-no-files-found: ignore
+
+  # spec §13 "서명 비밀값 없이도 설치 파일이 만들어진다": main 푸시마다 비밀값 없이 세 OS 에서 포장한다.
+  # dist:dir 는 앱을 다시 빌드한 뒤 설치 파일 대신 풀어 놓은 앱 폴더(release/)만 만든다.
+  installers:
+    name: Unsigned package (${{ matrix.os }})
+    if: github.event_name == 'push'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      # 서명 인증서를 찾지 않는다(비밀값 없이 서명을 건너뛰는지 확인)
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Package without signing secrets
+        run: pnpm dist:dir

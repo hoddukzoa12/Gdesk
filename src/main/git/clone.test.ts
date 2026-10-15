@@ -229,6 +229,46 @@ describe('cloneRepository: 실패와 정리', () => {
     expect(existsSync(target)).toBe(false)
   })
 
+  /** clone 이 토큰이 든 .git/config 와 작업 파일을 만드는 가짜 git(토큰 미잔존 방어 확인용) */
+  const leakyExec =
+    (target: string): GitExec =>
+    async (args) => {
+      if (args.includes('clone')) {
+        await mkdir(join(target, '.git'), { recursive: true })
+        await writeFile(
+          join(target, '.git', 'config'),
+          `[remote "origin"]\n\turl = https://x-access-token:${TOKEN}@github.com/o/n.git\n`
+        )
+        await writeFile(join(target, 'README.md'), 'hello')
+      }
+      return { stdout: '', stderr: '', exitCode: 0 }
+    }
+
+  it('원래 있던 빈 폴더에 클론했는데 토큰이 .git/config 에 남으면 .git 만 지운다', async () => {
+    const target = join(work, 'n')
+    await mkdir(target)
+    const result = await cloneRepository(
+      { owner: 'o', name: 'n', targetDir: target, protocol: 'https', token: TOKEN },
+      { exec: leakyExec(target), sourceUrl }
+    )
+    expect(result.kind).toBe('failed')
+    if (result.kind === 'failed') expect(result.message).not.toContain(TOKEN)
+    // 토큰이 든 .git 은 사라지고, 원래 있던 폴더와 그 밖의 것은 남는다
+    expect(existsSync(join(target, '.git'))).toBe(false)
+    expect(existsSync(target)).toBe(true)
+    expect(await readdir(target)).toEqual(['README.md'])
+  })
+
+  it('이번에 만든 폴더에서 토큰이 .git/config 에 남으면 폴더째 지운다', async () => {
+    const target = join(work, 'n')
+    const result = await cloneRepository(
+      { owner: 'o', name: 'n', targetDir: target, protocol: 'https', token: TOKEN },
+      { exec: leakyExec(target), sourceUrl }
+    )
+    expect(result.kind).toBe('failed')
+    expect(existsSync(target)).toBe(false)
+  })
+
   it('git 실행 자체가 실패해도 토큰 없는 failed 로 돌려주고 정리한다', async () => {
     const target = join(work, 'n')
     const fakeExec: GitExec = async () => {

@@ -1,11 +1,13 @@
 import type { SyncStatus } from '@shared/domain/sync'
 import { getAuthService, onAuthChanged } from '../auth'
 import { listOrgRestrictions, listSyncStates } from '../cache'
-import { onAccountDataCleared } from '../db/cleanup'
+import { currentDataGuard, onAccountDataCleared } from '../db/cleanup'
 import { getDb } from '../db/db'
+import { listAllLinks } from '../db/links'
 import { getGitHubClient } from '../github/client'
 import type { GitHubClient } from '../github/client'
 import {
+  StaleRefreshError,
   refreshIssueLists,
   refreshMyRepositories,
   refreshNotifications,
@@ -53,6 +55,10 @@ function pinnedIds(): number[] {
   return listPins(getDb()).map((p) => p.repoId)
 }
 
+function linkedIds(): number[] {
+  return [...new Set(listAllLinks(getDb()).map((l) => l.repoId))]
+}
+
 function sessionNow(): SyncSession {
   const s = getAuthService().getSession()
   return { state: s.state, inboxAvailable: s.inboxAvailable }
@@ -88,14 +94,23 @@ export function initSync(options: InitSyncOptions = {}): SyncEngine {
   disposeSync()
   const client = options.client ?? getGitHubClient()
   const next = new SyncEngine({
+    // 갱신마다 시작 시점의 계정 데이터 세대를 잡아 둔다. 받는 사이 로그아웃·계정 전환으로 캐시가
+    // 지워졌으면 refresh* 가 쓰기 직전에 StaleRefreshError 로 결과를 버린다.
     refresh: {
-      notifications: () => refreshNotifications({ client }),
-      repositories: (pinnedRepoIds) => refreshMyRepositories({ client, pinnedRepoIds }),
-      starred: () => refreshStarredRepositories({ client }),
-      repoOpenItems: () => refreshRepoOpenItems({ client }),
-      pullRequestLists: () => refreshPullRequestLists({ client }),
-      issueLists: () => refreshIssueLists({ client }),
-      repositoryDetail: (repoId) => refreshRepositoryDetails({ client, repoIds: [repoId] })
+      notifications: () => refreshNotifications({ client, isCurrent: currentDataGuard() }),
+      repositories: (pinnedRepoIds) =>
+        refreshMyRepositories({
+          client,
+          pinnedRepoIds,
+          linkedRepoIds: linkedIds(),
+          isCurrent: currentDataGuard()
+        }),
+      starred: () => refreshStarredRepositories({ client, isCurrent: currentDataGuard() }),
+      repoOpenItems: () => refreshRepoOpenItems({ client, isCurrent: currentDataGuard() }),
+      pullRequestLists: () => refreshPullRequestLists({ client, isCurrent: currentDataGuard() }),
+      issueLists: () => refreshIssueLists({ client, isCurrent: currentDataGuard() }),
+      repositoryDetail: (repoId) =>
+        refreshRepositoryDetails({ client, repoIds: [repoId], isCurrent: currentDataGuard() })
     },
     connection: client,
     session: {
@@ -121,7 +136,11 @@ export function initSync(options: InitSyncOptions = {}): SyncEngine {
     onStatus: (status) => {
       for (const listener of [...statusListeners]) listener(status)
     },
-    onError: (unit, error) => console.warn(`[sync] ${unit} failed: ${describeError(error)}`),
+    onError: (unit, error) => {
+      // 로그아웃·계정 전환으로 버린 갱신은 실패가 아니다
+      if (error instanceof StaleRefreshError) return
+      console.warn(`[sync] ${unit} failed: ${describeError(error)}`)
+    },
     intervals: options.intervals,
     ...options.overrides
   })

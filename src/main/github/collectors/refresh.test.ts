@@ -1,5 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { clearCache } from '../../cache/cleaner'
+import { clearFetchedData, currentDataGuard, registerFetchedDataCleaner } from '../../db/cleanup'
 import { openDatabase } from '../../db/connection'
 import { listOrgRestrictions, recordOrgRestrictions } from '../../cache/org-restrictions'
 import {
@@ -7,13 +9,19 @@ import {
   removeNotification,
   replaceNotifications
 } from '../../cache/notifications'
-import { getRepository, listMyRepositories, replaceMyRepositories } from '../../cache/repositories'
+import {
+  getRepository,
+  listMyRepositories,
+  replaceMyRepositories,
+  setRepositoryAccessStatus
+} from '../../cache/repositories'
 import { getSyncState, updateSyncState } from '../../cache/sync-state'
 import { listIncomingIssues } from '../../cache/issues'
 import { listIncomingPullRequests } from '../../cache/pull-requests'
 import { getRepositoryDetail } from '../../cache/repo-detail'
 import { notificationRecord, repoRecord } from '../../cache/test-fixtures'
 import { OPERATIONS } from './queries'
+import { StaleRefreshError } from './common'
 import {
   SYNC_SCOPES,
   refreshMyRepositories,
@@ -57,7 +65,8 @@ describe('refresh (수집 → 캐시)', () => {
           },
           errors: [orgRestrictionError('acme')]
         })
-      }
+      },
+      rest: { 'GET /repositories/2': () => json({ message: 'Not Found' }, 404) }
     })
     const result = await refreshMyRepositories({ db, client, pinnedRepoIds: [2], now: NOW })
     expect(result.items.map((r) => r.id)).toEqual([1])
@@ -290,6 +299,144 @@ describe('refresh (수집 → 캐시)', () => {
     replaceMyRepositories(db, [repoRecord(1)])
     await refreshRepositoryDetails({ db, client, repoIds: [1], now: NOW })
     expect(listOrgRestrictions(db)).toEqual([])
+  })
+})
+
+function myRepos(ids: readonly number[]) {
+  return () => ({
+    data: {
+      viewer: {
+        login: 'me',
+        repositories: { pageInfo: { hasNextPage: false }, nodes: ids.map((id) => rawRepo(id)) }
+      }
+    }
+  })
+}
+
+describe('내 집합에서 빠진 고정·연결 저장소의 접근 확인 (spec §3)', () => {
+  let db: DatabaseSync
+  beforeEach(() => {
+    db = openDatabase(':memory:')
+    replaceMyRepositories(
+      db,
+      [1, 2, 3, 4, 5, 6].map((id) => repoRecord(id))
+    )
+  })
+  afterEach(() => db.close())
+
+  it('404·403·410·451 이면 unavailable, 200 이면 available, 고정·연결 아닌 것은 묻지 않는다', async () => {
+    setRepositoryAccessStatus(db, 3, 'unavailable')
+    const { client, calls } = fakeGitHub({
+      graphql: { [OPERATIONS.myRepositories]: myRepos([1]) },
+      rest: {
+        'GET /repositories/2': () => json({ message: 'Not Found' }, 404),
+        // 쓰기 권한만 잃은 공개 저장소: 아직 읽을 수 있으므로 available
+        'GET /repositories/3': () => json({ id: 3, node_id: 'R_3', full_name: 'me/repo3' }),
+        'GET /repositories/4': () => json({ message: 'Forbidden' }, 403),
+        'GET /repositories/5': () => json({ message: 'Repository access blocked' }, 451)
+      }
+    })
+    await refreshMyRepositories({
+      db,
+      client,
+      pinnedRepoIds: [2, 3],
+      linkedRepoIds: [4, 5],
+      now: NOW
+    })
+    expect(getRepository(db, 2)).toMatchObject({ isMine: false, accessStatus: 'unavailable' })
+    expect(getRepository(db, 3)).toMatchObject({ isMine: false, accessStatus: 'available' })
+    expect(getRepository(db, 4)).toMatchObject({ isMine: false, accessStatus: 'unavailable' })
+    expect(getRepository(db, 5)).toMatchObject({ isMine: false, accessStatus: 'unavailable' })
+    // 고정·연결이 아닌 저장소(6)는 확인하지 않고 상태도 그대로
+    expect(getRepository(db, 6)).toMatchObject({ isMine: false, accessStatus: 'available' })
+    expect(calls.filter((c) => c.key.startsWith('GET /repositories/')).map((c) => c.key)).toEqual([
+      'GET /repositories/2',
+      'GET /repositories/3',
+      'GET /repositories/4',
+      'GET /repositories/5'
+    ])
+  })
+
+  it('연결만 된 저장소가 410 이면 unavailable', async () => {
+    const { client } = fakeGitHub({
+      graphql: { [OPERATIONS.myRepositories]: myRepos([1, 3, 4, 5, 6]) },
+      rest: { 'GET /repositories/2': () => json({ message: 'Gone' }, 410) }
+    })
+    await refreshMyRepositories({ db, client, linkedRepoIds: [2], now: NOW })
+    expect(getRepository(db, 2)).toMatchObject({ isMine: false, accessStatus: 'unavailable' })
+  })
+
+  it('500 같은 다른 실패면 상태를 바꾸지 않고 나머지 확인을 멈추며, 집합은 바꾼다', async () => {
+    setRepositoryAccessStatus(db, 3, 'unavailable')
+    const { client, calls } = fakeGitHub({
+      graphql: { [OPERATIONS.myRepositories]: myRepos([1, 4, 5, 6]) },
+      rest: {
+        'GET /repositories/2': () => json({ message: 'boom' }, 500),
+        'GET /repositories/3': () => json({ id: 3 })
+      }
+    })
+    await refreshMyRepositories({ db, client, pinnedRepoIds: [2, 3], now: NOW })
+    expect(getRepository(db, 2)).toMatchObject({ isMine: false, accessStatus: 'available' })
+    expect(getRepository(db, 3)).toMatchObject({ isMine: false, accessStatus: 'unavailable' })
+    expect(calls.some((c) => c.key === 'GET /repositories/3')).toBe(false)
+    expect(getSyncState(db, SYNC_SCOPES.repositories).lastSyncedAt).toBe(NOW)
+  })
+})
+
+describe('갱신 중 로그아웃·계정 전환 (이전 계정 정보가 남지 않게)', () => {
+  let db: DatabaseSync
+  let unregister: () => void
+  beforeEach(() => {
+    db = openDatabase(':memory:')
+    unregister = registerFetchedDataCleaner(clearCache)
+  })
+  afterEach(() => {
+    unregister()
+    db.close()
+  })
+
+  it('받는 사이 로그아웃(clearFetchedData)하면 응답이 와도 캐시에 아무것도 쓰지 않는다', async () => {
+    const { client } = fakeGitHub({
+      graphql: {
+        [OPERATIONS.myRepositories]: () => {
+          // 응답이 돌아오기 전에 사용자가 로그아웃한다
+          clearFetchedData(db)
+          return myRepos([1, 2])()
+        }
+      }
+    })
+    await expect(
+      refreshMyRepositories({ db, client, isCurrent: currentDataGuard(), now: NOW })
+    ).rejects.toBeInstanceOf(StaleRefreshError)
+    expect(db.prepare('SELECT COUNT(*) AS n FROM cache_repositories').get()).toEqual({ n: 0 })
+    expect(getSyncState(db, SYNC_SCOPES.repositories).lastSyncedAt).toBeNull()
+  })
+
+  it('상세 갱신도 지운 뒤에는 unavailable 자리 행조차 만들지 않는다', async () => {
+    const { client } = fakeGitHub({
+      rest: {
+        'GET /repositories/9': () => {
+          clearFetchedData(db)
+          return json({ message: 'Not Found' }, 404)
+        }
+      }
+    })
+    await expect(
+      refreshRepositoryDetails({
+        db,
+        client,
+        repoIds: [9],
+        isCurrent: currentDataGuard(),
+        now: NOW
+      })
+    ).rejects.toBeInstanceOf(StaleRefreshError)
+    expect(db.prepare('SELECT COUNT(*) AS n FROM cache_repositories').get()).toEqual({ n: 0 })
+  })
+
+  it('세대가 그대로면 평소처럼 쓴다', async () => {
+    const { client } = fakeGitHub({ graphql: { [OPERATIONS.myRepositories]: myRepos([1]) } })
+    await refreshMyRepositories({ db, client, isCurrent: currentDataGuard(), now: NOW })
+    expect(listMyRepositories(db).map((r) => r.id)).toEqual([1])
   })
 })
 

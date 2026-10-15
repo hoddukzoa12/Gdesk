@@ -31,6 +31,8 @@ test.describe('로그아웃 상태로 시작', () => {
     expect(session.state).toBe('signed_in')
     // 권한이 다 있으면 안내 배너는 없다
     await expect(page.getByTestId('token-warning-banner')).toHaveCount(0)
+    // 처음 로그인한 뒤 Home 카드가 보인다(spec §13-1)
+    await expect(page.getByTestId('home-card-reviewRequests')).toBeVisible({ timeout: 20_000 })
   })
 
   test('잘못된 토큰은 입력란 아래에 오류를 보여 주고 입력을 비운다', async ({ page }) => {

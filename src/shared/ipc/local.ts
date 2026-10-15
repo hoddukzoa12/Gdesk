@@ -1,9 +1,9 @@
-import type { LocalLink } from '../domain/link'
 import type {
   CloneOutcome,
   CloneProgressEvent,
   CloneRequest,
   EditorInfo,
+  LinkedFolder,
   LinkOutcome,
   LinkRequest,
   OpenOutcome,
@@ -15,8 +15,8 @@ import type {
 // 연결이 바뀌면 'data:changed' 로 `repo:<id>`·`sidebar` 를 알린다.
 declare module './contract' {
   interface IpcInvokeChannels {
-    /** repoId 를 주면 그 저장소의 연결만. 최근 사용 순 */
-    'local:listLinks': { req: { repoId?: number }; res: LocalLink[] }
+    /** repoId 를 주면 그 저장소의 연결만. 최근 사용 순. 저장소 접근 상태(accessStatus)를 함께 준다 */
+    'local:listLinks': { req: { repoId?: number }; res: LinkedFolder[] }
     'local:listEditors': { req: void; res: EditorInfo[] }
     /** 끝날 때(클론·이미 있음·취소·실패)까지 기다린다. 진행률은 local:cloneProgress */
     'local:clone': { req: CloneRequest; res: CloneOutcome }

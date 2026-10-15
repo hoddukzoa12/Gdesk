@@ -1,7 +1,8 @@
 // 내장 git 으로 GitHub 저장소를 클론한다(spec 4.10).
 // - HTTPS: 토큰은 그 git 명령의 환경 변수로만 전달하고(askpass), 인자·원격 주소·.git/config 에 남기지 않는다.
 // - SSH: 사용자의 SSH 설정과 키를 그대로 쓴다.
-// - 실패·취소 시 이번 호출이 만든 폴더만 지운다.
+// - 실패·취소 시 이번 호출이 만든 폴더만 지운다. 원래 있던 빈 폴더에 클론했는데 토큰이 `.git/config` 에
+//   남았으면 이번 클론이 만든 `.git` 만 지운다.
 import type { Dirent } from 'node:fs'
 import { lstat, mkdir, readFile, readdir, rm } from 'node:fs/promises'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
@@ -142,10 +143,13 @@ export async function cloneRepository(
     }
 
     // 방어: 어떤 경로로든 토큰이 설정 파일에 남았으면 결과 폴더를 쓰지 않는다.
+    // 대상 폴더를 이번에 만들었으면 폴더째 지우고, 원래 있던 (빈) 폴더면 이번 클론이 만든
+    // `<대상>/.git` 만 지운다. 토큰이 디스크에 남지 않게 하되 그 밖의 것은 건드리지 않는다.
     if (token) {
       const config = await readFile(join(target, '.git', 'config'), 'utf8')
       if (config.includes(token)) {
-        await cleanup()
+        if (prepared.created) await cleanup()
+        else await removeClonedGitDir(target)
         return failed('Clone aborted: credentials were found in the repository configuration')
       }
     }
@@ -156,6 +160,16 @@ export async function cloneRepository(
   } finally {
     await askpass?.dispose().catch(() => undefined)
   }
+}
+
+/**
+ * 원래 있던 빈 대상 폴더에 클론했는데 토큰이 `.git/config` 에 남은 경우에만 부른다.
+ * 클론 전에 폴더가 비어 있었으므로 `.git` 은 이번 클론이 만든 것이다. 그것 하나만 지운다.
+ */
+async function removeClonedGitDir(target: string): Promise<void> {
+  await rm(join(target, '.git'), { recursive: true, force: true, maxRetries: 3 }).catch(
+    () => undefined
+  )
 }
 
 type PreparedTarget = { kind: 'exists' } | { kind: 'ready'; created: boolean }

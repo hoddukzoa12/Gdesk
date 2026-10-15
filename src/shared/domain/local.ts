@@ -1,4 +1,5 @@
 import type { LocalLink } from './link'
+import type { RepoAccessStatus } from './repo'
 
 /**
  * 로컬 폴더 연결·클론·열기(spec 4.10, 4.11). 화면은 code·reason 을 번역하고,
@@ -75,6 +76,17 @@ export interface CloneProgressEvent {
 }
 
 // ───────────── 연결 ─────────────
+
+/**
+ * 설정 화면 등에 보여 줄 연결(local:listLinks). accessStatus 는 캐시의 저장소 접근 상태다(spec §3).
+ * 마지막 갱신에서 접근할 수 없다고 확인된 저장소면 unavailable(연결은 지우지 않는다).
+ * 캐시에 없는 저장소(받아 본 적 없는 남의 저장소 등)는 available 로 본다.
+ */
+export interface LinkedFolder extends LocalLink {
+  accessStatus: RepoAccessStatus
+  /** 캐시가 아는 `소유자/이름`. 모르면 null(내 집합에서 빠진 저장소도 이름을 보여 주려고) */
+  fullName: string | null
+}
 
 /**
  * 연결 거부 이유.

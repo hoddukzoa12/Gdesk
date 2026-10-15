@@ -133,6 +133,8 @@ export class FakeGitHub {
   private notificationsChangedAt: number
   private deviceOutcome: DeviceFlowOutcome = 'pending'
   private rateLimit = { limit: DEFAULT_RATE_LIMIT, remaining: null as number | null }
+  /** 1차 한도 초과 흉내. 켜져 있으면 /api 요청이 403 + remaining 0, 이 시각(epoch 초)에 풀린다 */
+  private rateLimitedUntil: number | null = null
   private readonly used = new Map<string, number>()
 
   /** startFakeGitHub() 로 만든다 */
@@ -284,6 +286,26 @@ export class FakeGitHub {
     if (options.remaining !== undefined) this.rateLimit.remaining = options.remaining
   }
 
+  /**
+   * 1차 요청 한도 초과를 흉내 낸다. /api 요청이 403 과 `x-ratelimit-remaining: 0`,
+   * `x-ratelimit-reset: resetAt`(epoch 초)를 받는다. GET /rate_limit(연결 확인)은 GitHub 처럼 한도와
+   * 관계없이 응답한다. null 이면 끈다.
+   * 기본 resetAt 은 지금부터 1시간 뒤.
+   */
+  setRateLimited(resetAt: number | null = Math.floor(Date.now() / 1000) + 3600): void {
+    this.rateLimitedUntil = resetAt
+  }
+
+  /**
+   * 저장소를 지운다(삭제·권한 상실 흉내). 내 저장소·스타 목록에서 빠지고, GET /repositories/{id} 와
+   * 상세 GraphQL 은 404(NOT_FOUND)가 된다. 그 저장소의 PR·이슈·알림도 함께 지운다. reset() 으로 되돌린다.
+   */
+  removeRepo(repoId: number): void {
+    this.state.repos = this.state.repos.filter((r) => r.id !== repoId)
+    this.state.items = this.state.items.filter((i) => i.repoId !== repoId)
+    this.state.notifications = this.state.notifications.filter((n) => n.repoId !== repoId)
+  }
+
   /** 기기 인증 폴링 결과. 기본 'pending'(사용자가 아직 승인하지 않음) */
   setDeviceFlowOutcome(outcome: DeviceFlowOutcome): void {
     this.deviceOutcome = outcome
@@ -307,6 +329,7 @@ export class FakeGitHub {
     this.notificationsChangedAt = this.fixtureNow
     this.deviceOutcome = 'pending'
     this.rateLimit = { limit: DEFAULT_RATE_LIMIT, remaining: null }
+    this.rateLimitedUntil = null
     this.used.clear()
   }
 
@@ -428,6 +451,22 @@ export class FakeGitHub {
       ...r,
       headers: { ...rate, ...r.headers }
     })
+
+    if (this.rateLimitedUntil !== null && record.path !== '/rate_limit') {
+      return {
+        status: 403,
+        body: {
+          message: 'API rate limit exceeded for user.',
+          documentation_url: 'https://docs.github.com/rest/overview/rate-limits-for-the-rest-api'
+        },
+        headers: {
+          ...rate,
+          'x-ratelimit-remaining': '0',
+          'x-ratelimit-used': String(this.rateLimit.limit),
+          'x-ratelimit-reset': String(this.rateLimitedUntil)
+        }
+      }
+    }
 
     const fault = this.faults.find((f) => f.remaining > 0 && f.match(record))
     if (fault) {

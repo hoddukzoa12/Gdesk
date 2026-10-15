@@ -11,6 +11,7 @@ import type {
   CloneProgressEvent,
   CloneRequest,
   EditorInfo,
+  LinkedFolder,
   LinkOutcome,
   LinkRequest,
   LocalRemote,
@@ -20,7 +21,7 @@ import type {
 } from '@shared/domain/local'
 import type { SessionState } from '@shared/domain/session'
 import type { Settings } from '@shared/domain/settings'
-import { getRepository } from '../cache'
+import { getRepositories, getRepository } from '../cache'
 import {
   addLink,
   findLink,
@@ -252,10 +253,23 @@ export class LocalService {
 
   // ───────────── 목록 ─────────────
 
-  listLinks(request: { repoId?: number } = {}): LocalLink[] {
-    return request.repoId === undefined
-      ? listAllLinks(this.db)
-      : listLinksByRepo(this.db, request.repoId)
+  /** 연결 목록과 각 저장소의 접근 상태·이름(캐시). 캐시에 없는 저장소는 available, 이름 null */
+  listLinks(request: { repoId?: number } = {}): LinkedFolder[] {
+    const links =
+      request.repoId === undefined
+        ? listAllLinks(this.db)
+        : listLinksByRepo(this.db, request.repoId)
+    const repos = new Map(
+      getRepositories(this.db, [...new Set(links.map((l) => l.repoId))]).map((r) => [r.id, r])
+    )
+    return links.map((link) => {
+      const repo = repos.get(link.repoId)
+      return {
+        ...link,
+        accessStatus: repo?.accessStatus ?? 'available',
+        fullName: repo?.fullName || null
+      }
+    })
   }
 
   listEditors(): EditorInfo[] {

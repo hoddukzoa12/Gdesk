@@ -41,7 +41,7 @@ GitHub API 호출, 토큰, 내장 git 실행, SQLite, 파일 시스템, 외부 �
 - GitHub로 가는 요청은 `github/client`의 `GitHubClient`만 보낸다. 예외는 저장 전 후보 토큰을 확인하는 `token-validate.ts`와 기기 인증 `device-flow.ts`다. 둘 다 주입된 fetch를 쓰고 주소는 `githubApiBase()`·`githubWebBase()`에서 받는다.
 - GitHub 이외의 호스트로 네트워크 요청을 하지 않는다. 업데이트는 electron-updater의 github 공급자만 쓴다.
 - 연결 상태는 `GitHubClient`만 정한다. 다른 서비스는 `getStatus()`·`onStatusChange()`로 읽기만 한다. 우선순위는 `session_expired` > `offline` > `rate_limited` > `online`.
-- 폴더를 지우는 코드는 `git/clone.ts`의 정리 하나뿐이고, 그 클론이 `mkdir`로 새로 만든 대상 폴더만 지운다. 연결 해제·계정 전환·자동 찾기는 DB 행만 바꾼다. askpass 임시 폴더는 앱이 `mkdtemp`로 만든 것이라 예외다.
+- 폴더를 지우는 코드는 `git/clone.ts`의 정리 하나뿐이고, 그 클론이 `mkdir`로 새로 만든 대상 폴더만 지운다. 예외로 원래 있던 빈 폴더에 클론했는데 `.git/config`에 토큰이 남았으면 그 클론이 만든 `<대상>/.git`만 지운다. 연결 해제·계정 전환·자동 찾기는 DB 행만 바꾼다. askpass 임시 폴더는 앱이 `mkdtemp`로 만든 것이라 예외다.
 - 고정·로컬 연결·저장소 캐시는 숫자 저장소 ID로 식별한다. 이름으로 찾는 곳은 원격 주소 → ID 풀이(`local.service.ts`의 `cachedRepoId`, `lookupRepo`)뿐이다.
 - 로그아웃은 `clearFetchedData`(`cache_*`만), 다른 계정 로그인은 `clearAccountData`(`cache_*` + `pins` + `local_links`)다. 설정과 `account_meta`의 마지막 사용자 ID는 어느 쪽에서도 지우지 않는다.
 - 테스트용 덮어쓰기(주소, 토큰, 사용자 데이터 폴더, git 원본, 실행 기록, 일부러 오류 내기)는 모두 `isTestMode()`로 감싼다. `isTestMode()`는 빌드 상수 `__GDESK_TEST_BUILD__`와 `GDESK_TEST_MODE=1`이 모두 있어야 참이다.
@@ -77,7 +77,7 @@ GitHub API 호출, 토큰, 내장 git 실행, SQLite, 파일 시스템, 외부 �
   - 세션: 로그아웃 삭제 범위, 계정 전환 삭제 범위, 같은 계정 재로그인, 마지막 사용자 ID 유지, 늦게 끝난 로그인 시도 버리기.
   - 토큰 저장: 리눅스 약한 암호화 선택, 리눅스 아닌 OS의 암호화 불가 → 메모리, 손상 파일 삭제, 파일 권한 0600.
   - 요청 계층: 1·2차 한도 분류, 막힘 동안 요청 안 보냄, 회복 타이머, 401 → 다시 로그인 전까지 요청 안 보냄, API 주소 밖 링크 거부, 테스트가 아닐 때 주소 덮어쓰기 거부.
-  - 클론: HTTPS 뒤 `.git/config`·원격에 토큰 없음, 실패·취소 시 이번에 만든 폴더만 지움, 원래 있던 빈 폴더는 남김, 비어 있지 않은 대상 → `exists`.
+  - 클론: HTTPS 뒤 `.git/config`·원격에 토큰 없음, 실패·취소 시 이번에 만든 폴더만 지움, 원래 있던 빈 폴더는 남김(토큰이 남은 경우 그 안의 `.git`만 지움), 비어 있지 않은 대상 → `exists`.
   - 쓰기 동작: 막힘 우선순위, 실패 되돌림, 같은 대상 직렬화.
   - 알림 완료 기록: 같은 시각 재등장 숨김, 새 활동이면 다시 보임.
   - 오류 보고 지우기: 토큰 모양, 홈·사용자 폴더, GitHub 주소, 저장소·소유자·로그인 이름, 단어 경계.

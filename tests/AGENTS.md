@@ -68,6 +68,8 @@ test.use({
 | `failNextWrites(n, opts)` / `failNext(n, opts)`                         | 다음 n개 쓰기(또는 조건에 맞는 요청)를 실패시킨다. 데이터는 바뀌지 않는다                               |
 | `setFineGrained(true)` / `setScopes(header)`                            | 세분화 토큰 흉내(권한 헤더 없음, 알림 403), 권한 헤더 바꾸기                                            |
 | `setRateLimit({ limit, remaining })`                                    | 한도 헤더 고정                                                                                          |
+| `setRateLimited(resetAt)`                                               | `/api` 요청(`/rate_limit` 제외) 403 + `x-ratelimit-remaining: 0`(1차 한도 초과). `null`이면 끈다        |
+| `removeRepo(id)`                                                        | 저장소 삭제 흉내: 내 저장소·스타에서 빠지고 `/repositories/{id}`·상세 404, 그 저장소 항목·알림도 지운다 |
 | `setPollInterval(s)`, `setDelay(ms)`                                    | 알림 최소 간격, 응답 지연                                                                               |
 | `setDeviceFlowOutcome(o)` / `approveDeviceFlow()`                       | 기기 인증 결과(`pending`·`approve`·`deny`·`expire`·`slow_down`)                                         |
 | `waitForRequest(key)`, `hasRequest`, `requestKeys()`, `clearRequests()` | 받은 요청 확인. 키는 `'GET /user'`, `'GRAPHQL GdeskMyRepositories'`, `'WEB POST /login/device/code'` 꼴 |
@@ -82,7 +84,7 @@ test.use({
 ## 무엇을 테스트하나
 
 - 화면을 바꾸면 그 흐름의 화면 테스트를 더하거나 고친다. 쓰기 동작은 성공, `failNextWrites`로 실패 → 되돌림과 오류 표시, `goOffline`으로 버튼 비활성화까지 본다.
-- 로그인 관련은 토큰 로그인, 잘못된 토큰, 세분화 토큰, 기기 인증 승인·거부, 401 → 만료 배너, 로그아웃을 이미 다룬다. 계정 전환과 오류 보고 대화상자는 아직 화면 테스트가 없다.
+- 로그인 관련은 토큰 로그인, 잘못된 토큰, 세분화 토큰, 기기 인증 승인·거부, 401 → 만료 배너, 로그아웃을 이미 다룬다. 계정 전환은 아직 화면 테스트가 없다. 오류 보고 대화상자는 `crash.e2e.ts`가 다룬다.
 - 클론 테스트의 주소 복사는 실제 시스템 클립보드를 덮어쓴다.
 - 리눅스에서는 `xvfb-run -a pnpm test:e2e`. CI의 화면 테스트는 맥·리눅스에서만 돈다.
 - 가짜 서버 자체를 바꾸면 `tests/unit/fake-github*.test.ts`가 통과하는지 본다.

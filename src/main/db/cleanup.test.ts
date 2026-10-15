@@ -4,6 +4,7 @@ import { getLastUserId, isDifferentAccount, setLastUserId } from './account-meta
 import {
   clearAccountData,
   clearFetchedData,
+  currentDataGuard,
   onAccountDataCleared,
   registerFetchedDataCleaner,
   resetFetchedDataCleaners
@@ -81,6 +82,18 @@ describe('계정 단위 삭제', () => {
     expect(getLastUserId(db)).toBe(4242)
     expect(cleared).toHaveBeenCalledTimes(1)
     off()
+  })
+
+  it('로그아웃·계정 전환 전에 잡은 세대 확인은 지운 뒤 false 가 된다', () => {
+    const beforeLogout = currentDataGuard()
+    expect(beforeLogout()).toBe(true)
+    clearFetchedData(db)
+    expect(beforeLogout()).toBe(false)
+    const beforeSwitch = currentDataGuard()
+    expect(beforeSwitch()).toBe(true)
+    clearAccountData(db)
+    expect(beforeSwitch()).toBe(false)
+    expect(currentDataGuard()()).toBe(true)
   })
 
   it('등록 해제한 정리 함수는 실행하지 않는다', () => {
