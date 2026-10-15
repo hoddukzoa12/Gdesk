@@ -1,7 +1,7 @@
 // 로컬 폴더 연결·클론·열기의 앱 연결(Electron·싱글턴). 로직은 local.service.ts 에 있다.
 import { shell } from 'electron'
 import '@shared/ipc/local'
-import { getAuthService, getToken } from '../auth'
+import { getAuthService, getToken, onAuthChanged } from '../auth'
 import { getDb } from '../db/db'
 import { isTestMode } from '../config'
 import { cloneRepository, readGitHubRemotes } from '../git'
@@ -12,6 +12,7 @@ import { getSettings, onSettingsChanged } from '../settings/settings.service'
 import { systemDetectEnv } from './editors'
 import { createProcessLauncher } from './launch'
 import { LocalService } from './local.service'
+import { watchRescanTriggers } from './rescan-triggers'
 import { createRecordingLauncher } from './test-launcher'
 import type { LocalDeps } from './local.service'
 
@@ -19,7 +20,7 @@ export { LocalService } from './local.service'
 export type { LocalDeps } from './local.service'
 
 let service: LocalService | null = null
-let unsubscribeSettings: (() => void) | null = null
+let unsubscribeTriggers: (() => void) | null = null
 
 /** 실제 앱의 의존성. 토큰은 HTTPS 클론 명령에만 넘기고 어디에도 기록하지 않는다. */
 export function createDefaultLocalDeps(): LocalDeps {
@@ -70,20 +71,27 @@ export function createDefaultLocalDeps(): LocalDeps {
 }
 
 /**
- * 앱 시작 때 한 번 부른다(startAuth 뒤). 시작 찾기를 뒤에서 돌리고,
- * 클론 기본 폴더 설정이 바뀌면 다시 찾는다. 시작을 막지 않는다.
+ * 앱 시작 때 한 번 부른다(startAuth 뒤). 시작 찾기를 뒤에서 돌리고, 클론 기본 폴더 설정이 바뀌거나
+ * 로그인(처음 로그인·계정 전환)하면 다시 찾는다. 시작을 막지 않는다.
  */
 export function initLocal(options: { deps?: Partial<LocalDeps> } = {}): LocalService {
-  unsubscribeSettings?.()
+  unsubscribeTriggers?.()
   const deps = { ...createDefaultLocalDeps(), ...options.deps }
   const next = new LocalService(deps)
   service = next
 
-  let lastBase = deps.settings().cloneBaseDir
-  unsubscribeSettings = onSettingsChanged((settings) => {
-    if (settings.cloneBaseDir === lastBase) return
-    lastBase = settings.cloneBaseDir
-    void next.rescan().catch(() => undefined)
+  unsubscribeTriggers = watchRescanTriggers({
+    rescan: () => next.rescan(),
+    settings: deps.settings,
+    onSettingsChanged,
+    session: () => {
+      try {
+        return getAuthService().getSession()
+      } catch {
+        return null
+      }
+    },
+    onAuthChanged
   })
   void next.rescan().catch(() => undefined)
   return next
