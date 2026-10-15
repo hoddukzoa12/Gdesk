@@ -300,8 +300,12 @@ export class AuthService {
     this.state = 'signed_out'
     this.restoreState = 'signed_out'
     try {
-      this.store.clear()
-      this.account.clearFetchedData()
+      try {
+        this.store.clear()
+      } finally {
+        // 토큰 파일 삭제가 실패해도 가져온 정보는 반드시 지운다.
+        this.account.clearFetchedData()
+      }
     } finally {
       this.emit()
     }
