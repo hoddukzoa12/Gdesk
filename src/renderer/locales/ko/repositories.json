@@ -1,0 +1,42 @@
+{
+  "title": "저장소",
+  "search": {
+    "label": "저장소 검색",
+    "placeholder": "저장소 찾기…"
+  },
+  "sort": {
+    "label": "정렬",
+    "pushed": "최근 푸시 순",
+    "name": "이름순",
+    "stars": "스타 많은 순"
+  },
+  "owner": {
+    "label": "소유자",
+    "all": "모든 소유자",
+    "option": "{{login}} ({{value}})"
+  },
+  "filters": {
+    "showForks": "포크 표시",
+    "showArchived": "보관된 저장소 표시"
+  },
+  "badges": {
+    "private": "비공개",
+    "fork": "포크",
+    "archived": "보관됨",
+    "unavailable": "사용할 수 없음"
+  },
+  "pin": {
+    "pin": "{{name}} 고정",
+    "unpin": "{{name}} 고정 해제"
+  },
+  "stars": "스타",
+  "updated": "업데이트",
+  "noDescription": "설명 없음",
+  "error": "저장소를 불러오지 못했습니다.",
+  "empty": {
+    "title": "아직 저장소가 없습니다",
+    "description": "내가 소유하거나 푸시할 수 있는 저장소가 동기화 후 여기에 표시됩니다.",
+    "filteredTitle": "조건에 맞는 저장소가 없습니다",
+    "filteredDescription": "다른 검색어나 필터를 사용해 보세요."
+  }
+}

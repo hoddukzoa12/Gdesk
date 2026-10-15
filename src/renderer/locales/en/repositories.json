@@ -1,0 +1,42 @@
+{
+  "title": "Repositories",
+  "search": {
+    "label": "Search repositories",
+    "placeholder": "Find a repository…"
+  },
+  "sort": {
+    "label": "Sort",
+    "pushed": "Recently pushed",
+    "name": "Name",
+    "stars": "Stars"
+  },
+  "owner": {
+    "label": "Owner",
+    "all": "All owners",
+    "option": "{{login}} ({{value}})"
+  },
+  "filters": {
+    "showForks": "Show forks",
+    "showArchived": "Show archived"
+  },
+  "badges": {
+    "private": "Private",
+    "fork": "Fork",
+    "archived": "Archived",
+    "unavailable": "Unavailable"
+  },
+  "pin": {
+    "pin": "Pin {{name}}",
+    "unpin": "Unpin {{name}}"
+  },
+  "stars": "Stars",
+  "updated": "Updated",
+  "noDescription": "No description",
+  "error": "Couldn’t load repositories.",
+  "empty": {
+    "title": "No repositories yet",
+    "description": "Repositories you own or can push to appear here after syncing.",
+    "filteredTitle": "No matching repositories",
+    "filteredDescription": "Try a different search or filter."
+  }
+}
