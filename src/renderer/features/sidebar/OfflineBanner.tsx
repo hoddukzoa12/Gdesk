@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Banner, useNow } from '@renderer/components'
 import { sinceText } from './footerText'
-import { useSyncStatus } from './useSyncStatus'
+import { useSyncStatus } from '@renderer/lib/hooks/useSyncStatus'
 
 /** 오프라인 배너 (spec §6). 세션 만료 배너는 인증 작업이 맡는다. */
 export function OfflineBanner() {

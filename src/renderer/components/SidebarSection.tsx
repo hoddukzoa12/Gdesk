@@ -29,6 +29,8 @@ export interface SidebarItemProps {
   trailing?: ReactNode
   active?: boolean
   onClick?: () => void
+  /** 보조 설명 요소의 id(`aria-describedby`). 예: 키보드 순서 바꾸기 안내. */
+  describedBy?: string
   className?: string
 }
 
@@ -39,6 +41,7 @@ export function SidebarItem({
   trailing,
   active,
   onClick,
+  describedBy,
   className
 }: SidebarItemProps) {
   return (
@@ -46,6 +49,7 @@ export function SidebarItem({
       type="button"
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
+      aria-describedby={describedBy}
       className={sidebarItemClass(active, className)}
     >
       {icon && <span className="flex size-4 shrink-0 items-center justify-center">{icon}</span>}

@@ -4,7 +4,7 @@ Gdesk 의 "브라우저로 로그인"은 GitHub OAuth **기기 인증(Device Flo
 앱이 코드를 보여 주고, 사용자가 브라우저에서 그 코드를 입력해 승인한다.
 
 - 필요한 값은 **공개 client ID 하나**뿐이다. **client secret 은 만들지도, 넣지도 않는다.**
-  MIT 로 공개되는 코드와 배포 파일에는 비밀 값을 숨길 수 없기 때문이다(spec 11-3).
+  MIT 로 공개되는 코드와 배포 파일에는 비밀 값을 숨길 수 없기 때문이다.
 - client ID 가 없는 빌드에서는 브라우저 로그인을 숨기고 **개인 토큰 직접 입력**만 제공한다. 앱은 그대로 동작한다.
 
 ## 1. OAuth App 만들기
@@ -27,8 +27,9 @@ Gdesk 의 "브라우저로 로그인"은 GitHub OAuth **기기 인증(Device Flo
 
 ## 2. Device Flow 켜기
 
-만든 앱의 설정 페이지에서 **Enable Device Flow** 를 체크하고 저장한다. 이것을 켜지 않으면 로그인 시
-`device_flow_disabled` 오류가 난다.
+만든 앱의 설정 페이지에서 **Enable Device Flow** 를 체크하고 저장한다. 이것을 켜지 않으면 GitHub 가
+기기 인증 요청을 거절하고, 앱은 "GitHub에서 오류가 났어요"(영어 화면 "GitHub returned an error") 같은
+일반 오류만 보인다. GitHub 의 오류 코드(`device_flow_disabled`)는 화면에 따로 나오지 않는다.
 
 ## 3. client ID 확인
 
@@ -71,9 +72,11 @@ GDESK_GITHUB_CLIENT_ID: ${{ vars.GDESK_GITHUB_CLIENT_ID || secrets.GDESK_GITHUB_
 
 ## 문제 해결
 
-| 증상                                 | 확인할 것                                                           |
-| ------------------------------------ | ------------------------------------------------------------------- |
-| 로그인 화면에 브라우저 로그인이 없음 | 빌드할 때 `GDESK_GITHUB_CLIENT_ID` 가 비어 있었다                   |
-| `device_flow_disabled`               | OAuth App 설정에서 **Enable Device Flow** 를 켠다                   |
-| `incorrect_client_credentials`       | client ID 오타, 또는 지워진 OAuth App                               |
-| 조직 저장소가 안 보임                | 조직이 OAuth App 접근을 제한함 → 조직 관리자가 Gdesk 를 승인해야 함 |
+| 증상                                    | 확인할 것                                                                        |
+| --------------------------------------- | -------------------------------------------------------------------------------- |
+| 로그인 화면에 브라우저 로그인이 없음    | 빌드할 때 `GDESK_GITHUB_CLIENT_ID` 가 비어 있었다                                |
+| 브라우저 로그인이 일반 오류로 바로 실패 | **Enable Device Flow** 가 켜져 있는지, client ID 오타·지워진 OAuth App 이 아닌지 |
+| 조직 저장소가 안 보임                   | 조직이 OAuth App 접근을 제한함 → 조직 관리자가 Gdesk 를 승인해야 함              |
+
+브라우저 로그인 시작이 실패하면 앱은 GitHub 의 오류 코드(`device_flow_disabled`, `incorrect_client_credentials`
+등)를 구분하지 않고 "GitHub에서 오류가 났어요"(영어 화면 "GitHub returned an error") 하나로 보인다.

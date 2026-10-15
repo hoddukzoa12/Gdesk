@@ -17,7 +17,8 @@ OAuth App 이 필요하면 [docs/oauth-app.md](docs/oauth-app.md) 를 봅니다.
 
 ## PR 전에 확인할 명령
 
-아래 명령이 **모두 통과**해야 합니다. CI 도 같은 검사를 맥·윈도우·리눅스에서 돌립니다.
+아래 명령이 **모두 통과**해야 합니다. CI 는 타입 검사·코드 규칙·단위 테스트를 맥·윈도우·리눅스에서,
+서식 검사는 리눅스에서만(줄바꿈 차이 회피), 화면 자동 테스트는 맥·리눅스에서 돌립니다.
 
 ```bash
 pnpm typecheck                 # 타입 검사(메인·화면)
@@ -53,7 +54,7 @@ pnpm test:e2e                  # 화면 자동 테스트(가짜 GitHub 서버, �
        'pins:list': { req: void; res: Pin[] }
      }
      interface IpcEventChannels {
-       'pins:changed': Pin[]
+       'pins:changed': { pins: Pin[] }
      }
    }
    export {}
@@ -68,7 +69,7 @@ pnpm test:e2e                  # 화면 자동 테스트(가짜 GitHub 서버, �
 ### 화면 라우트와 슬롯
 
 - **라우트**: `src/renderer/features/<기능>/route.tsx` 에서 `export const routes: RouteObject[]` 를 내보내면
-  자동으로 등록됩니다. 예시는 `features/about/route.tsx`.
+  자동으로 등록됩니다. 예시는 `features/home/route.tsx`.
 - **슬롯**: 사이드바·배너·상단 동작·오버레이 등은 `src/renderer/features/<기능>/slots.tsx` 에서
   `export const slots: FeatureSlots` 로 내보냅니다(`src/renderer/app/slots.ts` 참고).
   예: `banners: [{ order: 100, Component: UpdaterBanner }]`. 앱 틀 파일은 고치지 않습니다.

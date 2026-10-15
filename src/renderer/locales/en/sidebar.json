@@ -4,6 +4,7 @@
     "empty": "Pin repositories from Repositories",
     "notFetched": "Not loaded yet",
     "reorderHint": "Drag to reorder (Alt+↑/↓)",
+    "reorderKeyboardHint": "Press Alt+Up or Alt+Down to reorder",
     "remove": "Remove {{name}} from Pinned"
   },
   "yourRepositories": {

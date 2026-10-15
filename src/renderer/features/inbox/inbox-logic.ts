@@ -113,7 +113,7 @@ export interface RowClickDeps {
  */
 export async function openInboxItem(
   item: NotificationRow,
-  availability: ActionAvailability | null,
+  availability: ActionAvailability | null | undefined,
   deps: RowClickDeps
 ): Promise<ActionResult | null> {
   await deps.openExternal(item.url)

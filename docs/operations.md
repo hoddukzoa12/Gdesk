@@ -100,7 +100,7 @@ CSC_IDENTITY_AUTO_DISCOVERY=false pnpm dist       # 지금 OS 용 설치 파일
 
 1. GitHub Settings → Developer settings → OAuth Apps → New OAuth App. GitHub App이 아니라 OAuth App이어야 알림 API를 쓸 수 있다.
 2. 콜백 주소는 아무 https 주소나 넣는다(기기 인증은 쓰지 않는다).
-3. 앱 설정에서 **Enable Device Flow**를 켠다. 끄면 로그인 때 `device_flow_disabled`.
+3. 앱 설정에서 **Enable Device Flow**를 켠다. 끄면 GitHub가 `device_flow_disabled`로 거절하지만, 앱은 이 코드를 구분하지 않고 일반 오류("GitHub에서 오류가 났어요")로 보인다. client ID가 틀릴 때(`incorrect_client_credentials`)도 같은 문구다.
 4. client secret은 만들지 않는다.
 5. client ID를 `GDESK_GITHUB_CLIENT_ID`(빌드)와 Actions Variables에 넣는다.
 

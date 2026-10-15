@@ -2,7 +2,8 @@
   "title": "홈",
   "customize": "카드 설정",
   "loadError": "할 일 요약을 불러오지 못했습니다.",
-  "more": "GitHub에 {{count}}개 더 있음",
+  "more": "{{count}}개 더 있음",
+  "moreOnGitHub": "{{count}}개 더 있음 · GitHub에 더 있을 수 있습니다",
   "mayBeMore": "GitHub에 더 있을 수 있습니다",
   "cards": {
     "reviewRequests": {

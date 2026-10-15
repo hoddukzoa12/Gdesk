@@ -7,7 +7,7 @@ import '@shared/ipc/auth'
 import { Avatar, Button, openExternal, sidebarItemClass } from '@renderer/components'
 import { invoke } from '@renderer/lib/ipc'
 import { cn } from '@renderer/lib/cn'
-import { useSession } from './hooks'
+import { useSession } from '@renderer/lib/hooks/useSession'
 import { profileUrl } from './messages'
 
 const itemClass = cn(

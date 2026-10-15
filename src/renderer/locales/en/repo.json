@@ -6,8 +6,7 @@
   "loadFailed": "Couldn’t load this repository.",
   "unavailable": {
     "title": "This repository is unavailable (deleted or no access)",
-    "description": "It may have been deleted, or you no longer have access to it.",
-    "badge": "Unavailable"
+    "description": "It may have been deleted, or you no longer have access to it."
   },
   "tabs": {
     "label": "Repository sections",
@@ -39,9 +38,7 @@
     "fork": "Fork",
     "forkCount": "{{n}} forks",
     "pin": "Pin",
-    "unpin": "Unpin",
-    "clone": "Clone",
-    "cloneUnavailable": "Cloning isn’t available yet"
+    "unpin": "Unpin"
   },
   "blocked": {
     "offline": "You’re offline",
@@ -71,7 +68,6 @@
     "empty": "No open pull requests",
     "mineEmpty": "You have no open pull requests in this repository",
     "draft": "Draft",
-    "openedBy": "#{{number}} opened {{time}} by {{author}}",
     "review": {
       "approved": "Approved",
       "changes_requested": "Changes requested",

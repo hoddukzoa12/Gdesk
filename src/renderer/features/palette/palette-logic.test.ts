@@ -4,7 +4,13 @@ import ko from '../../locales/ko/palette.json'
 import type { RepositorySummary } from '@shared/domain/repo'
 import { COMMANDS, filterCommands, matchesText } from './commands'
 import type { LabeledCommand } from './commands'
-import { buildCloneSection, buildSections, flattenItems, moveIndex } from './palette-logic'
+import {
+  blockedGitHubState,
+  buildCloneSection,
+  buildSections,
+  flattenItems,
+  moveIndex
+} from './palette-logic'
 
 function lookup(dict: unknown, key: string): string | undefined {
   let node: unknown = dict
@@ -144,13 +150,31 @@ describe('구역 만들기', () => {
     expect(gh?.items[0]?.action).toEqual({ type: 'navigate', path: '/repos/301' })
   })
 
-  it.each(['offline', 'rate_limited', 'error', 'loading'] as const)(
-    'GitHub 구역은 %s 안내를 결과 대신 보인다',
-    (status) => {
-      const sections = buildSections({ commands: [], local: null, github: { status } })
-      expect(sections).toEqual([{ id: 'github', items: [], note: status }])
-    }
-  )
+  it.each([
+    'offline',
+    'session_expired',
+    'api_limited',
+    'rate_limited',
+    'error',
+    'loading'
+  ] as const)('GitHub 구역은 %s 안내를 결과 대신 보인다', (status) => {
+    const sections = buildSections({ commands: [], local: null, github: { status } })
+    expect(sections).toEqual([{ id: 'github', items: [], note: status }])
+  })
+
+  it.each([
+    ['offline', 'offline'],
+    ['session_expired', 'session_expired'],
+    ['rate_limited', 'api_limited']
+  ] as const)('연결이 %s 이면 GitHub 검색을 막고 %s 안내를 보인다', (connection, status) => {
+    expect(blockedGitHubState(connection)).toEqual({ status })
+    for (const dict of [en, ko]) expect(lookup(dict, `notes.${status}`)).toBeTruthy()
+  })
+
+  it('연결이 online 이거나 아직 모르면 GitHub 검색을 막지 않는다', () => {
+    expect(blockedGitHubState('online')).toBeNull()
+    expect(blockedGitHubState(undefined)).toBeNull()
+  })
 
   it('GitHub 결과가 없으면 empty 안내, 검색 전(idle)이면 구역이 없다', () => {
     expect(

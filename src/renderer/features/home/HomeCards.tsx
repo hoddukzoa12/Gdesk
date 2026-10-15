@@ -21,7 +21,7 @@ function open(url: string): void {
   void openExternal(url)
 }
 
-/** 카드 틀: SectionCard + 테스트 ID + "GitHub 에 더 있음" 안내. */
+/** 카드 틀: SectionCard + 테스트 ID + "더 있음" 안내. */
 function HomeCard({
   id,
   title,
@@ -47,14 +47,22 @@ function HomeCard({
   )
 }
 
-/** 목록이 덜 왔거나 잘렸으면 "+N more on GitHub" 를 보여 준다. */
+/**
+ * 보여 준 것보다 더 있으면 알린다.
+ * - 목록이 완전하고 표시 상한(5개)에만 잘렸으면 중립적인 "+N more"
+ * - 근거 목록이 불완전하면(`complete === false`) GitHub 에 더 있을 수 있다고 덧붙인다
+ */
 function MoreHint({ id, list }: { id: HomeCardId; list: CountedList<unknown> }) {
   const { t } = useTranslation('home')
   const hidden = list.count - list.items.length
   if (hidden <= 0 && list.complete) return null
+  let text: string
+  if (hidden <= 0) text = t('mayBeMore')
+  else if (list.complete) text = t('more', { count: hidden })
+  else text = t('moreOnGitHub', { count: hidden })
   return (
     <div className="px-4 py-2 text-xs text-fg-muted" data-testid={`home-card-${id}-more`}>
-      {hidden > 0 ? t('more', { count: hidden }) : t('mayBeMore')}
+      {text}
     </div>
   )
 }

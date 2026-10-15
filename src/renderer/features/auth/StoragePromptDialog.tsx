@@ -6,7 +6,7 @@ import '@shared/ipc/auth'
 import { Button } from '@renderer/components'
 import { invoke } from '@renderer/lib/ipc'
 import { cn } from '@renderer/lib/cn'
-import { useSession } from './hooks'
+import { useSession } from '@renderer/lib/hooks/useSession'
 
 /**
  * 리눅스에서 키링이 없어 토큰을 안전하게 암호화할 수 없을 때(spec §5) 저장 방법을 고르게 한다.

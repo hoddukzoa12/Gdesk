@@ -45,7 +45,7 @@ import {
   type InboxFilter,
   type SubjectKind
 } from './inbox-logic'
-import { useActionAvailability } from './useActionAvailability'
+import { useActionAvailability } from '@renderer/lib/hooks/useActionAvailability'
 
 export const GITHUB_NOTIFICATIONS_URL = 'https://github.com/notifications'
 
@@ -333,7 +333,7 @@ function InboxRow({ item, canWrite, busy, error, onOpen, onDone, onDismissError 
           </span>
         }
         title={item.subjectTitle}
-        selectLabel={item.subjectTitle}
+        selectLabel={unread ? t('unreadLabel', { title: item.subjectTitle }) : item.subjectTitle}
         meta={
           <span className="font-normal">
             <span className={cn(unread && 'text-fg-muted')}>{item.repoFullName}</span>

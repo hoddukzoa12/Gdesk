@@ -4,7 +4,7 @@
 
 - **증상**: 메인에서 캐시나 연결을 바꿨는데 새 화면의 목록이 그대로다. `query:` 화면은 바뀌는데 연결 목록·설정·고정 목록만 안 바뀐다.
 - **원인**: 화면의 react-query는 `staleTime: Infinity`, 창 포커스 때 다시 읽지 않음, 재시도 없음으로 설정되어 있다. `data:changed`를 받으면 `query:`로 시작하는 쿼리만 무효화한다. `local:listLinks`, `pins:list`, `settings:get`, `sync:getStatus`, `actions:getAvailability`, `updater:getStatus`, `auth:getSession`, `local:listEditors`, `app:info`는 이 대상이 아니다.
-- **대응**: 이런 채널을 `useIpcQuery`로 읽는 화면은 해당 이벤트를 직접 구독한다. 연결 목록은 `data:changed`에서 `local:listLinks`를 무효화하고(`src/renderer/features/clone/hooks.ts`), 설정은 `settings:changed`, 고정은 `pins:changed`, 동기화 상태는 `sync:status`, 쓰기 가능 여부는 `actions:availability`, 세션은 `auth:changed`로 캐시를 바꾼다. 메인 쪽에서 캐시를 바꾸는 새 코드는 `notifyDataChanged`를 부르지 않으면 어떤 화면도 다시 읽지 않는다.
+- **대응**: 이런 채널을 `useIpcQuery`로 읽는 화면은 해당 이벤트를 직접 구독한다. 연결 목록은 `data:changed`에서 `local:listLinks`를 무효화하고(`src/renderer/features/clone/hooks.ts`), 설정은 `settings:changed`, 고정은 `pins:changed`, 동기화 상태는 `sync:status`, 쓰기 가능 여부는 `actions:availability`, 세션은 `auth:changed`로 캐시를 바꾼다. 설정·동기화 상태·쓰기 가능 여부·세션은 `src/renderer/lib/hooks/`의 공용 훅이 이미 구독하므로 그 훅을 쓴다. 메인 쪽에서 캐시를 바꾸는 새 코드는 `notifyDataChanged`를 부르지 않으면 어떤 화면도 다시 읽지 않는다.
 - **확인**: 바꾼 뒤 화면 테스트에서 화면이 새 값을 보이는지 본다. 단위 테스트로는 잡히지 않는다.
 
 ## 고정 변경이 두 가지 이벤트로 퍼진다

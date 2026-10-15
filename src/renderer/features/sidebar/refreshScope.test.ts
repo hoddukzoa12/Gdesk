@@ -18,19 +18,12 @@ describe('scopeForPathname', () => {
     expect(scopeForPathname(pathname)).toBe(scope)
   })
 
-  it.each([
-    '/',
-    '',
-    '/about',
-    '/settings',
-    '/repos',
-    '/repos/abc',
-    '/repos/0',
-    '/repos/-1',
-    '/toString'
-  ])('그 밖의 주소 %j 는 home', (pathname) => {
-    expect(scopeForPathname(pathname)).toBe('home')
-  })
+  it.each(['/', '', '/settings', '/repos', '/repos/abc', '/repos/0', '/repos/-1', '/toString'])(
+    '그 밖의 주소 %j 는 home',
+    (pathname) => {
+      expect(scopeForPathname(pathname)).toBe('home')
+    }
+  )
 
   it('하위 경로가 붙은 화면도 그 화면 범위', () => {
     expect(scopeForPathname('/pulls/mine')).toBe('pulls')

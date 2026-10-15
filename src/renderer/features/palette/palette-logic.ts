@@ -1,3 +1,4 @@
+import type { ConnectionStatus } from '@shared/domain/connection'
 import type { RepositorySummary } from '@shared/domain/repo'
 import type { GitHubRepoHit, LocalSearchResult } from '@shared/domain/search'
 import { matchesText } from './commands'
@@ -24,12 +25,32 @@ export type GitHubSectionState =
   | { status: 'loading' }
   | { status: 'ok'; items: GitHubRepoHit[] }
   | { status: 'offline' | 'rate_limited' | 'error' }
+  | { status: 'session_expired' | 'api_limited' }
 
 export interface PaletteSection {
   id: SectionId
   items: PaletteItem[]
   /** 결과 대신 보일 안내 */
-  note?: 'loading' | 'empty' | 'offline' | 'rate_limited' | 'error'
+  note?:
+    'loading' | 'empty' | 'offline' | 'session_expired' | 'api_limited' | 'rate_limited' | 'error'
+}
+
+/**
+ * 연결 상태가 online 이 아니면 GitHub 검색을 보내지 않고 보일 상태. online 이거나 아직 모르면 null.
+ * 연결 상태의 rate_limited(API 요청 한도)는 검색 응답의 rate_limited(검색 한도)와 문구가 달라 api_limited 로 둔다.
+ */
+export function blockedGitHubState(
+  connection: ConnectionStatus | undefined
+): GitHubSectionState | null {
+  switch (connection) {
+    case undefined:
+    case 'online':
+      return null
+    case 'rate_limited':
+      return { status: 'api_limited' }
+    default:
+      return { status: connection }
+  }
 }
 
 export interface BuildSectionsInput {

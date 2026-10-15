@@ -2,7 +2,8 @@
   "title": "Home",
   "customize": "Customize",
   "loadError": "Couldn’t load your to-do summary.",
-  "more": "+{{count}} more on GitHub",
+  "more": "+{{count}} more",
+  "moreOnGitHub": "+{{count}} more · there may be more on GitHub",
   "mayBeMore": "There may be more on GitHub",
   "cards": {
     "reviewRequests": {
