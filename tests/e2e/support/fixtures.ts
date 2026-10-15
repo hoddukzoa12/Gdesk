@@ -70,6 +70,9 @@ function testEnv(server: FakeGitHub, userDataDir: string, token: string | null) 
   env.GDESK_TEST_WEB_BASE = server.webBase
   env.GDESK_TEST_GIT_BASE = server.webBase
   env.GDESK_TEST_USER_DATA = userDataDir
+  // 기본 클론 폴더(~/GitHub) 찾기가 개발자의 실제 홈을 훑지 않도록 홈을 임시 폴더로 바꾼다.
+  env.HOME = userDataDir
+  env.USERPROFILE = userDataDir
   if (token !== null) env.GDESK_TEST_TOKEN = token
   return env
 }
