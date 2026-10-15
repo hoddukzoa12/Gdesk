@@ -25,3 +25,10 @@ export function githubApiBase(env: NodeJS.ProcessEnv = process.env): string {
   if (override && isTestMode(env)) return override.replace(/\/+$/, '')
   return DEFAULT_GITHUB_API_BASE
 }
+
+/** GitHub 웹 주소(기기 인증 등). 테스트 모드에서만 `GDESK_TEST_WEB_BASE` 로 바꿀 수 있다. */
+export function githubWebBase(env: NodeJS.ProcessEnv = process.env): string {
+  const override = env.GDESK_TEST_WEB_BASE
+  if (override && isTestMode(env)) return override.replace(/\/+$/, '')
+  return DEFAULT_GITHUB_WEB_BASE
+}
