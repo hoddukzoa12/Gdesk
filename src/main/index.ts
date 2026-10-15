@@ -1,5 +1,7 @@
+import { join } from 'node:path'
 import { BrowserWindow, app } from 'electron'
 import { isTestMode } from './config'
+import { closeDb, setupDatabase } from './db/db'
 import { registerAllIpc } from './ipc/registry'
 import { createMainWindow, installNavigationGuards } from './window'
 
@@ -13,6 +15,7 @@ installNavigationGuards()
 
 app.whenReady().then(() => {
   // ── 서비스 초기화 (각 단계 끝의 연결 작업에서 여기에 추가) ──
+  setupDatabase(join(app.getPath('userData'), 'gdesk.db'))
 
   // ── IPC 등록 (src/main/**/*.ipc.ts 자동 수집) ──
   registerAllIpc()
@@ -22,6 +25,10 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
   })
+})
+
+app.on('will-quit', () => {
+  closeDb()
 })
 
 app.on('window-all-closed', () => {
