@@ -18,14 +18,14 @@ beforeAll(async () => {
 describe('footerText', () => {
   it('온라인: N초 전 동기화', () => {
     expect(footerText(base, NOW, 'en', tFor('en'))).toBe('Synced 27s ago')
-    expect(footerText(base, NOW, 'ko', tFor('ko'))).toBe('동기화 27초 전')
+    expect(footerText(base, NOW, 'ko', tFor('ko'))).toBe('27초 전 동기화됨')
   })
 
   it('방금 받은 시각이 화면 시각보다 앞서도 미래로 표시하지 않는다', () => {
     const s = { ...base, lastSyncedAt: NOW + 4_000 }
     expect(footerText(s, NOW, 'en', tFor('en'))).toBe('Synced now')
     expect(footerText({ ...s, lastSyncedAt: NOW + 9_000 }, NOW, 'ko', tFor('ko'))).toBe(
-      '동기화 지금'
+      '지금 동기화됨'
     )
   })
 
