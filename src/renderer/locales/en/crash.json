@@ -1,0 +1,22 @@
+{
+  "dialog": {
+    "title": "Gdesk ran into a problem",
+    "description": "You can report this error. Check the content below before you send it. Folder paths, repository names and your username have been removed.",
+    "sendIssue": "Send opens a new issue on GitHub in your browser with this content filled in. Nothing is sent automatically.",
+    "sendCopy": "This build has no Gdesk repository set, so Send copies the content to the clipboard.",
+    "previewLabel": "Report content",
+    "send": "Send",
+    "close": "Close",
+    "more": "{{count}} more waiting"
+  },
+  "status": {
+    "opened": "Opened the new issue page in your browser.",
+    "truncated": "Opened the new issue page in your browser. The report was long, so the end was cut off.",
+    "copied": "Copied to the clipboard.",
+    "failed": "Couldn't send the report. Copy the content above yourself."
+  },
+  "boundary": {
+    "title": "This screen ran into a problem",
+    "message": "Try again. You can also report the error from the dialog."
+  }
+}
