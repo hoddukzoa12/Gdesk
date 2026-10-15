@@ -1,0 +1,24 @@
+{
+  "available": {
+    "title": "새 버전이 나왔습니다",
+    "body": "Gdesk {{version}} 버전을 릴리스 페이지에서 받을 수 있습니다.",
+    "action": "다운로드"
+  },
+  "ready": {
+    "title": "업데이트 준비 완료",
+    "body": "다시 시작하면 {{version}} 버전이 적용됩니다.",
+    "action": "지금 다시 시작"
+  },
+  "status": {
+    "disabled": "개발·테스트 실행에서는 업데이트를 쓰지 않습니다",
+    "unavailable": "이 빌드에는 업데이트 확인이 설정되어 있지 않습니다",
+    "idle": "아직 확인하지 않았습니다",
+    "checking": "업데이트 확인 중…",
+    "up_to_date": "최신 버전입니다",
+    "available": "{{version}} 버전을 받을 수 있습니다",
+    "downloading": "{{version}} 버전을 내려받는 중…",
+    "ready": "다시 시작하면 {{version}} 버전이 적용됩니다",
+    "error": "업데이트를 확인하지 못했습니다"
+  },
+  "check": "업데이트 확인"
+}
