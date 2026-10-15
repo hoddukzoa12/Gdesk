@@ -1,3 +1,38 @@
 {
-  "appName": "Gdesk"
+  "appName": "Gdesk",
+  "nav": {
+    "label": "Main",
+    "home": "Home",
+    "inbox": "Inbox",
+    "pulls": "Pull requests",
+    "reviews": "Review requests",
+    "issues": "Issues",
+    "starred": "Starred",
+    "repositories": "Repositories"
+  },
+  "sidebar": {
+    "label": "Sidebar"
+  },
+  "ci": {
+    "passing": "Passing",
+    "failing": "Failing",
+    "pending": "Pending",
+    "none": "No CI"
+  },
+  "actions": {
+    "retry": "Try again",
+    "dismiss": "Dismiss",
+    "openOnGitHub": "Open on GitHub"
+  },
+  "error": {
+    "title": "Something went wrong"
+  },
+  "loading": "Loading…",
+  "notFound": {
+    "crumb": "Not found",
+    "title": "This page isn’t here yet",
+    "description": "Nothing is available at {{path}}.",
+    "goHome": "Go to Home"
+  },
+  "breadcrumb": "Breadcrumb"
 }

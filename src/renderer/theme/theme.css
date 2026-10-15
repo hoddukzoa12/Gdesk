@@ -2,53 +2,86 @@
 
 /*
  * 테마 색 변수. 화면 코드는 색을 직접 쓰지 않고 아래 토큰(bg-bg, text-fg, border-border ...)만 쓴다.
- * 다크는 참고 이미지 기준. 세부 색은 앱 틀 작업에서 다듬는다.
+ * 다크는 참고 이미지 기준: 거의 검은 배경, 조금 밝은 카드, 옅은 테두리, 주황 강조색.
+ * `data-theme` 은 PreferencesProvider(src/renderer/app/preferences.tsx)가 <html> 에 붙인다.
+ * 창 배경색(src/main/window.ts, #0d0f12)과 다크 --color-bg 를 맞춰 실행 시 깜빡임을 줄인다.
  */
 :root,
 :root[data-theme='dark'] {
   --color-bg: #0d0f12;
-  --color-bg-elevated: #15181d;
-  --color-bg-subtle: #1b1f25;
-  --color-border: #262b33;
-  --color-fg: #e6e8eb;
-  --color-fg-muted: #8b929c;
-  --color-accent: #e8913a;
+  --color-bg-sidebar: #0b0c0f;
+  --color-bg-elevated: #15171b;
+  --color-bg-subtle: #1c1f24;
+  --color-bg-hover: #22252b;
+  --color-border: #24272d;
+  --color-border-strong: #33373f;
+  --color-fg: #e7e8ea;
+  --color-fg-muted: #8a8f98;
+  --color-fg-subtle: #5f646d;
+  --color-accent: #f0883e;
+  --color-accent-fg: #1a0f05;
   --color-success: #3fb950;
   --color-danger: #f85149;
   --color-warning: #d29922;
   --color-neutral: #6e7681;
+  --color-info: #58a6ff;
+  --color-ring: #f0883e;
   color-scheme: dark;
 }
 
 :root[data-theme='light'] {
   --color-bg: #ffffff;
-  --color-bg-elevated: #f6f8fa;
-  --color-bg-subtle: #eef1f4;
-  --color-border: #d8dee4;
+  --color-bg-sidebar: #f6f7f9;
+  --color-bg-elevated: #fbfbfc;
+  --color-bg-subtle: #f0f2f4;
+  --color-bg-hover: #e9ecef;
+  --color-border: #e1e4e8;
+  --color-border-strong: #cdd2d8;
   --color-fg: #1f2328;
   --color-fg-muted: #59636e;
-  --color-accent: #c4651a;
+  --color-fg-subtle: #818b96;
+  --color-accent: #d4651c;
+  --color-accent-fg: #ffffff;
   --color-success: #1a7f37;
   --color-danger: #cf222e;
   --color-warning: #9a6700;
   --color-neutral: #6e7781;
+  --color-info: #0969da;
+  --color-ring: #d4651c;
   color-scheme: light;
 }
 
 @theme inline {
   --color-bg: var(--color-bg);
+  --color-bg-sidebar: var(--color-bg-sidebar);
   --color-bg-elevated: var(--color-bg-elevated);
   --color-bg-subtle: var(--color-bg-subtle);
+  --color-bg-hover: var(--color-bg-hover);
   --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
   --color-fg: var(--color-fg);
   --color-fg-muted: var(--color-fg-muted);
+  --color-fg-subtle: var(--color-fg-subtle);
   --color-accent: var(--color-accent);
+  --color-accent-fg: var(--color-accent-fg);
   --color-success: var(--color-success);
   --color-danger: var(--color-danger);
   --color-warning: var(--color-warning);
   --color-neutral: var(--color-neutral);
+  --color-info: var(--color-info);
+  --color-ring: var(--color-ring);
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+/* 창 끌기 영역(맥 hiddenInset 제목 표시줄). 끌기 영역 안의 버튼·링크에는 app-no-drag 를 붙인다. */
+@utility app-drag {
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+@utility app-no-drag {
+  -webkit-app-region: no-drag;
 }
 
 html,
@@ -64,4 +97,13 @@ body {
   -webkit-font-smoothing: antialiased;
   background: var(--color-bg);
   color: var(--color-fg);
+}
+
+/* 끌기 영역 안의 상호작용 요소는 자동으로 클릭 가능하게 한다. */
+.app-drag :is(button, a, input, select, textarea, [role='tab'], [role='button'], [tabindex]) {
+  -webkit-app-region: no-drag;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-accent) 35%, transparent);
 }
