@@ -10,7 +10,7 @@ import type { Migration } from '../db/migrations'
  *   수치는 전체 개수로 보여 주고, 화면은 "GitHub 에서 더 보기"를 띄울 수 있다.
  * - cache_notification_done: 완료(done)한 알림 스레드와 그때의 갱신 시각. 새 활동 전에는 다시 보이지 않게 한다.
  */
-export const migration: Migration = {
+const core: Migration = {
   id: '0100_cache',
   up(db) {
     db.exec(`
@@ -190,17 +190,6 @@ export const migration: Migration = {
         poll_interval INTEGER
       );
 
-      CREATE TABLE cache_notification_done (
-        thread_id TEXT PRIMARY KEY,
-        updated_at TEXT NOT NULL
-      );
-
-      CREATE TABLE cache_list_meta (
-        scope TEXT PRIMARY KEY,
-        total_count INTEGER NOT NULL,
-        complete INTEGER NOT NULL
-      );
-
       CREATE TABLE cache_org_restrictions (
         org_key TEXT PRIMARY KEY,
         org_login TEXT,
@@ -211,3 +200,24 @@ export const migration: Migration = {
     `)
   }
 }
+
+/** 목록 전체 수·완전성과 완료한 알림 기록 (0100 이후 추가) */
+const listMetaAndDone: Migration = {
+  id: '0101_cache_list_meta',
+  up(db) {
+    db.exec(`
+      CREATE TABLE cache_notification_done (
+        thread_id TEXT PRIMARY KEY,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE cache_list_meta (
+        scope TEXT PRIMARY KEY,
+        total_count INTEGER NOT NULL,
+        complete INTEGER NOT NULL
+      );
+    `)
+  }
+}
+
+export const migrations: Migration[] = [core, listMetaAndDone]
