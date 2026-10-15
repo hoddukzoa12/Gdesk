@@ -9,6 +9,7 @@ import { configureGitHubClient } from './github/client'
 import { initUpdater } from './updater/updater'
 import { initCrashReporting } from './crash'
 import { initLocal } from './local'
+import { disposeSync, initSync } from './sync'
 import { registerAllIpc } from './ipc/registry'
 import { createMainWindow, installNavigationGuards } from './window'
 
@@ -36,6 +37,9 @@ app.whenReady().then(async () => {
   // 401 구독 + 테스트 모드 자동 로그인(화면 테스트가 로그인 화면을 건너뛰도록 창 생성 전에 기다린다).
   await startAuth(client)
 
+  // 자동 갱신: 창이 열려 있고 로그인 상태일 때만 돈다. 첫 창보다 먼저 시작해야 창 생성을 잡는다.
+  initSync()
+
   createMainWindow()
   initUpdater()
   initLocal() // 기본 클론 폴더 자동 탐색(백그라운드) + 설정 변경 구독
@@ -46,6 +50,7 @@ app.whenReady().then(async () => {
 })
 
 app.on('will-quit', () => {
+  disposeSync()
   closeDb()
 })
 
