@@ -75,7 +75,7 @@
       "comments_other": "댓글 {{count}}개",
       "status": {
         "draft": "초안",
-        "changes_requested": "변경 요청",
+        "changes_requested": "변경 요청됨",
         "approved": "승인됨",
         "review_required": "리뷰 필요",
         "open": "열림"

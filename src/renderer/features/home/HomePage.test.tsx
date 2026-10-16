@@ -568,5 +568,6 @@ describe('HomePage', () => {
     expect(screen.getByTestId('home-stat-commits').textContent).toContain('최근 1년 커밋')
     expect(screen.getByTestId('home-pinned-101-unpin').getAttribute('title')).toBe('고정 해제')
     expect(screen.getByText('리뷰 필요')).toBeTruthy()
+    expect(screen.getByTestId('home-pr-301-80-status').textContent).toBe('변경 요청됨')
   })
 })
