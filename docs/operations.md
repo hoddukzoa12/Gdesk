@@ -141,3 +141,9 @@ CSC_IDENTITY_AUTO_DISCOVERY=false pnpm dist       # 지금 OS 용 설치 파일
 - 서명 안 된 윈도우 설치 파일은 SmartScreen 경고에서 "추가 정보 → 실행".
 - 리눅스 deb는 제자리 업데이트를 하지 않는다. 새 버전 알림에서 다운로드 페이지를 연다.
 - 조직 저장소가 안 보이면 그 조직이 OAuth App 접근을 제한한 것이다. 조직 관리자가 Gdesk를 승인해야 한다.
+
+## 앱 아이콘
+
+- 원본은 `build/icon.svg`(1024×1024, 둥근 사각형 바깥은 투명)이고, electron-builder는 같은 폴더의 `build/icon.png`를 읽어 맥·윈도우·리눅스 아이콘을 만든다.
+- 아이콘을 바꾸면 SVG를 고친 뒤 1024×1024 PNG로 다시 내보내 `build/icon.png`를 교체한다. 모서리가 투명하지 않으면 맥 Dock에서 흰 테두리가 보인다.
+- `pnpm dist:dir` 로그에 "default Electron icon is used"가 나오면 `build/icon.png`를 찾지 못한 것이다.
