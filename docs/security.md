@@ -107,7 +107,7 @@ Gdesk는 한 사람이 자기 컴퓨터에서 쓰는 앱이다. 앱 자체의 �
 ## 창과 링크
 
 - 모든 창: `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`, `webSecurity: true`.
-- CSP(배포·화면 테스트 빌드의 `index.html` 그대로): `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://avatars.githubusercontent.com; font-src 'self' data:; connect-src 'self'`. 화면은 네트워크 요청을 할 수 없고, 이미지는 앱 파일, `data:`, GitHub 아바타 호스트에서만 띄운다. 개발 서버(`pnpm dev`)에서만 `electron.vite.config.mts`의 플러그인(`apply: 'serve'`)이 `connect-src`에 HMR용 `ws://localhost:*`를 더한다. 빌드 결과에는 `ws://`가 없다.
+- CSP(배포·화면 테스트 빌드의 `index.html` 그대로): `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://avatars.githubusercontent.com https://*.githubusercontent.com https://github.githubassets.com https://github.com; font-src 'self' data:; connect-src 'self'`. 화면은 네트워크 요청을 할 수 없고, 이미지는 앱 파일, `data:`, GitHub 이미지 호스트(아바타 `avatars.githubusercontent.com`, 이슈 본문 이미지용 `*.githubusercontent.com`·`github.githubassets.com`·`github.com`)에서만 띄운다. `connect-src`는 그대로라 화면이 이 호스트들로 요청을 보낼 수는 없다. 개발 서버(`pnpm dev`)에서만 `electron.vite.config.mts`의 플러그인(`apply: 'serve'`)이 `connect-src`에 HMR용 `ws://localhost:*`를 더한다. 빌드 결과에는 `ws://`가 없다.
 - 앱 창 안의 다른 페이지 이동은 모두 막는다. 예외는 포장되지 않은 개발 실행(`!app.isPackaged`)에서의 개발 서버 주소(`ELECTRON_RENDERER_URL`)뿐이다. 배포 앱은 이 환경 변수를 보지 않는다. 새 창 요청은 거부하고, http(s)면 기본 브라우저로 넘긴다.
 - 외부 링크(`app:openExternal`, 오류 보고 이슈, 다운로드 페이지, 기기 인증 주소)는 `https:`·`http:`만 연다. `file:`, `javascript:` 등은 열지 않고 `opened: false`.
 - 배포 빌드의 앱 메뉴에는 개발자 도구가 없다.
