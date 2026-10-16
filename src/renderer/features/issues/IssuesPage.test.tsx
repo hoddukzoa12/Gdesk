@@ -401,6 +401,52 @@ describe('IssuesPage: 상세 패널', () => {
     expect(el.textContent).toContain('Can’t load while offline')
   })
 
+  it('온라인인데 15초 동안 상세가 오지 않으면 실패 안내 · 다시 시도 · GitHub에서 열기', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      responses['query:issueDetail'] = () => null
+      setup('/issues?issue=1-45')
+      await screen.findByTestId('issue-detail-loading')
+      await waitFor(() => expect(calls('sync:getStatus').length).toBeGreaterThan(0))
+      await act(async () => {})
+
+      await act(async () => {
+        vi.advanceTimersByTime(14_000)
+      })
+      expect(screen.getByTestId('issue-detail-loading')).toBeTruthy()
+      expect(screen.queryByTestId('issue-detail-failed')).toBeNull()
+      await act(async () => {
+        vi.advanceTimersByTime(1_500)
+      })
+      const failed = await screen.findByTestId('issue-detail-failed')
+      expect(failed.textContent).toContain('Couldn’t load this issue')
+
+      // GitHub에서 열기: 목록 행의 주소
+      fireEvent.click(screen.getByTestId('issue-detail-open-github'))
+      expect(invoke).toHaveBeenCalledWith('app:openExternal', {
+        url: 'https://github.example/o/a/issues/45'
+      })
+
+      // 다시 시도: 상세 추적을 닫았다가 같은 이슈로 다시 알린다(메인은 같은 이슈 재알림을 무시)
+      const before = calls('sync:setViewedIssue').length
+      fireEvent.click(screen.getByTestId('issue-detail-retry'))
+      await waitFor(() =>
+        expect(calls('sync:setViewedIssue').slice(before)).toEqual([
+          null,
+          { repoId: 1, number: 45 }
+        ])
+      )
+      expect(screen.getByTestId('issue-detail-loading')).toBeTruthy()
+      // 다시 기다린다
+      await act(async () => {
+        vi.advanceTimersByTime(15_500)
+      })
+      expect(await screen.findByTestId('issue-detail-failed')).toBeTruthy()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('받은 적 없는 상세 + 온라인 → 불러오는 중', async () => {
     responses['query:issueDetail'] = () => null
     setup('/issues?issue=1-45')

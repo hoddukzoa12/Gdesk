@@ -86,7 +86,10 @@
     "commentsHeading_one": "댓글 {{count}}개",
     "commentsHeading_other": "댓글 {{count}}개",
     "moreComments_one": "GitHub에서 나머지 보기({{count}}개)",
-    "moreComments_other": "GitHub에서 나머지 보기({{count}}개)"
+    "moreComments_other": "GitHub에서 나머지 보기({{count}}개)",
+    "loadFailedTitle": "불러오지 못했습니다",
+    "loadFailedDescription": "GitHub에서 이 이슈를 받지 못했습니다. 다시 시도하거나 GitHub에서 여세요.",
+    "retry": "다시 시도"
   },
   "linked": {
     "title": "연결된 PR·커밋",

@@ -12,18 +12,23 @@ import DOMPurify from 'dompurify'
 const FORBID_TAGS = ['script', 'iframe', 'form', 'object', 'embed', 'style']
 const FORBID_ATTR = ['style']
 
-let hooked = false
+type Purifier = ReturnType<typeof DOMPurify>
 
-/** 훅은 DOMPurify 인스턴스에 쌓이므로 한 번만 단다 */
-function installHooks(): void {
-  if (hooked) return
-  hooked = true
-  DOMPurify.addHook('uponSanitizeElement', (node, data) => {
+let purifier: Purifier | null = null
+
+/**
+ * 이 정리 규칙 전용 DOMPurify 인스턴스. 훅은 인스턴스에 쌓이므로 처음 한 번만 만들고 단다.
+ * 공용 기본 인스턴스(`DOMPurify.sanitize`)에는 훅을 달지 않는다(다른 코드에 새지 않게).
+ */
+function getPurifier(): Purifier {
+  if (purifier) return purifier
+  const instance = DOMPurify(window)
+  instance.addHook('uponSanitizeElement', (node, data) => {
     if (data.tagName !== 'input') return
     const el = node as Element
     if ((el.getAttribute('type') ?? '').toLowerCase() !== 'checkbox') el.remove()
   })
-  DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+  instance.addHook('afterSanitizeAttributes', (node) => {
     const el = node as Element
     if (el.tagName === 'INPUT') {
       el.setAttribute('disabled', '')
@@ -35,12 +40,13 @@ function installHooks(): void {
       if (/^\s*(data|javascript|vbscript):/i.test(href)) el.removeAttribute('href')
     }
   })
+  purifier = instance
+  return instance
 }
 
 export function sanitizeIssueHtml(html: string): string {
   if (!html) return ''
-  installHooks()
-  return DOMPurify.sanitize(html, {
+  return getPurifier().sanitize(html, {
     FORBID_TAGS,
     FORBID_ATTR,
     // SVG·MathML 은 쓰지 않는다

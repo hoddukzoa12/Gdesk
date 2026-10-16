@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
+import DOMPurify from 'dompurify'
 import { isExternalHref, sanitizeIssueHtml } from './sanitize'
 
 const PIXEL =
@@ -149,6 +150,25 @@ describe('sanitizeIssueHtml: 남기는 것', () => {
 
   it('빈 입력', () => {
     expect(sanitizeIssueHtml('')).toBe('')
+  })
+})
+
+describe('전용 인스턴스', () => {
+  it('공용 기본 DOMPurify 에는 이 규칙의 훅이 새지 않는다', () => {
+    // 먼저 정리 함수를 불러 전용 인스턴스와 훅을 만든다
+    sanitizeIssueHtml('<input type="checkbox">')
+    const root = document.createElement('div')
+    root.innerHTML = DOMPurify.sanitize(
+      '<input type="text" value="x"><input type="checkbox"><a href="https://x.dev">a</a>'
+    )
+    expect(root.querySelector('input[type="text"]')).not.toBeNull()
+    const box = root.querySelector('input[type="checkbox"]')
+    expect(box).not.toBeNull()
+    expect(box?.hasAttribute('disabled')).toBe(false)
+    // 전용 인스턴스는 그대로 규칙을 적용한다
+    expect(parse('<input type="text"><input type="checkbox">').innerHTML).toBe(
+      '<input type="checkbox" disabled="">'
+    )
   })
 })
 

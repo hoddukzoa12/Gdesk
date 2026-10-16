@@ -86,7 +86,10 @@
     "commentsHeading_one": "{{count}} comment",
     "commentsHeading_other": "{{count}} comments",
     "moreComments_one": "See {{count}} more comment on GitHub",
-    "moreComments_other": "See the remaining {{count}} comments on GitHub"
+    "moreComments_other": "See the remaining {{count}} comments on GitHub",
+    "loadFailedTitle": "Couldn’t load this issue",
+    "loadFailedDescription": "GitHub didn’t return this issue. Try again, or open it on GitHub.",
+    "retry": "Retry"
   },
   "linked": {
     "title": "Linked pull requests and commits",

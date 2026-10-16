@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   ChevronDown,
@@ -9,6 +9,7 @@ import {
   ExternalLink as ExternalLinkIcon,
   MoreHorizontal,
   RotateCcw,
+  RefreshCw,
   X
 } from 'lucide-react'
 import { DropdownMenu } from 'radix-ui'
@@ -49,19 +50,29 @@ const menuItemClass = cn(
 const menuContentClass =
   'z-50 min-w-[200px] rounded-md border border-border bg-bg-elevated p-1 text-fg shadow-xl'
 
+/** 온라인인데 상세가 이 시간(ms) 안에 오지 않으면 "불러오지 못했습니다"로 바꾼다 */
+export const DETAIL_LOAD_TIMEOUT_MS = 15_000
+
 export interface IssueDetailPanelProps {
   /** 연 이슈. null 이면 "이슈를 선택하세요" */
   issueRef: IssueRef | null
   /** 목록에 같은 이슈가 있으면 그 행(불러오는 동안 제목을 먼저 보인다) */
   row: IssueRowData | null
   onClose: () => void
+  /** 상세를 기다리는 시간(ms). 기본 DETAIL_LOAD_TIMEOUT_MS */
+  loadTimeoutMs?: number
 }
 
 /**
  * 오른쪽 상세 패널(spec §6.2). 열린 이슈를 `sync:setViewedIssue` 로 알려 메인이 받게 하고,
  * 받은 값은 `query:issueDetail` 로 읽는다(data:changed 로 다시 읽힌다). 언마운트 때 null 을 보낸다.
  */
-export function IssueDetailPanel({ issueRef, row, onClose }: IssueDetailPanelProps) {
+export function IssueDetailPanel({
+  issueRef,
+  row,
+  onClose,
+  loadTimeoutMs = DETAIL_LOAD_TIMEOUT_MS
+}: IssueDetailPanelProps) {
   const { t } = useTranslation('issues')
   const repoId = issueRef?.repoId ?? null
   const number = issueRef?.number ?? null
@@ -94,6 +105,7 @@ export function IssueDetailPanel({ issueRef, row, onClose }: IssueDetailPanelPro
       issueRef={{ repoId, number }}
       row={row}
       onClose={onClose}
+      loadTimeoutMs={loadTimeoutMs}
     />
   )
 }
@@ -101,11 +113,13 @@ export function IssueDetailPanel({ issueRef, row, onClose }: IssueDetailPanelPro
 function PanelLoader({
   issueRef,
   row,
-  onClose
+  onClose,
+  loadTimeoutMs
 }: {
   issueRef: IssueRef
   row: IssueRowData | null
   onClose: () => void
+  loadTimeoutMs: number
 }) {
   const { t } = useTranslation('issues')
   const sync = useSyncStatus()
@@ -114,12 +128,40 @@ function PanelLoader({
     queryFn: () => invoke('query:issueDetail', { repoId: issueRef.repoId, number: issueRef.number })
   })
   const detail = query.data ?? null
+  const connection = sync?.connection
+  const [timedOut, setTimedOut] = useState(false)
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
+
+  // 온라인인데 상세가 오지 않으면(없는 이슈, 받기 실패 등) 일정 시간 뒤 실패 안내로 바꾼다
+  const waiting = !detail && query.isSuccess && connection === 'online'
+  useEffect(() => {
+    if (!waiting || timedOut) return
+    const timer = setTimeout(() => setTimedOut(true), loadTimeoutMs)
+    return () => clearTimeout(timer)
+  }, [waiting, timedOut, loadTimeoutMs])
 
   if (detail) return <PanelBody detail={detail} onClose={onClose} />
 
-  const connection = sync?.connection
+  // 메인은 같은 이슈를 다시 알리면 받지 않으므로, 닫았다가 다시 연다
+  const retry = (): void => {
+    setTimedOut(false)
+    const ref = { repoId: issueRef.repoId, number: issueRef.number }
+    void invoke('sync:setViewedIssue', null)
+      .then(() => {
+        if (mounted.current) return invoke('sync:setViewedIssue', ref)
+      })
+      .catch(() => undefined)
+  }
+
   const unreachable =
     query.isError || (query.isSuccess && connection !== undefined && connection !== 'online')
+  const failed = !unreachable && waiting && timedOut
   return (
     <div className="flex h-full flex-col" data-testid="issue-panel" data-issue={issueKey(issueRef)}>
       <div className="flex items-center gap-2 border-b border-border px-5 py-3">
@@ -149,6 +191,30 @@ function PanelLoader({
                   {t('detail.openOnGitHub')}
                 </ExternalLink>
               ) : undefined
+            }
+          />
+        </div>
+      ) : failed ? (
+        <div data-testid="issue-detail-failed">
+          <EmptyState
+            title={t('detail.loadFailedTitle')}
+            description={t('detail.loadFailedDescription')}
+            action={
+              <div className="flex items-center gap-2">
+                <Button onClick={retry} data-testid="issue-detail-retry">
+                  <RefreshCw />
+                  {t('detail.retry')}
+                </Button>
+                {row && (
+                  <Button
+                    onClick={() => void openExternal(row.url)}
+                    data-testid="issue-detail-open-github"
+                  >
+                    <ExternalLinkIcon />
+                    {t('detail.openOnGitHub')}
+                  </Button>
+                )}
+              </div>
             }
           />
         </div>
