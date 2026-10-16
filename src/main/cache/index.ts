@@ -18,9 +18,17 @@ export {
 } from './home-activity'
 export type { ContributionDayRecord, ContributionsRecord } from './home-activity'
 export {
+  ISSUE_DETAIL_CACHE_LIMIT,
+  getIssueDetail,
+  lookupRepoFullName,
+  saveIssueDetail
+} from './issue-details'
+export {
+  getIssueTabCounts,
   isIncomingIssuesComplete,
   listAssignedIssues,
   listIncomingIssues,
+  listMentionedIssues,
   listMyIssues,
   listRepoIssues,
   replaceIssues,
@@ -71,6 +79,7 @@ export {
   getRepositoryAccessStatuses,
   getRepositoryRefs,
   listAllRepositoryNames,
+  listIssueRepoOptions,
   listMyRepositories,
   listMyRepositoryIds,
   listMyRepositoryOwners,

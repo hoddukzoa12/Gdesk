@@ -13,7 +13,8 @@ const engine = {
     orgRestrictions: []
   })),
   refresh: vi.fn(async () => {}),
-  setViewedRepo: vi.fn(async () => {})
+  setViewedRepo: vi.fn(async () => {}),
+  setViewedIssue: vi.fn(async () => {})
 }
 let engineReady = true
 
@@ -48,6 +49,7 @@ describe('sync IPC', () => {
     expect([...handlers.keys()].sort()).toEqual([
       'sync:getStatus',
       'sync:refresh',
+      'sync:setViewedIssue',
       'sync:setViewedRepo'
     ])
     const status: SyncStatus = {
@@ -81,5 +83,14 @@ describe('sync IPC', () => {
     expect(engine.setViewedRepo.mock.calls).toEqual([[7], [null]])
     expect(() => handlers.get('sync:setViewedRepo')?.({ repoId: 'x' })).toThrow()
     expect(() => handlers.get('sync:setViewedRepo')?.({ repoId: 0 })).toThrow()
+  })
+
+  it('setViewedIssue 를 엔진에 넘기고 잘못된 이슈 키는 거절한다', () => {
+    handlers.get('sync:setViewedIssue')?.({ repoId: 7, number: 3, extra: 'x' })
+    handlers.get('sync:setViewedIssue')?.(null)
+    expect(engine.setViewedIssue.mock.calls).toEqual([[{ repoId: 7, number: 3 }], [null]])
+    expect(() => handlers.get('sync:setViewedIssue')?.({ repoId: 7, number: 0 })).toThrow()
+    expect(() => handlers.get('sync:setViewedIssue')?.({ repoId: -1, number: 1 })).toThrow()
+    expect(() => handlers.get('sync:setViewedIssue')?.({ repoId: 7 })).toThrow()
   })
 })

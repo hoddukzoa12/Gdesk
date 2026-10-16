@@ -1,4 +1,6 @@
 import type { ConnectionStatus } from '@shared/domain/connection'
+import { assertIssueRef } from '@shared/domain/issue-detail'
+import type { IssueRef } from '@shared/domain/issue-detail'
 import type { OrgRestrictionNotice } from '@shared/domain/org'
 import type { SessionState } from '@shared/domain/session'
 import { parseRefreshScope } from '@shared/domain/sync'
@@ -49,7 +51,11 @@ export interface SyncRefreshers {
   repoOpenItems(): Promise<{ repoIds: readonly number[] } | void>
   pullRequestLists(): Promise<unknown>
   issueLists(): Promise<unknown>
+  /** 나를 언급한 이슈(검색). 할당·내 이슈와 따로 돌아 실패가 서로를 막지 않는다 */
+  mentionedIssues(): Promise<unknown>
   repositoryDetail(repoId: number): Promise<unknown>
+  /** 보고 있는 이슈 상세. 열 때 바로, 보는 동안 목록 주기로 */
+  issueDetail(repoId: number, number: number): Promise<unknown>
   /** Home 기여 달력·커밋 기여 수(GraphQL). 목록 주기·home 범위 */
   contributions(): Promise<unknown>
   /** Home 최근 커밋(REST 커밋 검색, search 한도). 목록 주기·home 범위 */
@@ -125,6 +131,7 @@ const KEYS = {
   repoOpenItems: ['pulls', 'issues', 'home', 'sidebar'],
   pullRequestLists: ['pulls', 'reviews', 'home', 'sidebar'],
   issueLists: ['issues', 'home'],
+  mentionedIssues: ['issues'],
   contributions: ['home'],
   recentCommits: ['home']
 } as const
@@ -135,6 +142,7 @@ type ListUnit =
   | 'repoOpenItems'
   | 'pullRequestLists'
   | 'issueLists'
+  | 'mentionedIssues'
   | 'contributions'
   | 'recentCommits'
 
@@ -142,6 +150,10 @@ function assertRepoId(repoId: unknown): asserts repoId is number {
   if (typeof repoId !== 'number' || !Number.isSafeInteger(repoId) || repoId <= 0) {
     throw new Error(`Invalid repository id: ${String(repoId)}`)
   }
+}
+
+function issueKey(ref: IssueRef): string {
+  return `issue:${ref.repoId}#${ref.number}`
 }
 
 export class SyncEngine {
@@ -158,6 +170,7 @@ export class SyncEngine {
   private session: SyncSession
   private pinned: number[]
   private viewedRepoId: number | null = null
+  private viewedIssue: IssueRef | null = null
   private lastSyncedAt: number | null
   /** 마지막 알림 요청 시각과 그때 받은 최소 간격(ms). 다시 켜질 때 GitHub 최소 간격을 지킨다 */
   private lastNotificationsAttempt = Number.NEGATIVE_INFINITY
@@ -229,6 +242,19 @@ export class SyncEngine {
     await this.runDetail(repoId)
   }
 
+  /**
+   * 이슈 상세 패널 열림(이슈)·닫힘(null). 열면 그 이슈를 바로 받고(한도가 적어도, 사용자가 연 패널),
+   * 보는 동안 목록 주기마다 다시 받는다. 같은 이슈를 다시 알리면 받지 않는다. 받기가 끝나면 끝나는 Promise.
+   */
+  async setViewedIssue(ref: IssueRef | null): Promise<void> {
+    if (ref !== null) assertIssueRef(ref)
+    const previous = this.viewedIssue
+    this.viewedIssue = ref === null ? null : { repoId: ref.repoId, number: ref.number }
+    if (ref === null || !this.canFetch()) return
+    if (previous && previous.repoId === ref.repoId && previous.number === ref.number) return
+    await this.runIssueDetail(ref)
+  }
+
   /** 상세 추적 집합 = 고정 + 보고 있는 저장소(중복 없음, 고정 순서 뒤에 보고 있는 저장소) */
   getTrackedRepoIds(): number[] {
     const ids = [...this.pinned]
@@ -272,7 +298,9 @@ export class SyncEngine {
         return
       case 'issues':
         await this.runUnit('issueLists')
+        await this.runUnit('mentionedIssues')
         await this.runUnit('repoOpenItems')
+        if (this.viewedIssue) await this.runIssueDetail(this.viewedIssue)
         return
       case 'starred':
         await this.runUnit('starred')
@@ -451,6 +479,9 @@ export class SyncEngine {
     await this.runUnit('repoOpenItems')
     await this.runUnit('pullRequestLists')
     await this.runUnit('issueLists')
+    await this.runUnit('mentionedIssues')
+    // 보고 있는 이슈 상세는 목록 주기로 다시 받는다
+    if (this.viewedIssue) await this.runIssueDetail(this.viewedIssue)
     await this.runUnit('starred')
     // Home 활동 영역. 실패(가짜 서버가 모르는 요청 등)는 execute 가 따로 삼킨다
     await this.runUnit('contributions')
@@ -537,6 +568,11 @@ export class SyncEngine {
           await refresh.issueLists()
           return [...KEYS.issueLists]
         })
+      case 'mentionedIssues':
+        return this.execute(unit, async () => {
+          await refresh.mentionedIssues()
+          return [...KEYS.mentionedIssues]
+        })
       case 'contributions':
         return this.execute(unit, async () => {
           await refresh.contributions()
@@ -554,6 +590,14 @@ export class SyncEngine {
     return this.execute(`detail:${repoId}`, async () => {
       await this.options.refresh.repositoryDetail(repoId)
       return [`repo:${repoId}`, 'home', 'sidebar']
+    })
+  }
+
+  private runIssueDetail(ref: IssueRef): Promise<boolean> {
+    const { repoId, number } = ref
+    return this.execute(issueKey(ref), async () => {
+      await this.options.refresh.issueDetail(repoId, number)
+      return ['issues', issueKey(ref)]
     })
   }
 

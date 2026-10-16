@@ -20,6 +20,7 @@ function issue(repoFullName: string, number: number, extra: Partial<IssueRow> = 
     url: `https://github.example/${repoFullName}/issues/${number}`,
     author: { login: 'bob-contrib', avatarUrl: null, isBot: false },
     labels: [],
+    assignees: [],
     commentCount: 0,
     createdAt: '2026-10-01T00:00:00Z',
     updatedAt: '2026-10-02T00:00:00Z',
@@ -50,7 +51,12 @@ let invoke: ReturnType<typeof vi.fn>
 
 function setup(path: string) {
   invoke = vi.fn((channel: string, req?: { tab?: string }) => {
-    if (channel === 'query:issues') return Promise.resolve(pages[req?.tab ?? ''])
+    if (channel === 'query:issues') {
+      return Promise.resolve({
+        page: pages[req?.tab ?? ''],
+        counts: { incoming: 1, assigned: 1, mentioned: 0, mine: 0 }
+      })
+    }
     return Promise.resolve({ opened: true })
   })
   window.gdesk = { invoke, on: () => () => {} } as unknown as GdeskApi

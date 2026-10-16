@@ -1,10 +1,11 @@
-import type { IssueRow } from '../domain/issue'
+import type { IssueDetail, IssueRepoOption } from '../domain/issue-detail'
 import type { ListPage } from '../domain/list'
 import type { OrgRestrictionNotice } from '../domain/org'
 import type { PullRequestRow } from '../domain/pr'
 import type {
   HomeQueryResult,
   InboxQueryResult,
+  IssuesQueryResult,
   IssuesTab,
   PullsTab,
   RepoDetailQueryResult,
@@ -24,7 +25,11 @@ declare module './contract' {
     }
     'query:pulls': { req: { tab: PullsTab }; res: ListPage<PullRequestRow> }
     'query:reviews': { req: void; res: ListPage<PullRequestRow> }
-    'query:issues': { req: { tab: IssuesTab }; res: ListPage<IssueRow> }
+    'query:issues': { req: { tab: IssuesTab }; res: IssuesQueryResult }
+    /** 이슈 상세. 한 번도 받지 않았으면 null(받는 것은 sync:setViewedIssue) */
+    'query:issueDetail': { req: { repoId: number; number: number }; res: IssueDetail | null }
+    /** 새 이슈의 저장소 선택: 내 저장소(포크·보관 제외), 최근 푸시 순 */
+    'query:issueRepoOptions': { req: void; res: IssueRepoOption[] }
     'query:starred': { req: { search?: string }; res: RepositorySummary[] }
     'query:repositories': {
       req: {

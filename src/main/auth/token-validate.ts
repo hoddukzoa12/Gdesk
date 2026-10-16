@@ -92,17 +92,21 @@ export function isInboxAvailable(kind: TokenKind, missing: MissingScope[]): bool
   return !missing.some((m) => m.scope === 'notifications')
 }
 
-/** GET /user 응답을 사용자 정보로 바꾼다. 모양이 다르면 null */
+/**
+ * GET /user 응답을 사용자 정보로 바꾼다. 모양이 다르면 null.
+ * email 은 프로필의 공개 이메일이다(공개하지 않았으면 GitHub 가 null 을 준다). email 권한은 요청하지 않는다.
+ */
 export function parseUser(body: unknown): SessionUser | null {
   if (typeof body !== 'object' || body === null) return null
-  const { id, login, name, avatar_url } = body as Record<string, unknown>
+  const { id, login, name, avatar_url, email } = body as Record<string, unknown>
   if (typeof id !== 'number' || !Number.isSafeInteger(id) || id <= 0) return null
   if (typeof login !== 'string' || login === '') return null
   return {
     id,
     login,
     name: typeof name === 'string' && name !== '' ? name : null,
-    avatarUrl: typeof avatar_url === 'string' ? avatar_url : ''
+    avatarUrl: typeof avatar_url === 'string' ? avatar_url : '',
+    email: typeof email === 'string' && email !== '' ? email : null
   }
 }
 

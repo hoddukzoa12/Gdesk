@@ -17,6 +17,8 @@ export interface IssueRow {
   url: string
   author: ActorSummary
   labels: IssueLabel[]
+  /** 담당자(최대 10명) */
+  assignees: ActorSummary[]
   commentCount: number
   createdAt: string
   updatedAt: string

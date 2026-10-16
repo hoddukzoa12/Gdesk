@@ -1,5 +1,6 @@
 import type { ActorSummary } from '@shared/domain/actor'
 import type { IssueRow } from '@shared/domain/issue'
+import type { IssueDetail } from '@shared/domain/issue-detail'
 import type { NotificationRow } from '@shared/domain/notification'
 import type { PullRequestRow } from '@shared/domain/pr'
 import type {
@@ -42,6 +43,8 @@ export interface RepositoryRecord {
   topics: string[]
   viewerPermission: ViewerPermission | null
   viewerHasStarred: boolean
+  /** 이슈를 켠 저장소인가(응답에 없으면 true) */
+  hasIssuesEnabled: boolean
 }
 
 /** "응답 없는 새 기여" 판정 재료 */
@@ -99,5 +102,8 @@ export interface RepositoryDetailRecord {
   /** 스타 시각을 다 받지 못했다(아주 큰 저장소 등) */
   starsTruncated: boolean
 }
+
+/** 이슈 상세 수집 결과. 코멘트 가능 여부·받은 시각은 읽을 때 붙인다 */
+export type IssueDetailRecord = Omit<IssueDetail, 'viewerCanComment' | 'fetchedAt'>
 
 export type { ActorSummary }

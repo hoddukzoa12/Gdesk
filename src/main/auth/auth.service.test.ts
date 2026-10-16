@@ -39,7 +39,7 @@ const TOKEN_DEVICE = 'gho_DeviceSecretToken4444444444444444'
 const TOKEN_BAD = 'ghp_BadToken5555555555555555555555555'
 const ALL_TOKENS = [TOKEN_A, TOKEN_A2, TOKEN_B, TOKEN_FG, TOKEN_DEVICE, TOKEN_BAD]
 
-const ALICE: FakeUser = { id: 1, login: 'alice', name: 'Alice' }
+const ALICE: FakeUser = { id: 1, login: 'alice', name: 'Alice', email: 'alice@example.com' }
 const BOB: FakeUser = { id: 2, login: 'bob' }
 
 const USERS: Record<string, { user: FakeUser; scopes: string | null }> = {
@@ -202,7 +202,7 @@ describe('AuthService', () => {
     store.saved = {
       token: TOKEN_A,
       tokenKind: 'classic',
-      user: { id: 1, login: 'alice', name: 'Alice', avatarUrl: 'x' },
+      user: { id: 1, login: 'alice', name: 'Alice', avatarUrl: 'x', email: null },
       scopes: ['repo']
     }
     const { service, calls } = makeService()
@@ -229,7 +229,13 @@ describe('AuthService', () => {
       expect(result.ok).toBe(true)
       expect(result.session).toMatchObject({
         state: 'signed_in',
-        user: { id: 1, login: 'alice', name: 'Alice', avatarUrl: 'https://avatars.example/u/1' },
+        user: {
+          id: 1,
+          login: 'alice',
+          name: 'Alice',
+          avatarUrl: 'https://avatars.example/u/1',
+          email: 'alice@example.com'
+        },
         tokenKind: 'classic',
         missingScopes: [],
         inboxAvailable: true
@@ -237,6 +243,8 @@ describe('AuthService', () => {
       expect(log).toEqual(['setLastUserId:1'])
       expect(getLastUserId(db)).toBe(1)
       expect(store.saved?.token).toBe(TOKEN_A)
+      // 공개 이메일도 다른 사용자 정보와 함께 저장한다
+      expect(store.saved?.user.email).toBe('alice@example.com')
       expect(service.getToken()).toBe(TOKEN_A)
       expect(resets).toBe(1)
       expect(snapshots.map((s) => s.state)).toEqual(['signing_in', 'signed_in'])
@@ -648,7 +656,7 @@ describe('AuthService', () => {
       store.saved = {
         token: TOKEN_A,
         tokenKind: 'classic',
-        user: { id: 1, login: 'old-login', name: null, avatarUrl: 'x' },
+        user: { id: 1, login: 'old-login', name: null, avatarUrl: 'x', email: null },
         scopes: []
       }
       const { service } = makeService()
@@ -661,7 +669,7 @@ describe('AuthService', () => {
       await service.revalidate()
       expect(service.getSession()).toMatchObject({
         state: 'signed_in',
-        user: { login: 'alice' },
+        user: { login: 'alice', email: 'alice@example.com' },
         missingScopes: []
       })
       client.dispose()
@@ -671,7 +679,7 @@ describe('AuthService', () => {
       store.saved = {
         token: TOKEN_BAD,
         tokenKind: 'classic',
-        user: { id: 1, login: 'alice', name: null, avatarUrl: 'x' },
+        user: { id: 1, login: 'alice', name: null, avatarUrl: 'x', email: null },
         scopes: ['repo']
       }
       const { service } = makeService()

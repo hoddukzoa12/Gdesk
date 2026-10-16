@@ -15,6 +15,8 @@ export const OPERATIONS = {
   reviewRequests: 'GdeskReviewRequests',
   assignedIssues: 'GdeskAssignedIssues',
   myIssues: 'GdeskMyIssues',
+  mentionedIssues: 'GdeskMentionedIssues',
+  issueDetail: 'GdeskIssueDetail',
   repositoryDetail: 'GdeskRepositoryDetail',
   contributions: 'GdeskContributions'
 } as const
@@ -36,7 +38,8 @@ export const SEARCH_QUERIES = {
   myPullRequests: 'is:pr is:open author:@me sort:updated-desc',
   reviewRequests: 'is:pr is:open review-requested:@me sort:updated-desc',
   assignedIssues: 'is:issue is:open assignee:@me sort:updated-desc',
-  myIssues: 'is:issue is:open author:@me sort:updated-desc'
+  myIssues: 'is:issue is:open author:@me sort:updated-desc',
+  mentionedIssues: 'is:issue is:open mentions:@me sort:updated-desc'
 } as const
 
 /**
@@ -59,7 +62,17 @@ export const LIST_LIMITS = {
   notificationsPerPage: 50,
   notificationsMaxPages: 5,
   /** Home 최근 커밋 수(커밋 검색 per_page) */
-  recentCommits: HOME_RECENT_COMMIT_LIMIT
+  recentCommits: HOME_RECENT_COMMIT_LIMIT,
+  /** 이슈 목록 행의 담당자 수 */
+  issueAssignees: 10,
+  /** 이슈 상세: 오래된 것부터 받는 코멘트 수(최대 100) */
+  issueDetailComments: 100,
+  /** 이슈 상세: 라벨·담당자 수 */
+  issueDetailLabels: 50,
+  /** 이슈 상세: 닫는 PR 수 */
+  issueDetailClosingPullRequests: 25,
+  /** 이슈 상세: 연결·참조 타임라인 항목 수(오래된 것부터) */
+  issueDetailTimelineItems: 100
 } as const
 
 const REPOSITORY_FRAGMENT = `
@@ -87,6 +100,7 @@ fragment GdeskRepo on Repository {
   repositoryTopics(first: 20) { nodes { topic { name } } }
   viewerPermission
   viewerHasStarred
+  hasIssuesEnabled
 }`
 
 const PULL_REQUEST_FRAGMENT = `
@@ -121,6 +135,7 @@ fragment GdeskIssue on Issue {
   author { __typename login avatarUrl }
   repository { databaseId nameWithOwner }
   labels(first: 10) { nodes { name color } }
+  assignees(first: ${LIST_LIMITS.issueAssignees}) { nodes { __typename login avatarUrl } }
   comments(last: $responseCount) { totalCount nodes { authorAssociation } }
 }`
 
@@ -215,6 +230,7 @@ export const MY_PULL_REQUESTS_QUERY = searchQuery(OPERATIONS.myPullRequests, 'Gd
 export const REVIEW_REQUESTS_QUERY = searchQuery(OPERATIONS.reviewRequests, 'GdeskPullRequest')
 export const ASSIGNED_ISSUES_QUERY = searchQuery(OPERATIONS.assignedIssues, 'GdeskIssue')
 export const MY_ISSUES_QUERY = searchQuery(OPERATIONS.myIssues, 'GdeskIssue')
+export const MENTIONED_ISSUES_QUERY = searchQuery(OPERATIONS.mentionedIssues, 'GdeskIssue')
 
 export const REPOSITORY_DETAIL_QUERY = `
 query GdeskRepositoryDetail(
@@ -292,6 +308,95 @@ query GdeskContributions {
       contributionCalendar {
         weeks {
           contributionDays { date contributionCount contributionLevel }
+        }
+      }
+    }
+  }
+}`
+
+const REACTION_GROUPS = 'reactionGroups { content viewerHasReacted reactors { totalCount } }'
+
+const LINKED_PULL_REQUEST_FIELDS = '__typename number title state url repository { nameWithOwner }'
+
+/**
+ * 이슈 상세 (spec §6.2). 저장소는 캐시의 owner/name 으로 찾는다.
+ * - 코멘트: 오래된 것부터 $commentCount 개 + 전체 수
+ * - 연결된 PR: 닫는 PR(closedByPullRequestsReferences) + 타임라인의 교차 참조·연결·연결 해제
+ * - 참조한 커밋: 타임라인 REFERENCED_EVENT 의 commit
+ * - 코멘트 가능 여부 계산용으로 저장소의 viewerPermission 을 함께 받는다
+ * stateReason 에 enableDuplicate 인자를 넘기지 않는다(DUPLICATE 는 기본으로 오고, 그 인자는 없어진다).
+ */
+export const ISSUE_DETAIL_QUERY = `
+query GdeskIssueDetail(
+  $owner: String!
+  $name: String!
+  $number: Int!
+  $commentCount: Int!
+  $labelCount: Int!
+  $closingCount: Int!
+  $timelineCount: Int!
+) {
+  repository(owner: $owner, name: $name) {
+    databaseId
+    nameWithOwner
+    viewerPermission
+    issue(number: $number) {
+      id
+      number
+      url
+      title
+      state
+      stateReason
+      locked
+      createdAt
+      bodyHTML
+      author { __typename login avatarUrl }
+      labels(first: $labelCount) { nodes { name color } }
+      assignees(first: $labelCount) { nodes { __typename login avatarUrl } }
+      ${REACTION_GROUPS}
+      viewerCanClose
+      viewerCanReopen
+      viewerCanReact
+      comments(first: $commentCount) {
+        totalCount
+        nodes {
+          id
+          createdAt
+          bodyHTML
+          author { __typename login avatarUrl }
+          ${REACTION_GROUPS}
+        }
+      }
+      closedByPullRequestsReferences(first: $closingCount, includeClosedPrs: true) {
+        nodes { ${LINKED_PULL_REQUEST_FIELDS} }
+      }
+      timelineItems(
+        first: $timelineCount
+        itemTypes: [CROSS_REFERENCED_EVENT, CONNECTED_EVENT, DISCONNECTED_EVENT, REFERENCED_EVENT]
+      ) {
+        nodes {
+          __typename
+          ... on CrossReferencedEvent {
+            source { ... on PullRequest { ${LINKED_PULL_REQUEST_FIELDS} } }
+          }
+          ... on ConnectedEvent {
+            source { ... on PullRequest { ${LINKED_PULL_REQUEST_FIELDS} } }
+            subject { ... on PullRequest { ${LINKED_PULL_REQUEST_FIELDS} } }
+          }
+          ... on DisconnectedEvent {
+            source { ... on PullRequest { ${LINKED_PULL_REQUEST_FIELDS} } }
+            subject { ... on PullRequest { ${LINKED_PULL_REQUEST_FIELDS} } }
+          }
+          ... on ReferencedEvent {
+            commitRepository { nameWithOwner }
+            commit {
+              oid
+              messageHeadline
+              committedDate
+              url
+              author { name user { __typename login avatarUrl } }
+            }
+          }
         }
       }
     }

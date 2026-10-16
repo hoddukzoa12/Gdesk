@@ -6,6 +6,8 @@ import { getDetailTrackedRepoIds } from '../sync'
 import {
   queryHome,
   queryInbox,
+  queryIssueDetail,
+  queryIssueRepoOptions,
   queryIssues,
   queryOrgRestrictions,
   queryPulls,
@@ -42,6 +44,8 @@ export function registerIpc(): void {
   handle('query:pulls', (req) => queryPulls(getDb(), req))
   handle('query:reviews', () => queryReviews(getDb()))
   handle('query:issues', (req) => queryIssues(getDb(), req))
+  handle('query:issueDetail', (req) => queryIssueDetail(getDb(), req))
+  handle('query:issueRepoOptions', () => queryIssueRepoOptions(getDb()))
   handle('query:starred', (req) => queryStarred(getDb(), req))
   handle('query:repositories', (req) => queryRepositories(getDb(), req))
   handle('query:sidebar', () => querySidebar(getDb()))

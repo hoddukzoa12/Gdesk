@@ -76,6 +76,12 @@ function setup(
     issueLists: vi.fn(async () => {
       calls.push('issueLists')
     }),
+    mentionedIssues: vi.fn(async () => {
+      calls.push('mentionedIssues')
+    }),
+    issueDetail: vi.fn(async (repoId: number, number: number) => {
+      calls.push(`issue:${repoId}#${number}`)
+    }),
     repositoryDetail: vi.fn(async (repoId: number) => {
       calls.push(`detail:${repoId}`)
     }),
@@ -176,6 +182,7 @@ const FULL_ROUND = [
   'repoOpenItems',
   'pullRequestLists',
   'issueLists',
+  'mentionedIssues',
   'starred',
   'contributions',
   'recentCommits'
@@ -438,6 +445,87 @@ describe('SyncEngine', () => {
     })
   })
 
+  describe('보고 있는 이슈', () => {
+    it('열면 바로 받고, 보는 동안 목록 주기로 다시 받고, 닫으면 멈춘다', async () => {
+      h = setup()
+      h.engine.setWindowsOpen(true)
+      await flush()
+      expect(h.count('issue:5#12')).toBe(0)
+
+      await h.engine.setViewedIssue({ repoId: 5, number: 12 })
+      expect(h.count('issue:5#12')).toBe(1)
+      expect(h.notified.at(-1)).toEqual(expect.arrayContaining(['issues', 'issue:5#12']))
+
+      await vi.advanceTimersByTimeAsync(5 * MIN)
+      expect(h.count('issue:5#12')).toBe(2)
+      await vi.advanceTimersByTimeAsync(5 * MIN)
+      expect(h.count('issue:5#12')).toBe(3)
+
+      await h.engine.setViewedIssue(null)
+      await vi.advanceTimersByTimeAsync(10 * MIN)
+      expect(h.count('issue:5#12')).toBe(3)
+    })
+
+    it('같은 이슈를 다시 알려도 또 받지 않고, 다른 이슈로 바꾸면 그것을 받는다', async () => {
+      h = setup()
+      h.engine.setWindowsOpen(true)
+      await flush()
+      await h.engine.setViewedIssue({ repoId: 5, number: 12 })
+      await h.engine.setViewedIssue({ repoId: 5, number: 12 })
+      expect(h.count('issue:5#12')).toBe(1)
+      await h.engine.setViewedIssue({ repoId: 5, number: 13 })
+      expect(h.count('issue:5#13')).toBe(1)
+      await vi.advanceTimersByTimeAsync(5 * MIN)
+      expect(h.count('issue:5#12')).toBe(1)
+      expect(h.count('issue:5#13')).toBe(2)
+    })
+
+    it('오프라인이면 받지 않고, online 이 되면 목록과 함께 받는다', async () => {
+      h = setup({ status: 'offline' })
+      h.engine.setWindowsOpen(true)
+      await h.engine.setViewedIssue({ repoId: 5, number: 12 })
+      expect(h.count('issue:5#12')).toBe(0)
+      h.setStatus('online')
+      await flush()
+      expect(h.count('issue:5#12')).toBe(1)
+    })
+
+    it('창이 닫혀 있어도 열 때 한 번은 받는다(사용자가 연 패널)', async () => {
+      h = setup()
+      await h.engine.setViewedIssue({ repoId: 5, number: 12 })
+      expect(h.count('issue:5#12')).toBe(1)
+    })
+
+    it('issues 수동 새로고침은 보고 있는 이슈도 받는다', async () => {
+      h = setup()
+      await h.engine.setViewedIssue({ repoId: 5, number: 12 })
+      h.calls.length = 0
+      await h.engine.refresh('issues')
+      expect([...h.calls].sort()).toEqual(
+        ['issueLists', 'mentionedIssues', 'repoOpenItems', 'issue:5#12'].sort()
+      )
+    })
+
+    it('잘못된 이슈 키는 거절한다', async () => {
+      h = setup()
+      await expect(h.engine.setViewedIssue({ repoId: 0, number: 1 })).rejects.toThrow()
+      await expect(h.engine.setViewedIssue({ repoId: 1, number: -1 })).rejects.toThrow()
+      await expect(h.engine.setViewedIssue({ repoId: 1, number: 2.5 })).rejects.toThrow()
+    })
+
+    it('언급 목록 실패는 다른 목록을 막지 않는다', async () => {
+      h = setup()
+      ;(h.refresh.mentionedIssues as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+        new Error('unknown operation')
+      )
+      h.engine.setWindowsOpen(true)
+      await flush()
+      expect(h.errors).toContain('mentionedIssues')
+      expect(h.count('starred')).toBe(1)
+      expect(h.count('contributions')).toBe(1)
+    })
+  })
+
   describe('요청 한도', () => {
     it('남은 양이 적으면 상세 추적 갱신을 먼저 미룬다', async () => {
       h = setup({ pins: [1] })
@@ -593,7 +681,7 @@ describe('SyncEngine', () => {
         ['inbox', ['notifications']],
         ['pulls', ['pullRequestLists', 'repoOpenItems']],
         ['reviews', ['pullRequestLists']],
-        ['issues', ['issueLists', 'repoOpenItems']],
+        ['issues', ['issueLists', 'mentionedIssues', 'repoOpenItems']],
         ['starred', ['starred']],
         ['repositories', ['repositories[1]']],
         ['repo:42', ['detail:42']],
@@ -721,6 +809,7 @@ describe('SyncEngine', () => {
         ['starred'],
         ['home', 'pulls', 'reviews', 'sidebar'],
         ['home', 'issues'],
+        ['issues'],
         ['home', 'issues', 'pulls', 'repo:7', 'sidebar'],
         ['home', 'repo:1', 'sidebar']
       ])

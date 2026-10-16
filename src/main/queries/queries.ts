@@ -12,7 +12,8 @@ import type {
   PinnedRepoCard,
   RecentCommitsSection
 } from '@shared/domain/home-activity'
-import type { IssueRow } from '@shared/domain/issue'
+import { assertIssueRef } from '@shared/domain/issue-detail'
+import type { IssueDetail, IssueRepoOption } from '@shared/domain/issue-detail'
 import type { ListPage } from '@shared/domain/list'
 import type { OrgRestrictionNotice } from '@shared/domain/org'
 import type { PullRequestRow } from '@shared/domain/pr'
@@ -20,6 +21,7 @@ import { ISSUES_TABS, PULLS_TABS } from '@shared/domain/queries'
 import type {
   HomeQueryResult,
   InboxQueryResult,
+  IssuesQueryResult,
   IssuesTab,
   PullsTab,
   RepoDetailQueryResult,
@@ -32,6 +34,8 @@ import type { RepoSort, RepositorySummary } from '@shared/domain/repo'
 import {
   getContributions,
   getHomeSummary,
+  getIssueDetail,
+  getIssueTabCounts,
   getRepositories,
   getRepository,
   getSyncState,
@@ -41,6 +45,8 @@ import {
   listAssignedIssues,
   listIncomingIssues,
   listIncomingPullRequests,
+  listIssueRepoOptions,
+  listMentionedIssues,
   listMyIssues,
   listMyPullRequests,
   listMyRepositories,
@@ -221,13 +227,34 @@ export function queryReviews(db: DatabaseSync): ListPage<PullRequestRow> {
   return listReviewRequests(db)
 }
 
+const ISSUE_LISTS = {
+  incoming: listIncomingIssues,
+  assigned: listAssignedIssues,
+  mentioned: listMentionedIssues,
+  mine: listMyIssues
+} as const
+
+/** Issues 화면: 요청한 탭의 목록과 네 탭의 전체 수 (spec §6.1) */
 export function queryIssues(
   db: DatabaseSync,
   req: { tab: IssuesTab } | undefined
-): ListPage<IssueRow> {
+): IssuesQueryResult {
   const tab = oneOf('tab', req?.tab, ISSUES_TABS)
-  if (tab === 'incoming') return listIncomingIssues(db)
-  return tab === 'assigned' ? listAssignedIssues(db) : listMyIssues(db)
+  return { page: ISSUE_LISTS[tab](db), counts: getIssueTabCounts(db) }
+}
+
+/** 이슈 상세(캐시). 받은 적 없으면 null */
+export function queryIssueDetail(
+  db: DatabaseSync,
+  req: { repoId: number; number: number } | undefined
+): IssueDetail | null {
+  assertIssueRef(req)
+  return getIssueDetail(db, req.repoId, req.number)
+}
+
+/** 새 이슈의 저장소 선택: 내 저장소(포크·보관 제외), 이슈 켜짐 여부·권한과 함께 */
+export function queryIssueRepoOptions(db: DatabaseSync): IssueRepoOption[] {
+  return listIssueRepoOptions(db)
 }
 
 export function queryStarred(

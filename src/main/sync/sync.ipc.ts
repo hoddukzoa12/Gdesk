@@ -1,4 +1,5 @@
 import '@shared/ipc/sync'
+import { assertIssueRef } from '@shared/domain/issue-detail'
 import type { SyncStatus } from '@shared/domain/sync'
 import { emit, handle } from '../ipc/registry'
 import { getGitHubClient } from '../github/client'
@@ -34,6 +35,15 @@ export function registerIpc(): void {
     // 진입 갱신은 기다리지 않는다(결과는 data:changed 로 다시 읽는다)
     void getSyncEngine()
       ?.setViewedRepo(repoId)
+      .catch(() => undefined)
+  })
+
+  handle('sync:setViewedIssue', (req) => {
+    const ref = req ?? null
+    if (ref !== null) assertIssueRef(ref)
+    // 패널 열림 갱신도 기다리지 않는다(결과는 data:changed 로 query:issueDetail 을 다시 읽는다)
+    void getSyncEngine()
+      ?.setViewedIssue(ref === null ? null : { repoId: ref.repoId, number: ref.number })
       .catch(() => undefined)
   })
 

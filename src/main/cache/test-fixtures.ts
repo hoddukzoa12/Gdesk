@@ -1,4 +1,5 @@
 import type {
+  IssueDetailRecord,
   IssueRecord,
   NotificationRecord,
   PullRequestRecord,
@@ -38,6 +39,7 @@ export function repoRecord(id: number, patch: Partial<RepositoryRecord> = {}): R
     topics: [],
     viewerPermission: 'ADMIN',
     viewerHasStarred: false,
+    hasIssuesEnabled: true,
     ...patch
   }
 }
@@ -82,6 +84,7 @@ export function issueRecord(
     url: `https://github.com/me/repo${repoId}/issues/1`,
     author: { login: 'someone', avatarUrl: null, isBot: false },
     labels: [],
+    assignees: [],
     commentCount: 0,
     createdAt: '2026-10-01T00:00:00Z',
     updatedAt: '2026-10-01T00:00:00Z',
@@ -129,6 +132,39 @@ export function detailRecord(
     stargazers: [],
     starsSince: null,
     starsTruncated: false,
+    ...patch
+  }
+}
+
+export function issueDetailRecord(
+  repoId: number,
+  number: number,
+  patch: Partial<IssueDetailRecord> = {}
+): IssueDetailRecord {
+  return {
+    id: `I_${repoId}_${number}`,
+    repoId,
+    repoFullName: `me/repo${repoId}`,
+    number,
+    url: `https://github.com/me/repo${repoId}/issues/${number}`,
+    title: `Issue ${number}`,
+    state: 'open',
+    stateReason: null,
+    author: { login: 'someone', avatarUrl: null, isBot: false },
+    createdAt: '2026-10-01T00:00:00Z',
+    bodyHTML: '',
+    labels: [],
+    assignees: [],
+    reactions: [],
+    comments: [],
+    commentCount: 0,
+    linkedPullRequests: [],
+    referencingCommits: [],
+    locked: false,
+    viewerCanClose: true,
+    viewerCanReopen: false,
+    viewerCanReact: true,
+    viewerPermission: 'ADMIN',
     ...patch
   }
 }

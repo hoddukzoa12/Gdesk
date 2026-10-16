@@ -24,7 +24,7 @@ const signedOut: SessionSnapshot = {
 
 const signedIn: SessionSnapshot = {
   state: 'signed_in',
-  user: { id: 1, login: 'octo', name: 'Octo', avatarUrl: '' },
+  user: { id: 1, login: 'octo', name: 'Octo', avatarUrl: '', email: null },
   tokenKind: 'classic',
   missingScopes: [],
   inboxAvailable: true,
