@@ -31,11 +31,12 @@ import type {
 } from '@shared/domain/issue-detail'
 import type { SessionState } from '@shared/domain/session'
 import {
-  addIssueToScope,
+  forgetCreatedIssue,
   getIssueDetail,
   getIssueTargetRepo,
   lookupRepoFullName,
   patchIssueDetail,
+  recordCreatedIssue,
   restoreIssueDetail
 } from '../cache'
 import type { IssueDetailSnapshot } from '../cache'
@@ -93,6 +94,8 @@ export interface IssueActionsServiceOptions {
   dataGuard?: () => () => boolean
   /** 라벨·담당자 목록 최대 페이지 수(페이지당 100). 기본 REPO_META_LIMITS */
   repoMetaMaxPages?: number
+  /** 만든 이슈의 기록 시각. 기본 Date.now */
+  now?: () => number
 }
 
 export interface IssueActionsService {
@@ -353,6 +356,7 @@ export function createIssueActionsService(
   const { client, notify } = options
   const serialized = createKeyedSerializer()
   const dataGuard = options.dataGuard ?? (() => () => true)
+  const now = options.now ?? Date.now
   const maxPages = Math.max(1, Math.floor(options.repoMetaMaxPages ?? REPO_META_LIMITS.maxPages))
 
   function blockReason(): ActionBlockReason | null {
@@ -487,7 +491,11 @@ export function createIssueActionsService(
               { operationName: OPERATIONS.closeIssue }
             )
         )
-        if (result.ok) requestListRefresh()
+        if (result.ok) {
+          // 앱에서 만든 이슈였다면 유예 기록을 지워 다음 목록 갱신에서 남지 않게 한다
+          forgetCreatedIssue(db, detail.id)
+          requestListRefresh()
+        }
         return result
       }
       if (!detail.viewerCanReopen) return reject('not_allowed')
@@ -553,7 +561,8 @@ export function createIssueActionsService(
       if (issue === null) return failed('GitHub returned an unexpected response')
       // GitHub 검색 반영이 늦으므로 "내 이슈"에 바로 넣는다
       if (isCurrent()) {
-        addIssueToScope(db, 'mine', issue)
+        // 검색으로 목록을 다시 써도 유예 시간 동안 남도록 만든 시각과 함께 기록한다
+        recordCreatedIssue(db, issue, now())
         notify([...CREATE_ISSUE_KEYS])
       }
       return { ok: true, issue: { repoId: repo.id, number: issue.number, nodeId: issue.id } }

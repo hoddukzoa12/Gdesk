@@ -180,8 +180,16 @@ describe('이슈 쓰기 동작 서비스', () => {
       getSession: () => ({ state: session }),
       notify,
       refreshIssueLists,
-      dataGuard: () => () => current
+      dataGuard: () => () => current,
+      now: () => NOW
     })
+  }
+
+  function createdRecords(): { issue_id: string; created_at: number }[] {
+    return db.prepare('SELECT issue_id, created_at FROM cache_created_issues').all() as {
+      issue_id: string
+      created_at: number
+    }[]
   }
 
   function detail(): IssueDetail | null {
@@ -595,6 +603,28 @@ describe('이슈 쓰기 동작 서비스', () => {
       })
       expect(await make(client).create({ repoId: 1, title: 'T' })).toMatchObject({ ok: true })
       expect(listMyIssues(db).items).toEqual([])
+      expect(createdRecords()).toEqual([])
+    })
+
+    it('만든 이슈를 만든 시각과 함께 기록한다(검색 반영 전 목록 갱신에서 남기려고)', async () => {
+      const { client } = fakeClient(() => json(createdIssueResponse(), 201))
+      await make(client).create({ repoId: 1, title: 'T' })
+      expect(createdRecords()).toEqual([{ issue_id: 'I_new', created_at: NOW }])
+    })
+
+    it('만든 이슈를 닫으면 기록을 지운다(닫힌 이슈를 유예로 남기지 않게)', async () => {
+      const { client } = fakeClient((call) =>
+        call.key === OPERATIONS.closeIssue
+          ? ok({ closeIssue: {} })
+          : json(createdIssueResponse(), 201)
+      )
+      const s = make(client)
+      await s.create({ repoId: 1, title: 'T' })
+      saveIssueDetail(db, issueDetailRecord(1, 42, { id: 'I_new' }), NOW)
+      expect(await s.setState({ issueRef: { repoId: 1, number: 42 }, state: 'closed' })).toEqual({
+        ok: true
+      })
+      expect(createdRecords()).toEqual([])
     })
   })
 

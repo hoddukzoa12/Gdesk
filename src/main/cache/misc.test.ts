@@ -7,7 +7,7 @@ import { CACHE_TABLES, clearCache, initCache } from './cleaner'
 import { replaceContributions, replaceRecentCommits } from './home-activity'
 import { listOrgRestrictions, recordOrgRestrictions } from './org-restrictions'
 import { saveIssueDetail } from './issue-details'
-import { replaceRepoIssues } from './issues'
+import { recordCreatedIssue, replaceRepoIssues } from './issues'
 import { removeNotification, replaceNotifications } from './notifications'
 import { replacePullRequests, replaceRepoPullRequests } from './pull-requests'
 import { saveRepositoryDetail } from './repo-detail'
@@ -68,6 +68,11 @@ function fillEverything(db: DatabaseSync): void {
   replacePullRequests(db, 'mine', [prRecord('m', 2, { viewerIsAuthor: true })])
   replaceRepoIssues(db, 1, [issueRecord('i', 1)])
   saveIssueDetail(db, issueDetailRecord(1, 1))
+  recordCreatedIssue(
+    db,
+    issueRecord('i_new', 77, { repoFullName: 'zz/made', title: 'made', viewerIsAuthor: true }),
+    1
+  )
   replaceNotifications(db, [notificationRecord('n'), notificationRecord('done')])
   removeNotification(db, 'done')
   updateSyncState(db, 'notifications', { lastSyncedAt: 1, etag: 'W/"x"' })

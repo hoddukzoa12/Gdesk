@@ -27,7 +27,9 @@ export {
 } from './issue-details'
 export type { IssueDetailSnapshot } from './issue-details'
 export {
+  CREATED_ISSUE_GRACE_MS,
   addIssueToScope,
+  forgetCreatedIssue,
   getIssueTabCounts,
   isIncomingIssuesComplete,
   listAssignedIssues,
@@ -35,10 +37,11 @@ export {
   listMentionedIssues,
   listMyIssues,
   listRepoIssues,
+  recordCreatedIssue,
   replaceIssues,
   replaceRepoIssues
 } from './issues'
-export type { IssueScope } from './issues'
+export type { IssueListWriteOptions, IssueScope } from './issues'
 export {
   countUnreadNotifications,
   getNotification,

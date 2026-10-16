@@ -254,7 +254,7 @@ export async function refreshPullRequestLists(
 
 /** 나에게 할당된 이슈와 내가 올린 이슈 목록을 받아 저장한다 */
 export async function refreshIssueLists(
-  options: RefreshContext & SearchOptions = {}
+  options: RefreshContext & SearchOptions & { createdIssueGraceMs?: number } = {}
 ): Promise<{ orgRestrictions: OrgRestriction[] }> {
   const { db, now } = ctx(options)
   const assigned = await collectAssignedIssues(options)
@@ -266,7 +266,12 @@ export async function refreshIssueLists(
       updateSyncState(db, SYNC_SCOPES.assignedIssues, { lastSyncedAt: now })
     }
     if (shouldReplace(mine)) {
-      replaceIssues(db, 'mine', mine.items, total(mine))
+      // 앱에서 만든 이슈는 검색에 나올 때까지(유예 시간 동안) 남긴다
+      replaceIssues(db, 'mine', mine.items, {
+        ...total(mine),
+        now,
+        createdIssueGraceMs: options.createdIssueGraceMs
+      })
       updateSyncState(db, SYNC_SCOPES.myIssues, { lastSyncedAt: now })
     }
     record(db, [...assigned.orgRestrictions, ...mine.orgRestrictions], now)
