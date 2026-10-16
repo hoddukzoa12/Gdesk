@@ -32,6 +32,21 @@ function hash(page: Page): Promise<string> {
   )
 }
 
+test('상단 막대 맨 오른쪽 검색 입력을 누르면 빠른 검색창이 열린다', async ({ page }) => {
+  await waitForAppShell(page)
+  // 테스트 창(1280px)은 접히는 너비(1100px)보다 넓어 입력 모양이다
+  const trigger = page.getByTestId('top-bar').getByTestId('palette-open-button')
+  await expect(trigger).toHaveAttribute('data-collapsed', 'false')
+  await expect(trigger).toContainText(
+    /Search repositories, issues, pull requests…|저장소, 이슈, PR 검색…/
+  )
+  await trigger.click()
+  await expect(page.getByTestId('palette')).toBeVisible()
+  await expect(page.getByTestId('palette-input')).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('palette')).toHaveCount(0)
+})
+
 test('저장소를 찾아 Enter 로 상세 화면에 간다, Esc 로 닫는다', async ({ page }) => {
   await waitForSync(page)
   await openPalette(page)

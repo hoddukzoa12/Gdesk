@@ -2,7 +2,7 @@ import { expect, test } from './support/fixtures'
 import { invoke, waitForAppShell } from './support/helpers'
 
 // 요청 한도 초과(spec §6): GitHub 가 403 + x-ratelimit-remaining: 0 을 주면 연결 상태가 rate_limited 가 되고,
-// 사이드바 하단이 그 상태를 보이며 쓰기 버튼이 꺼진다. 문구 대신 data 속성·data-testid 로 확인한다.
+// 상단 막대의 동기화 상태가 그 상태를 보이며 쓰기 버튼이 꺼진다. 문구 대신 data 속성·data-testid 로 확인한다.
 
 const SYNC_TIMEOUT = 20_000
 
