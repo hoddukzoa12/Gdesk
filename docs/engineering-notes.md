@@ -15,7 +15,7 @@
 ## ⌘R / Ctrl+R는 화면 새로고침이 아니다
 
 - 기본 Electron 메뉴의 "다시 불러오기"는 화면 전체를 다시 띄워 화면 상태와 진행 중인 클론 대화상자를 날린다. 그래서 앱 메뉴에서 뺐다.
-- 이 단축키는 사이드바 하단의 데이터 새로고침이 `keydown`으로 처리한다. 지금 주소로 범위를 정해 `sync:refresh`를 부른다.
+- 이 단축키는 상단 막대의 데이터 새로고침(`features/sidebar/SyncFooter.tsx`)이 `keydown`으로 처리한다. 지금 주소로 범위를 정해 `sync:refresh`를 부른다.
 - 앱 메뉴를 다시 만들 때 `{ role: 'reload' }`나 기본 `viewMenu`를 넣으면 단축키가 화면 재시작으로 바뀐다.
 - 메뉴 틀은 `src/main/menu-template.ts`의 `buildMenuTemplate`(Electron 없는 순수 함수)이 만들고, 단위 테스트가 `reload`·`forceReload`·`viewMenu` 역할과 `+R` 단축키가 없는지 본다.
 - 역할 메뉴(`fileMenu`·`editMenu` 등)의 기본 문구는 영어로만 나온다. 그래서 모든 항목에 en·ko `label`을 직접 넣는다. 언어는 설정을 따르고(`system`이면 `app.getLocale()`이 `ko`로 시작할 때 한국어), 설정의 언어가 바뀌면 `menu.ts`가 메뉴를 다시 만든다. 메뉴 문구는 화면 번역 파일이 아니라 `menu-template.ts`의 표에 있다.

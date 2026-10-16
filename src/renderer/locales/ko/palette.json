@@ -1,7 +1,9 @@
 {
   "title": "빠른 검색",
-  "button": "검색",
   "open": "빠른 검색 열기 ({{shortcut}})",
+  "trigger": {
+    "placeholder": "저장소, 이슈, PR 검색…"
+  },
   "placeholder": "저장소·PR·이슈를 찾거나 명령을 입력하세요…",
   "results": "검색 결과",
   "noResults": "맞는 명령이 없습니다",

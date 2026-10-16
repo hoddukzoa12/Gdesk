@@ -6,7 +6,7 @@ import { StoragePromptDialog } from './StoragePromptDialog'
 
 // 세션 만료는 가장 위, 권한·조직 안내는 그 아래(업데이트 알림은 100).
 export const slots: FeatureSlots = {
-  sidebarTop: AccountMenu,
+  sidebarBottom: AccountMenu,
   banners: [
     { order: 10, Component: SessionExpiredBanner },
     { order: 40, Component: TokenWarningBanner },

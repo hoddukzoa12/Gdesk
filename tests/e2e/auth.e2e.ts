@@ -14,7 +14,10 @@ async function loginWithToken(page: Page, token: string): Promise<void> {
 async function expectSignedInShell(page: Page): Promise<void> {
   await expect(page.getByTestId('login-screen')).toBeHidden({ timeout: 20_000 })
   await waitForAppShell(page)
-  await expect(page.getByTestId('account-login')).toHaveText(FIXTURE.viewer.login)
+  // 사이드바 맨 아래 계정 영역: 이름 + GitHub 공개 이메일
+  const sidebar = page.getByTestId('sidebar')
+  await expect(sidebar.getByTestId('account-name')).toHaveText(FIXTURE.viewer.name)
+  await expect(sidebar.getByTestId('account-email')).toHaveText(FIXTURE.viewer.email)
 }
 
 test.describe('로그아웃 상태로 시작', () => {
@@ -117,9 +120,29 @@ test('로그인 중 401 → 세션 만료 배너, 다시 로그인을 누르면 
   await expect(page.getByTestId('session-expired-banner')).toHaveCount(0)
 })
 
+test('공개 이메일이 없으면 계정 영역 아래 줄에 로그인을 보여 준다', async ({
+  server,
+  launchGdesk
+}) => {
+  server.setUserEmail(null)
+  const { page } = await launchGdesk()
+  await waitForAppShell(page)
+  const sidebar = page.getByTestId('sidebar')
+  await expect(sidebar.getByTestId('account-name')).toHaveText(FIXTURE.viewer.name)
+  await expect(sidebar.getByTestId('account-email')).toHaveText(FIXTURE.viewer.login)
+})
+
 test('계정 메뉴에서 로그아웃하면 확인 후 로그인 화면', async ({ app, page }) => {
   await expectSignedInShell(page)
-  await page.getByTestId('account-menu-trigger').click()
+  // 계정 영역은 사이드바 맨 아래에 있고, 메뉴는 위로 열린다
+  const trigger = page.getByTestId('sidebar').getByTestId('account-menu-trigger')
+  await trigger.click()
+  const menu = page.getByTestId('account-menu')
+  await expect(menu).toHaveAttribute('data-side', 'top')
+  await expect(menu.getByRole('menuitem')).toHaveCount(3)
+  const menuBox = await menu.boundingBox()
+  const triggerBox = await trigger.boundingBox()
+  expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(triggerBox!.y)
   await page.getByTestId('account-menu-profile').click()
   await expect
     .poll(() => openedExternalUrls(app))

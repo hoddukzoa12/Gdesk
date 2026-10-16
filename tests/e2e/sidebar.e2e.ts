@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test'
 import { expect, test } from './support/fixtures'
 import { invoke, waitForAppShell } from './support/helpers'
 
-// 사이드바(메뉴 수치 · Pinned · Your repositories · 동기화 하단 · 오프라인 배너),
+// 사이드바(로고 · 메뉴 수치 · Pinned · Your repositories · 오프라인 배너), 상단 막대의 동기화 상태·새로고침,
 // Repositories 화면, Starred 화면 (spec §4.1, §4.7, §4.8, §6).
 // 앱 언어는 OS 언어를 따르므로 문구 대신 data-testid·data 속성으로 확인한다.
 
@@ -148,9 +148,29 @@ test('Starred: 스타한 시각 최신순, 누르면 저장소 상세 주소', a
   await expect.poll(() => new URL(page.url()).hash).toBe('#/repos/301')
 })
 
-test('오프라인이면 배너와 하단 문구, 연결이 돌아오면 회복', async ({ page, server }) => {
+test('사이드바 맨 위에 Gdesk 로고, 동기화 상태는 사이드바가 아니라 상단 막대에', async ({
+  page
+}) => {
   await waitForAppShell(page)
-  const footer = page.getByTestId('sync-footer')
+  const sidebar = page.getByTestId('sidebar')
+  await expect(sidebar.getByTestId('app-logo')).toHaveText('Gdesk')
+  await expect(sidebar.getByTestId('app-logo').locator('svg')).toBeVisible()
+  await expect(sidebar.getByTestId('sync-footer')).toHaveCount(0)
+
+  const topBar = page.getByTestId('top-bar')
+  await expect(topBar.getByTestId('sync-footer-text')).toHaveText(/^Synced |동기화됨$/, {
+    timeout: SYNC_TIMEOUT
+  })
+  await expect(topBar.getByTestId('sync-refresh')).toBeVisible()
+  // 오른쪽 순서: 동기화 문구 → 새로고침 → 검색 입력
+  const x = async (id: string) => (await topBar.getByTestId(id).boundingBox())!.x
+  expect(await x('sync-footer-text')).toBeLessThan(await x('sync-refresh'))
+  expect(await x('sync-refresh')).toBeLessThan(await x('palette-open-button'))
+})
+
+test('오프라인이면 배너와 상단 막대 문구, 연결이 돌아오면 회복', async ({ page, server }) => {
+  await waitForAppShell(page)
+  const footer = page.getByTestId('top-bar').getByTestId('sync-footer')
   await expect.poll(() => navCount(page, 'inbox'), { timeout: SYNC_TIMEOUT }).toBe('6')
   await expect(footer).toHaveAttribute('data-connection', 'online')
   await expect(page.getByTestId('offline-banner')).toHaveCount(0)
@@ -175,7 +195,10 @@ test('오프라인이면 배너와 하단 문구, 연결이 돌아오면 회복'
   await expect(page.getByTestId('sync-footer-text')).toHaveText(/^Synced |동기화됨$/)
 })
 
-test('새로고침 버튼과 단축키는 지금 화면 범위로 가짜 서버에 요청한다', async ({ page, server }) => {
+test('상단 막대의 새로고침 버튼과 단축키는 지금 화면 범위로 가짜 서버에 요청한다', async ({
+  page,
+  server
+}) => {
   await waitForAppShell(page)
   await page.locator('[data-nav="starred"]').click()
   await expect
@@ -186,7 +209,7 @@ test('새로고침 버튼과 단축키는 지금 화면 범위로 가짜 서버�
     r.seq > seq && r.key === 'GRAPHQL GdeskStarredRepositories'
 
   let before = await lastSeq(server)
-  await page.getByTestId('sync-refresh').click()
+  await page.getByTestId('top-bar').getByTestId('sync-refresh').click()
   await server.waitForRequest(starredAfter(before), 10_000)
 
   // ⌘R / Ctrl+R: 창을 다시 읽지 않고 같은 새로고침을 한다

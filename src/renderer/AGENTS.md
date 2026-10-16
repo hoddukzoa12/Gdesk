@@ -2,7 +2,7 @@
 
 ## 맡는 것
 
-React 화면 전체: 앱 틀(사이드바, 상단 막대, 본문), 기능별 화면(`features/*`), 공용 부품(`components/`), 테마(`theme/`), 번역(`locales/`), 메인 호출 도우미(`lib/ipc.ts`), 여러 기능이 함께 쓰는 훅(`lib/hooks/`).
+React 화면 전체: 앱 틀(사이드바: 로고·메뉴·섹션·맨 아래 계정, 상단 막대: PageHeader 포털·동기화 상태·검색 입력, 본문), 기능별 화면(`features/*`), 공용 부품(`components/`), 테마(`theme/`), 번역(`locales/`), 메인 호출 도우미(`lib/ipc.ts`), 여러 기능이 함께 쓰는 훅(`lib/hooks/`).
 
 ## 맡지 않는 것
 
@@ -27,14 +27,14 @@ React 화면 전체: 앱 틀(사이드바, 상단 막대, 본문), 기능별 화
 
 `features/<기능>/`에 둔다. 앱 틀은 다음을 자동으로 모은다.
 
-| 파일        | 내보내는 것                          | 용도                                                                                                                                                  |
-| ----------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `route.tsx` | `export const routes: RouteObject[]` | 해시 라우터의 자식 경로. `path`는 `/` 없이(`'inbox'`, `'repos/:repoId'`)                                                                              |
-| `slots.tsx` | `export const slots: FeatureSlots`   | `sidebarTop`, `sidebarSections`(order), `sidebarFooter`, `banners`(order), `overlays`, `headerActions`(order), `useNavCounts`, `usePreferencesSource` |
+| 파일        | 내보내는 것                          | 용도                                                                                                                                                                   |
+| ----------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `route.tsx` | `export const routes: RouteObject[]` | 해시 라우터의 자식 경로. `path`는 `/` 없이(`'inbox'`, `'repos/:repoId'`)                                                                                               |
+| `slots.tsx` | `export const slots: FeatureSlots`   | `sidebarTop`, `sidebarSections`(order), `sidebarFooter`, `sidebarBottom`, `banners`(order), `overlays`, `headerActions`(order), `useNavCounts`, `usePreferencesSource` |
 
 - `slots.tsx`·`route.tsx`는 앱 시작 때 eager로 읽힌다. 모듈 최상위에서 `window.gdesk`를 부르거나 무거운 일을 하지 않는다.
 - 다른 기능의 화면을 열 때는 그 기능이 내보낸 함수를 쓴다(예: 클론 대화상자는 `features/clone/store.ts`의 `requestClone`).
-- 지금 쓰는 배너 순서: 세션 만료 10, 오프라인 20, 토큰 경고 40, 조직 제한 45, 업데이트 100. 사이드바 섹션: Pinned 10, Your repositories 20.
+- 지금 쓰는 배너 순서: 세션 만료 10, 오프라인 20, 토큰 경고 40, 조직 제한 45, 업데이트 100. 사이드바 섹션: Pinned 10, Your repositories 20. 상단 막대 오른쪽(`headerActions`): 동기화 상태·새로고침 10, 검색 입력 100(맨 오른쪽). 화면별 동작(PageHeader `actions`)은 이들보다 왼쪽이다. 계정 영역은 `sidebarBottom`(인증). `sidebarTop`·`sidebarFooter`는 지금 쓰는 기능이 없다.
 
 ### 데이터 읽기
 
@@ -61,7 +61,7 @@ React 화면 전체: 앱 틀(사이드바, 상단 막대, 본문), 기능별 화
 
 ### 새로고침 단축키
 
-⌘R(맥) / Ctrl+R(그 외)은 `features/sidebar/SyncFooter.tsx`가 `keydown`으로 잡아 `sync:refresh`에 지금 주소의 범위(`refreshScope.ts`)를 보낸다. 앱 메뉴에는 화면 다시 불러오기가 없다. 다른 곳에서 이 단축키를 쓰지 않는다.
+⌘R(맥) / Ctrl+R(그 외)은 상단 막대의 `features/sidebar/SyncFooter.tsx`가 `keydown`으로 잡아 `sync:refresh`에 지금 주소의 범위(`refreshScope.ts`)를 보낸다. 앱 메뉴에는 화면 다시 불러오기가 없다. 다른 곳에서 이 단축키를 쓰지 않는다.
 
 ### 언어·테마
 

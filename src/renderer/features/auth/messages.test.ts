@@ -3,6 +3,7 @@ import type { SessionSnapshot } from '@shared/domain/session'
 import type { OrgRestrictionNotice } from '@shared/domain/org'
 import {
   SCOPE_IMPACT_KEYS,
+  accountLines,
   authErrorKey,
   deviceFlowView,
   groupOrgRestrictions,
@@ -137,5 +138,25 @@ describe('groupOrgRestrictions', () => {
 describe('profileUrl', () => {
   it('GitHub 프로필 주소', () => {
     expect(profileUrl('octo-maintainer')).toBe('https://github.com/octo-maintainer')
+  })
+})
+
+describe('accountLines', () => {
+  it('이름과 공개 이메일', () => {
+    expect(accountLines({ login: 'octo', name: 'Octo', email: 'octo@maintainer.dev' })).toEqual({
+      primary: 'Octo',
+      secondary: 'octo@maintainer.dev'
+    })
+  })
+
+  it('이름·이메일이 없거나 비면 로그인', () => {
+    expect(accountLines({ login: 'octo', name: null, email: null })).toEqual({
+      primary: 'octo',
+      secondary: 'octo'
+    })
+    expect(accountLines({ login: 'octo', name: '  ', email: '' })).toEqual({
+      primary: 'octo',
+      secondary: 'octo'
+    })
   })
 })
