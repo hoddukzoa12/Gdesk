@@ -1,4 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite'
+import type { ConnectionStatus } from '@shared/domain/connection'
 import type { ActionAvailability, ActionBlockReason, ActionResult } from '@shared/domain/actions'
 import type { SessionState } from '@shared/domain/session'
 import {
@@ -62,13 +63,58 @@ export const NOTIFICATION_KEYS: readonly string[] = ['inbox', 'sidebar', 'home']
 const GENERIC_FAILURE = 'The request to GitHub failed'
 
 /** 화면에 보여도 되는 문구. 요청 계층 오류는 이미 토큰을 지운 문구라 그대로 쓰고, 그 밖은 일반 문구 */
-function safeMessage(error: unknown): string {
+export function safeMessage(error: unknown): string {
   if (error instanceof GitHubClientError && error.message) return error.message
   return GENERIC_FAILURE
 }
 
 function failed(message: string): ActionResult {
   return { ok: false, reason: 'failed', message }
+}
+
+/**
+ * 쓰기 막힘 이유. 우선순위 session_expired > signed_out > offline > rate_limited. 막힘이 없으면 null.
+ * 이슈 쓰기 동작(issue-actions.service.ts)도 같은 판단을 쓴다.
+ */
+export function resolveActionBlockReason(
+  state: SessionState,
+  status: ConnectionStatus
+): ActionBlockReason | null {
+  if (state === 'expired' || status === 'session_expired') return 'session_expired'
+  if (state !== 'signed_in') return 'signed_out'
+  if (status === 'offline') return 'offline'
+  if (status === 'rate_limited') return 'rate_limited'
+  return null
+}
+
+/** 세션을 읽는다. 읽을 수 없으면(인증 초기화 전) signed_out */
+export function readSessionState(getSession: () => { state: SessionState }): SessionState {
+  try {
+    return getSession().state
+  } catch {
+    return 'signed_out'
+  }
+}
+
+/**
+ * 같은 key 의 작업을 순서대로 하나씩 실행하는 함수를 만든다. 앞 작업의 실패는 뒤 작업에 영향을 주지 않는다.
+ * 작업이 던지면 onError 의 값으로 끝난다. 막힘 상태에서 쌓아 두는 대기열이 아니다(진행 중인 작업 뒤에서만 기다린다).
+ */
+export function createKeyedSerializer(): <R>(
+  key: string,
+  task: () => Promise<R>,
+  onError: (error: unknown) => R
+) => Promise<R> {
+  const tails = new Map<string, Promise<unknown>>()
+  return <R>(key: string, task: () => Promise<R>, onError: (error: unknown) => R) => {
+    const prev = tails.get(key) ?? Promise.resolve()
+    const run = prev.then(task, task).catch(onError)
+    tails.set(key, run)
+    void run.then(() => {
+      if (tails.get(key) === run) tails.delete(key)
+    })
+    return run
+  }
 }
 
 function sameAvailability(a: ActionAvailability, b: ActionAvailability): boolean {
@@ -79,25 +125,11 @@ function sameAvailability(a: ActionAvailability, b: ActionAvailability): boolean
 export function createActionsService(options: ActionsServiceOptions): ActionsService {
   const { client, notify } = options
   const now = options.now ?? Date.now
-  const tails = new Map<string, Promise<unknown>>()
+  const serialized = createKeyedSerializer()
   const listeners = new Set<(availability: ActionAvailability) => void>()
 
-  function sessionState(): SessionState {
-    try {
-      return options.getSession().state
-    } catch {
-      return 'signed_out'
-    }
-  }
-
   function blockReason(): ActionBlockReason | null {
-    const state = sessionState()
-    const status = client.getStatus()
-    if (state === 'expired' || status === 'session_expired') return 'session_expired'
-    if (state !== 'signed_in') return 'signed_out'
-    if (status === 'offline') return 'offline'
-    if (status === 'rate_limited') return 'rate_limited'
-    return null
+    return resolveActionBlockReason(readSessionState(options.getSession), client.getStatus())
   }
 
   function getAvailability(): ActionAvailability {
@@ -126,13 +158,7 @@ export function createActionsService(options: ActionsServiceOptions): ActionsSer
 
   /** 같은 key 의 동작을 순서대로 실행한다. 앞 동작의 실패는 뒤 동작에 영향을 주지 않는다 */
   function serialize(key: string, task: () => Promise<ActionResult>): Promise<ActionResult> {
-    const prev = tails.get(key) ?? Promise.resolve()
-    const run = prev.then(task, task).catch((error: unknown) => failed(safeMessage(error)))
-    tails.set(key, run)
-    void run.then(() => {
-      if (tails.get(key) === run) tails.delete(key)
-    })
-    return run
+    return serialized(key, task, (error) => failed(safeMessage(error)))
   }
 
   /**

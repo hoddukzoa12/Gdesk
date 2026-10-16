@@ -21,9 +21,13 @@ export {
   ISSUE_DETAIL_CACHE_LIMIT,
   getIssueDetail,
   lookupRepoFullName,
+  patchIssueDetail,
+  restoreIssueDetail,
   saveIssueDetail
 } from './issue-details'
+export type { IssueDetailSnapshot } from './issue-details'
 export {
+  addIssueToScope,
   getIssueTabCounts,
   isIncomingIssuesComplete,
   listAssignedIssues,
@@ -79,6 +83,7 @@ export {
   getRepositoryAccessStatuses,
   getRepositoryRefs,
   listAllRepositoryNames,
+  getIssueTargetRepo,
   listIssueRepoOptions,
   listMyRepositories,
   listMyRepositoryIds,

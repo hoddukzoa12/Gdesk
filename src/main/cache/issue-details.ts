@@ -79,3 +79,57 @@ export function lookupRepoFullName(db: DatabaseSync, repoId: number): string | n
     .get(repoId)
   return issue === undefined ? null : str(issue, 'repo_full_name')
 }
+
+/** 상세를 바꾸기 전 값(data 열 원문). restoreIssueDetail 로 정확히 되돌린다 */
+export interface IssueDetailSnapshot {
+  repoId: number
+  number: number
+  data: string
+}
+
+/**
+ * 캐시된 상세를 바꾼다(쓰기 동작의 낙관적 갱신·성공 반영). data 열만 바꾸고 받은 시각·개수 제한은 건드리지 않는다.
+ * 상세가 없거나 읽을 수 없으면 null. mutate 가 null 을 돌려주면 바꾸지 않고 null.
+ * 바꾸기 전 원문을 돌려준다.
+ */
+export function patchIssueDetail(
+  db: DatabaseSync,
+  repoId: number,
+  number: number,
+  mutate: (record: IssueDetailRecord) => IssueDetailRecord | null
+): IssueDetailSnapshot | null {
+  return withTransaction(db, () => {
+    const row = db
+      .prepare('SELECT data FROM cache_issue_details WHERE repo_id = ? AND number = ?')
+      .get(repoId, number)
+    if (row === undefined) return null
+    const data = str(row, 'data')
+    const record = parse(data)
+    if (record === null) return null
+    const next = mutate(record)
+    if (next === null) return null
+    // 읽을 때 붙이는 값은 저장하지 않는다
+    const {
+      viewerCanComment: _c,
+      fetchedAt: _f,
+      ...stored
+    } = next as IssueDetailRecord & Partial<Pick<IssueDetail, 'viewerCanComment' | 'fetchedAt'>>
+    db.prepare('UPDATE cache_issue_details SET data = ? WHERE repo_id = ? AND number = ?').run(
+      JSON.stringify(stored),
+      repoId,
+      number
+    )
+    return { repoId, number, data }
+  })
+}
+
+/**
+ * patchIssueDetail 전 값으로 되돌린다. 그사이 행이 지워졌으면(로그아웃·계정 전환·개수 제한) 다시 만들지 않는다.
+ */
+export function restoreIssueDetail(db: DatabaseSync, snapshot: IssueDetailSnapshot): void {
+  db.prepare('UPDATE cache_issue_details SET data = ? WHERE repo_id = ? AND number = ?').run(
+    snapshot.data,
+    snapshot.repoId,
+    snapshot.number
+  )
+}

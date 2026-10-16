@@ -123,6 +123,24 @@ export function replaceIssues(
   write(db, scope, issues, options, 'replace')
 }
 
+/**
+ * 이슈 한 개를 목록에 더한다(새로 만든 이슈를 검색 반영 전에 "내 이슈"에 바로 보이게).
+ * 목록의 다른 항목은 그대로 두고, 새로 들어가면 목록 전체 수(메타)를 1 늘린다. 트랜잭션 안에서 불러도 된다.
+ */
+export function addIssueToScope(db: DatabaseSync, scope: IssueScope, issue: IssueRecord): void {
+  withTransaction(db, () => {
+    upsert(db, [issue])
+    const added = db
+      .prepare('INSERT OR IGNORE INTO cache_issue_scopes (scope, issue_id) VALUES (?, ?)')
+      .run(scope, issue.id)
+    if (Number(added.changes) > 0) {
+      db.prepare('UPDATE cache_list_meta SET total_count = total_count + 1 WHERE scope = ?').run(
+        `${TABLES.kind}:${scope}`
+      )
+    }
+  })
+}
+
 /** 저장소 하나의 열린 이슈를 쓴다. 잘린 목록이면 기존 행을 줄이지 않고 합친다(replaceRepoPullRequests 와 같음) */
 export function replaceRepoIssues(
   db: DatabaseSync,
