@@ -28,7 +28,7 @@ Gdesk는 한 사람이 자기 컴퓨터에서 쓰는 앱이다. 앱 자체의 �
 
 ### 브라우저 코드 로그인(OAuth 기기 인증)
 
-1. 빌드에 공개 client ID가 없으면 `device_flow_unavailable`로 거부하고, 화면도 이 방식을 숨긴다.
+1. 빌드의 공개 client ID가 비어 있으면(`GDESK_GITHUB_CLIENT_ID=`로 빌드) `device_flow_unavailable`로 거부하고, 화면도 이 방식을 숨긴다.
 2. `POST /login/device/code`(client ID, 권한 `repo read:org notifications`)로 사용자 코드와 인증 주소를 받는다. client secret은 보내지 않는다.
    - 네트워크 실패 → `offline`. 응답이 오류면 오류 코드 이름만(소문자·밑줄 64자 이하) 남기고 본문은 버린다.
 3. 인증 주소는 `auth:openVerificationUri`로만 연다. http(s)가 아니면 열지 않는다.
@@ -140,5 +140,5 @@ Gdesk는 한 사람이 자기 컴퓨터에서 쓰는 앱이다. 앱 자체의 �
 ## 배포 비밀값
 
 - 서명·공증 비밀값(`CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_*`, `WIN_CSC_*`)은 CI 비밀값으로만 두고, 값이 있는 것만 해당 OS 작업의 환경 변수로 넘긴다.
-- OAuth 공개 client ID와 Gdesk 저장소 이름은 비밀이 아니다. 빌드 결과에 그대로 들어간다.
+- OAuth 공개 client ID와 Gdesk 저장소 이름은 비밀이 아니다. 빌드 결과에 그대로 들어간다. 그래서 Gdesk OAuth App의 client ID는 기본값으로 코드(`build/client-id.ts`)에 두고, `GDESK_GITHUB_CLIENT_ID` 환경 변수가 있으면 그 값으로 덮어쓴다.
 - client secret은 만들지 않고 어디에도 넣지 않는다. 공개 코드와 배포 파일에는 비밀을 숨길 수 없다.

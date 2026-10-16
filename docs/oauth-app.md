@@ -5,7 +5,10 @@ Gdesk 의 "브라우저로 로그인"은 GitHub OAuth **기기 인증(Device Flo
 
 - 필요한 값은 **공개 client ID 하나**뿐이다. **client secret 은 만들지도, 넣지도 않는다.**
   MIT 로 공개되는 코드와 배포 파일에는 비밀 값을 숨길 수 없기 때문이다.
-- client ID 가 없는 빌드에서는 브라우저 로그인을 숨기고 **개인 토큰 직접 입력**만 제공한다. 앱은 그대로 동작한다.
+- Gdesk OAuth App 의 client ID(`Ov23liGhQ9tQPP7wqESg`)가 **기본값으로 코드에 들어 있다**.
+  `GDESK_GITHUB_CLIENT_ID` 환경 변수를 주면 그 값이 기본값을 덮어쓴다.
+- `GDESK_GITHUB_CLIENT_ID=`(빈 값)으로 빌드하면 브라우저 로그인을 숨기고 **개인 토큰 직접 입력**만 제공한다.
+  앱은 그대로 동작한다.
 
 ## 1. OAuth App 만들기
 
@@ -40,41 +43,55 @@ Gdesk 의 "브라우저로 로그인"은 GitHub OAuth **기기 인증(Device Flo
 
 ## 4. 빌드에 넣기
 
-client ID 는 **빌드할 때** `GDESK_GITHUB_CLIENT_ID` 환경 변수로 넣는다. 코드에 직접 적지 않는다.
+Gdesk OAuth App 의 client ID 는 `build/client-id.ts` 에 기본값으로 들어 있어서, 아무것도 넣지 않고
+빌드해도 브라우저 로그인이 켜진다. 다른 OAuth App 을 쓰려면 **빌드할 때** `GDESK_GITHUB_CLIENT_ID`
+환경 변수로 덮어쓴다.
+
+| `GDESK_GITHUB_CLIENT_ID` | 빌드에 들어가는 client ID                  |
+| ------------------------ | ------------------------------------------ |
+| 없음                     | 기본값 `Ov23liGhQ9tQPP7wqESg`              |
+| 값이 있음                | 그 값                                      |
+| 빈 값(`=`)               | 없음. 브라우저 로그인을 숨기고 토큰 입력만 |
 
 ### 로컬 빌드
 
 ```bash
-GDESK_GITHUB_CLIENT_ID=Ov23liXXXXXXXXXXXXXX pnpm dev     # 개발 실행
-GDESK_GITHUB_CLIENT_ID=Ov23liXXXXXXXXXXXXXX pnpm dist    # 설치 파일
+pnpm dev                                                 # 기본 client ID 로 개발 실행
+GDESK_GITHUB_CLIENT_ID=Ov23liXXXXXXXXXXXXXX pnpm dist    # 다른 OAuth App 으로 설치 파일
+GDESK_GITHUB_CLIENT_ID= pnpm dev                         # 브라우저 로그인 끄고 실행
 ```
 
-`electron.vite.config.mts` 가 이 값을 `__GDESK_GITHUB_CLIENT_ID__` 상수로 넣고, 메인 프로세스는
-`src/main/config.ts` 의 `GITHUB_CLIENT_ID` 로 읽는다.
+`electron.vite.config.mts` 가 `build/client-id.ts` 의 `resolveClientId` 로 값을 정해
+`__GDESK_GITHUB_CLIENT_ID__` 상수로 넣고, 메인 프로세스는 `src/main/config.ts` 의 `GITHUB_CLIENT_ID` 로 읽는다.
+화면 테스트 빌드(`pnpm test:e2e`)는 가짜 서버용 `gdesk-e2e-client` 를 따로 넣는다.
 
 ### CI(릴리스 워크플로)
 
-저장소의 **Settings → Secrets and variables → Actions** 에서 다음 중 하나를 만든다.
+아무것도 만들지 않으면 릴리스 빌드에 기본 client ID 가 들어간다. 다른 OAuth App 을 쓰려면 저장소의
+**Settings → Secrets and variables → Actions** 에서 다음 중 하나를 만든다.
 
 - **Variables** 탭 → `GDESK_GITHUB_CLIENT_ID` (권장: 비밀이 아니므로 변수로 둔다)
 - 또는 **Secrets** 탭 → `GDESK_GITHUB_CLIENT_ID`
 
-`.github/workflows/release.yml` 은 변수를 먼저, 없으면 비밀값을 쓴다.
-
-```yaml
-GDESK_GITHUB_CLIENT_ID: ${{ vars.GDESK_GITHUB_CLIENT_ID || secrets.GDESK_GITHUB_CLIENT_ID }}
-```
+`.github/workflows/release.yml` 의 "Configure OAuth client ID" 단계가 변수를 먼저, 없으면 비밀값을 읽어
+값이 있을 때만 `GDESK_GITHUB_CLIENT_ID` 를 설정한다. 둘 다 없으면 환경 변수를 아예 설정하지 않으므로
+빈 값 때문에 브라우저 로그인이 꺼진 채로 배포되는 일은 없다.
 
 ## 포크해서 따로 배포할 때
 
-포크에서 자기 설치 파일을 배포하려면 **자기 OAuth App 을 따로 등록**하고 그 client ID 를 넣는다.
-승인 화면에 앱 이름과 소유자가 보이므로 원본 Gdesk 의 client ID 를 그대로 쓰지 않는다.
+포크에서 아무것도 넣지 않고 빌드하면 **원본 Gdesk 의 client ID 가 그대로 들어간다**. 승인 화면에 원본
+Gdesk 의 앱 이름과 소유자가 보이므로, 포크에서 자기 설치 파일을 배포하려면 다음 중 하나를 한다.
+
+- **자기 OAuth App 을 따로 등록**하고 그 client ID 를 `GDESK_GITHUB_CLIENT_ID` 로 넣는다
+  (CI 에서는 위의 Actions 변수).
+- 브라우저 로그인 없이 배포하려면 `GDESK_GITHUB_CLIENT_ID=`(빈 값)으로 빌드한다. 릴리스 워크플로는 빈 값을
+  넘기지 않으므로, CI 에서 끄려면 워크플로의 "Build app" 단계에 빈 값을 직접 적는다.
 
 ## 문제 해결
 
 | 증상                                    | 확인할 것                                                                        |
 | --------------------------------------- | -------------------------------------------------------------------------------- |
-| 로그인 화면에 브라우저 로그인이 없음    | 빌드할 때 `GDESK_GITHUB_CLIENT_ID` 가 비어 있었다                                |
+| 로그인 화면에 브라우저 로그인이 없음    | 빌드할 때 `GDESK_GITHUB_CLIENT_ID` 를 빈 값으로 넣었다                           |
 | 브라우저 로그인이 일반 오류로 바로 실패 | **Enable Device Flow** 가 켜져 있는지, client ID 오타·지워진 OAuth App 이 아닌지 |
 | 조직 저장소가 안 보임                   | 조직이 OAuth App 접근을 제한함 → 조직 관리자가 Gdesk 를 승인해야 함              |
 
