@@ -147,6 +147,7 @@ export function initSync(options: InitSyncOptions = {}): SyncEngine {
     },
     readLastSyncedAt,
     readOrgRestrictions: () => listOrgRestrictions(getDb()),
+    onAccountDataCleared,
     notifyDataChanged,
     onStatus: (status) => {
       for (const listener of [...statusListeners]) listener(status)

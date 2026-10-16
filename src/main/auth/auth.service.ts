@@ -111,6 +111,11 @@ export class AuthService {
   private restoreState: SettledState = 'signed_out'
   private deviceFlow: DeviceFlowProgress | undefined
   private storagePrompt: StoragePrompt | undefined
+  /**
+   * 지금 자격 증명이 디스크(암호화 파일·동의한 0600 파일)에 저장돼 있는가. 재확인으로 바뀐 사용자 정보를
+   * 다시 쓸지 정한다. 메모리만(테스트 모드 자동 로그인, 리눅스 'memory' 선택·선택 전, 암호화 불가)이면 false.
+   */
+  private persisted = false
   /** 로그인 시도 번호. 늦게 끝난 시도(로그아웃·취소·새 시도 뒤)를 버리는 데 쓴다 */
   private attempt = 0
   private deviceAbort: AbortController | null = null
@@ -178,6 +183,7 @@ export class AuthService {
       const { token, ...rest } = stored
       this.token = token
       this.cred = rest
+      this.persisted = true
       this.state = 'signed_in'
       this.restoreState = 'signed_in'
     }
@@ -212,7 +218,10 @@ export class AuthService {
     const header = res.headers.get('x-oauth-scopes')
     const tokenKind =
       this.cred.tokenKind === 'oauth' ? 'oauth' : detectTokenKind(token, header, undefined)
+    const previous = JSON.stringify(this.cred)
     this.cred = { user, tokenKind, scopes: parseScopes(header) }
+    // 저장된 기록이면 바뀐 사용자 정보(공개 이메일 포함)를 같은 저장 경로로 다시 쓴다. 안내는 다시 띄우지 않는다
+    if (this.persisted && JSON.stringify(this.cred) !== previous) this.persist({ prompt: false })
     this.emit()
   }
 
@@ -295,6 +304,7 @@ export class AuthService {
     this.abortDevice()
     this.token = null
     this.cred = null
+    this.persisted = false
     this.deviceFlow = undefined
     this.storagePrompt = undefined
     this.state = 'signed_out'
@@ -418,6 +428,7 @@ export class AuthService {
     this.token = token
     this.cred = { tokenKind, user, scopes }
     this.storagePrompt = undefined
+    this.persisted = false
     if (persist) this.persist()
 
     this.client?.resetSession()
@@ -427,8 +438,11 @@ export class AuthService {
     this.emit()
   }
 
-  /** 현재 토큰을 저장한다. 리눅스 약한 암호화면 고를 때까지 메모리에만 두고 안내를 띄운다. */
-  private persist(): void {
+  /**
+   * 현재 토큰을 저장한다. 리눅스 약한 암호화면 고를 때까지 메모리에만 두고 안내를 띄운다
+   * (prompt: false 면 띄우지 않는다 — 재확인의 다시 쓰기).
+   */
+  private persist(options: { prompt?: boolean } = {}): void {
     if (!this.token || !this.cred) return
     let outcome: SaveOutcome
     try {
@@ -437,7 +451,9 @@ export class AuthService {
       // 저장 실패(키체인 거부 등): 이번 실행에만 메모리에 둔다
       outcome = 'memory'
     }
-    if (outcome === 'needs_choice') this.storagePrompt = 'linux_insecure'
+    this.persisted = outcome === 'encrypted' || outcome === 'insecure_file'
+    if (outcome === 'needs_choice' && options.prompt !== false)
+      this.storagePrompt = 'linux_insecure'
   }
 
   private markExpired(): void {

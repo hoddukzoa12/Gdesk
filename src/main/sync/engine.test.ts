@@ -506,6 +506,46 @@ describe('SyncEngine', () => {
       )
     })
 
+    it('로그아웃하면 보고 있던 이슈를 잊는다(다음 로그인에서 이전 계정의 이슈를 받지 않는다)', async () => {
+      h = setup()
+      h.engine.setWindowsOpen(true)
+      await flush()
+      await h.engine.setViewedIssue({ repoId: 5, number: 12 })
+      expect(h.count('issue:5#12')).toBe(1)
+      h.setSession({ state: 'signed_out' })
+      h.setSession({ state: 'signed_in' })
+      await flush()
+      await vi.advanceTimersByTimeAsync(10 * MIN)
+      expect(h.count('repositories')).toBeGreaterThan(1)
+      expect(h.count('issue:5#12')).toBe(1)
+      await h.engine.refresh('issues')
+      expect(h.count('issue:5#12')).toBe(1)
+    })
+
+    it('계정 전환으로 계정 데이터가 지워지면 보고 있던 이슈를 잊는다', async () => {
+      let cleared: (() => void) | null = null
+      h = setup({
+        overrides: {
+          onAccountDataCleared: (listener) => {
+            cleared = listener
+            return () => {
+              cleared = null
+            }
+          }
+        }
+      })
+      h.engine.setWindowsOpen(true)
+      await flush()
+      await h.engine.setViewedIssue({ repoId: 5, number: 12 })
+      expect(cleared).not.toBeNull()
+      cleared!()
+      await vi.advanceTimersByTimeAsync(5 * MIN)
+      expect(h.count('issue:5#12')).toBe(1)
+      // 같은 이슈를 다시 열면(새 계정에서) 다시 받는다
+      await h.engine.setViewedIssue({ repoId: 5, number: 12 })
+      expect(h.count('issue:5#12')).toBe(2)
+    })
+
     it('잘못된 이슈 키는 거절한다', async () => {
       h = setup()
       await expect(h.engine.setViewedIssue({ repoId: 0, number: 1 })).rejects.toThrow()

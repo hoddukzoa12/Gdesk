@@ -89,6 +89,8 @@ export interface SyncEngineOptions {
   /** 저장된 마지막 동기화 시각(재시작 직후 "N분 전 정보" 용) */
   readLastSyncedAt(): number | null
   readOrgRestrictions(): OrgRestrictionNotice[]
+  /** 계정 전환(clearAccountData)으로 계정 데이터가 지워질 때 알림. 보고 있던 이슈를 잊는다 */
+  onAccountDataCleared?(listener: () => void): () => void
   notifyDataChanged(keys: string[]): void
   onStatus?(status: SyncStatus): void
   onError?(unit: string, error: unknown): void
@@ -216,6 +218,10 @@ export class SyncEngine {
       options.session.onChange((session) => this.handleSession(session)),
       options.pins.onChange((repoIds) => this.handlePins(repoIds))
     )
+    if (options.onAccountDataCleared) {
+      // 다른 계정의 이슈를 다음 계정으로 받지 않게 한다
+      this.unsubscribers.push(options.onAccountDataCleared(() => (this.viewedIssue = null)))
+    }
     // 처음 상태는 sync:getStatus 로 읽는다. 바뀔 때만 알린다
     this.lastEmitted = JSON.stringify(this.getStatus())
   }
@@ -387,6 +393,8 @@ export class SyncEngine {
     const previous = this.session
     this.session = { ...session }
     if (previous.state !== session.state) {
+      // 로그아웃하면 보고 있던 이슈를 잊는다(다음 계정이 이전 계정의 이슈를 받지 않게)
+      if (session.state === 'signed_out') this.viewedIssue = null
       // 로그아웃하면 캐시가 지워진다. 로그인하면 저장된 값을 다시 읽는다
       this.lastSyncedAt = session.state === 'signed_out' ? null : this.safeLastSyncedAt()
       this.reconcile()

@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AuthResult, SessionSnapshot } from '@shared/domain/session'
 import { getLastUserId, setLastUserId } from '../db/account-meta'
 import { registerFetchedDataCleaner, resetFetchedDataCleaners } from '../db/cleanup'
@@ -672,6 +672,69 @@ describe('AuthService', () => {
         user: { login: 'alice', email: 'alice@example.com' },
         missingScopes: []
       })
+      client.dispose()
+    })
+
+    it('재확인으로 받은 사용자 정보(공개 이메일 포함)를 저장된 기록에 다시 쓴다', async () => {
+      // 이메일 필드가 생기기 전에 저장한 기록
+      store.saved = {
+        token: TOKEN_A,
+        tokenKind: 'classic',
+        user: { id: 1, login: 'alice', name: 'Alice', avatarUrl: 'x' } as StoredCredential['user'],
+        scopes: ['repo', 'read:org', 'notifications']
+      }
+      const { service } = makeService()
+      const client = createGitHubClientForTests({
+        tokenProvider: () => service.getToken(),
+        fetch: fakeGitHub().fetch,
+        baseUrl: API
+      })
+      service.attachClient(client)
+      await service.revalidate()
+      expect(store.saved?.token).toBe(TOKEN_A)
+      expect(store.saved?.user).toEqual({
+        id: 1,
+        login: 'alice',
+        name: 'Alice',
+        avatarUrl: 'https://avatars.example/u/1',
+        email: 'alice@example.com'
+      })
+      client.dispose()
+    })
+
+    it('저장하지 않은 로그인(메모리만)은 재확인 뒤에도 저장하지 않고, 저장 방법을 다시 묻지 않는다', async () => {
+      const { service } = makeService()
+      await service.loginWithToken(TOKEN_A, { persist: false })
+      const saves = vi.spyOn(store, 'save')
+      const client = createGitHubClientForTests({
+        tokenProvider: () => service.getToken(),
+        fetch: fakeGitHub().fetch,
+        baseUrl: API
+      })
+      service.attachClient(client)
+      await service.revalidate()
+      expect(saves).not.toHaveBeenCalled()
+      expect(store.saved).toBeNull()
+      client.dispose()
+    })
+
+    it('리눅스 약한 암호화에서 고르기 전(메모리)이면 재확인이 저장하거나 안내를 다시 띄우지 않는다', async () => {
+      store.outcome = 'needs_choice'
+      const { service } = makeService()
+      await service.loginWithToken(TOKEN_A)
+      expect(service.getSession().storagePrompt).toBe('linux_insecure')
+      service.chooseInsecureStorage('memory')
+      expect(service.getSession().storagePrompt).toBeUndefined()
+      const saves = vi.spyOn(store, 'save')
+      const client = createGitHubClientForTests({
+        tokenProvider: () => service.getToken(),
+        fetch: fakeGitHub().fetch,
+        baseUrl: API
+      })
+      service.attachClient(client)
+      await service.revalidate()
+      expect(saves).not.toHaveBeenCalled()
+      expect(service.getSession().storagePrompt).toBeUndefined()
       client.dispose()
     })
 
