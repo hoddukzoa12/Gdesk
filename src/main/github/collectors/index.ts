@@ -4,6 +4,8 @@
  */
 export { StaleRefreshError, orgRestrictionsFrom } from './common'
 export type { CollectorOptions, ListResult } from './common'
+export { SEARCH_COMMITS_PATH, collectContributions, collectRecentCommits } from './home-activity'
+export type { ContributionsResult, RecentCommitsOptions } from './home-activity'
 export { collectRepoOpenItems } from './items'
 export type { RepoOpenItems, RepoOpenItemsOptions, RepoOpenItemsTarget } from './items'
 export { NOTIFICATIONS_PATH, collectNotifications } from './notifications'
@@ -12,10 +14,12 @@ export { LIST_LIMITS, OPERATIONS, RESPONSE_SAMPLE, REST_ENDPOINTS, SEARCH_QUERIE
 export type { OperationName } from './queries'
 export {
   SYNC_SCOPES,
+  refreshContributions,
   refreshIssueLists,
   refreshMyRepositories,
   refreshNotifications,
   refreshPullRequestLists,
+  refreshRecentCommits,
   refreshRepoOpenItems,
   refreshRepositoryDetails,
   refreshStarredRepositories,

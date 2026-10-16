@@ -11,6 +11,13 @@ export {
 } from './home'
 export type { HomeSummaryOptions, StarChangeOptions } from './home'
 export {
+  getContributions,
+  listRecentCommits,
+  replaceContributions,
+  replaceRecentCommits
+} from './home-activity'
+export type { ContributionDayRecord, ContributionsRecord } from './home-activity'
+export {
   isIncomingIssuesComplete,
   listAssignedIssues,
   listIncomingIssues,

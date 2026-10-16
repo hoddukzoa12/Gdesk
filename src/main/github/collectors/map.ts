@@ -1,9 +1,12 @@
+import { CONTRIBUTION_LEVELS } from '@shared/domain/home-activity'
+import type { RecentCommit } from '@shared/domain/home-activity'
 import type { ViewerPermission } from '@shared/domain/repo'
 import { toActor } from '../../domain/actor'
 import { ciStatusFromRollup } from '../../domain/ci'
 import { hasWriteHolderResponse } from '../../domain/contribution'
 import { notificationHtmlUrl } from '../../domain/notification-url'
 import { prStateFromDraft, reviewStatusFromDecision } from '../../domain/review'
+import type { ContributionDayRecord, ContributionsRecord } from '../../cache/home-activity'
 import type {
   CommitRecord,
   IssueRecord,
@@ -14,6 +17,8 @@ import type {
 } from '../../cache/types'
 import type {
   RawCommit,
+  RawCommitSearchItem,
+  RawContributionsViewer,
   RawIssue,
   RawNotification,
   RawPullRequest,
@@ -190,6 +195,43 @@ export function mapNotification(
     repoId: typeof raw.repository?.id === 'number' ? raw.repository.id : null,
     repoFullName: raw.repository?.full_name ?? '',
     updatedAt: raw.updated_at ?? ''
+  }
+}
+
+/** 기여 달력: 주를 펼쳐 날짜 순. 날짜 없는 칸은 버리고, 모르는 수준은 NONE */
+export function mapContributions(
+  raw: RawContributionsViewer | null | undefined
+): ContributionsRecord | null {
+  const collection = raw?.contributionsCollection
+  if (!collection) return null
+  const days: ContributionDayRecord[] = []
+  for (const week of compact(collection.contributionCalendar?.weeks)) {
+    for (const d of compact(week.contributionDays)) {
+      if (typeof d.date !== 'string' || d.date === '') continue
+      days.push({
+        date: d.date,
+        count: typeof d.contributionCount === 'number' ? d.contributionCount : 0,
+        level: CONTRIBUTION_LEVELS.find((l) => l === d.contributionLevel) ?? 'NONE'
+      })
+    }
+  }
+  days.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+  return { totalCommitContributions: collection.totalCommitContributions ?? 0, days }
+}
+
+/** 커밋 검색 항목 → 최근 커밋. sha·저장소가 없으면 null. 메시지는 첫 줄만 */
+export function mapCommitSearchItem(
+  raw: RawCommitSearchItem | null | undefined
+): RecentCommit | null {
+  const repoFullName = raw?.repository?.full_name
+  if (!raw || !raw.sha || !repoFullName) return null
+  return {
+    repoFullName,
+    sha: raw.sha,
+    message: (raw.commit?.message ?? '').split(/\r?\n/, 1)[0] ?? '',
+    authorAvatarUrl: raw.author?.avatar_url ?? null,
+    authorDate: raw.commit?.author?.date ?? null,
+    url: raw.html_url ?? ''
   }
 }
 

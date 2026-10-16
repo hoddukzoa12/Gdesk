@@ -50,6 +50,10 @@ export interface SyncRefreshers {
   pullRequestLists(): Promise<unknown>
   issueLists(): Promise<unknown>
   repositoryDetail(repoId: number): Promise<unknown>
+  /** Home 기여 달력·커밋 기여 수(GraphQL). 목록 주기·home 범위 */
+  contributions(): Promise<unknown>
+  /** Home 최근 커밋(REST 커밋 검색, search 한도). 목록 주기·home 범위 */
+  recentCommits(): Promise<unknown>
 }
 
 export interface SyncConnection {
@@ -91,6 +95,8 @@ export interface SyncEngineOptions {
   listRateLimitResources?: readonly string[]
   /** 남은 양이 이 비율 미만이면 목록 갱신도 미룬다(상세는 isRateLimitLow 기준으로 먼저 미룬다). 기본 0.05 */
   listsLowRatio?: number
+  /** 최근 커밋(커밋 검색)이 쓰는 한도 자원. 이 중 하나가 적으면(isRateLimitLow) 자동 갱신에서 그것만 미룬다. 기본 ['search'] */
+  searchRateLimitResources?: readonly string[]
 }
 
 type GroupName = 'notifications' | 'lists' | 'details'
@@ -118,8 +124,19 @@ const KEYS = {
   starred: ['starred'],
   repoOpenItems: ['pulls', 'issues', 'home', 'sidebar'],
   pullRequestLists: ['pulls', 'reviews', 'home', 'sidebar'],
-  issueLists: ['issues', 'home']
+  issueLists: ['issues', 'home'],
+  contributions: ['home'],
+  recentCommits: ['home']
 } as const
+
+type ListUnit =
+  | 'repositories'
+  | 'starred'
+  | 'repoOpenItems'
+  | 'pullRequestLists'
+  | 'issueLists'
+  | 'contributions'
+  | 'recentCommits'
 
 function assertRepoId(repoId: unknown): asserts repoId is number {
   if (typeof repoId !== 'number' || !Number.isSafeInteger(repoId) || repoId <= 0) {
@@ -133,6 +150,7 @@ export class SyncEngine {
   private readonly scheduler: SyncScheduler
   private readonly detailResources: readonly string[]
   private readonly listResources: readonly string[]
+  private readonly searchResources: readonly string[]
   private readonly listsLowRatio: number
   private readonly unsubscribers: (() => void)[] = []
 
@@ -170,6 +188,7 @@ export class SyncEngine {
     this.scheduler = options.scheduler ?? defaultScheduler
     this.detailResources = options.detailRateLimitResources ?? ['graphql', 'core']
     this.listResources = options.listRateLimitResources ?? ['graphql']
+    this.searchResources = options.searchRateLimitResources ?? ['search']
     this.listsLowRatio = options.listsLowRatio ?? 0.05
     this.session = { ...options.session.get() }
     this.pinned = [...options.pins.list()]
@@ -237,6 +256,8 @@ export class SyncEngine {
         await this.runNotifications()
         await this.runUnit('pullRequestLists')
         await this.runUnit('repoOpenItems')
+        await this.runUnit('contributions')
+        await this.runUnit('recentCommits')
         for (const id of this.getTrackedRepoIds()) await this.runDetail(id)
         return
       case 'inbox':
@@ -431,6 +452,14 @@ export class SyncEngine {
     await this.runUnit('pullRequestLists')
     await this.runUnit('issueLists')
     await this.runUnit('starred')
+    // Home 활동 영역. 실패(가짜 서버가 모르는 요청 등)는 execute 가 따로 삼킨다
+    await this.runUnit('contributions')
+    if (!this.searchDeferred()) await this.runUnit('recentCommits')
+  }
+
+  /** 커밋 검색 한도가 적으면 최근 커밋만 미룬다(검색 한도는 작고 다른 목록과 따로다) */
+  private searchDeferred(): boolean {
+    return this.searchResources.some((r) => this.options.connection.isRateLimitLow(r))
   }
 
   private detailsDeferred(): boolean {
@@ -479,9 +508,7 @@ export class SyncEngine {
     if (!group.running) this.schedule('notifications')
   }
 
-  private runUnit(
-    unit: 'repositories' | 'starred' | 'repoOpenItems' | 'pullRequestLists' | 'issueLists'
-  ): Promise<boolean> {
+  private runUnit(unit: ListUnit): Promise<boolean> {
     const refresh = this.options.refresh
     switch (unit) {
       case 'repositories':
@@ -509,6 +536,16 @@ export class SyncEngine {
         return this.execute(unit, async () => {
           await refresh.issueLists()
           return [...KEYS.issueLists]
+        })
+      case 'contributions':
+        return this.execute(unit, async () => {
+          await refresh.contributions()
+          return [...KEYS.contributions]
+        })
+      case 'recentCommits':
+        return this.execute(unit, async () => {
+          await refresh.recentCommits()
+          return [...KEYS.recentCommits]
         })
     }
   }

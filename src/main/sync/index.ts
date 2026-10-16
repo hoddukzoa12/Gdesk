@@ -8,10 +8,12 @@ import { getGitHubClient } from '../github/client'
 import type { GitHubClient } from '../github/client'
 import {
   StaleRefreshError,
+  refreshContributions,
   refreshIssueLists,
   refreshMyRepositories,
   refreshNotifications,
   refreshPullRequestLists,
+  refreshRecentCommits,
   refreshRepoOpenItems,
   refreshRepositoryDetails,
   refreshStarredRepositories
@@ -57,6 +59,11 @@ function pinnedIds(): number[] {
 
 function linkedIds(): number[] {
   return [...new Set(listAllLinks(getDb()).map((l) => l.repoId))]
+}
+
+/** 로그인한 사용자의 login. 최근 커밋 검색(author:<login>)에 쓴다 */
+function viewerLogin(): string | null {
+  return getAuthService().getSession().user?.login ?? null
 }
 
 function sessionNow(): SyncSession {
@@ -110,7 +117,10 @@ export function initSync(options: InitSyncOptions = {}): SyncEngine {
       pullRequestLists: () => refreshPullRequestLists({ client, isCurrent: currentDataGuard() }),
       issueLists: () => refreshIssueLists({ client, isCurrent: currentDataGuard() }),
       repositoryDetail: (repoId) =>
-        refreshRepositoryDetails({ client, repoIds: [repoId], isCurrent: currentDataGuard() })
+        refreshRepositoryDetails({ client, repoIds: [repoId], isCurrent: currentDataGuard() }),
+      contributions: () => refreshContributions({ client, isCurrent: currentDataGuard() }),
+      recentCommits: () =>
+        refreshRecentCommits({ client, login: viewerLogin(), isCurrent: currentDataGuard() })
     },
     connection: client,
     session: {

@@ -154,3 +154,36 @@ export interface RawRestRepository {
   node_id?: string | null
   full_name?: string | null
 }
+
+/** GraphQL GdeskContributions 의 viewer */
+export interface RawContributionsViewer {
+  login?: string | null
+  contributionsCollection?: {
+    totalCommitContributions?: number | null
+    contributionCalendar?: {
+      weeks?:
+        | ({
+            contributionDays?:
+              | ({
+                  date?: string | null
+                  contributionCount?: number | null
+                  contributionLevel?: string | null
+                } | null)[]
+              | null
+          } | null)[]
+        | null
+    } | null
+  } | null
+}
+
+/** REST GET /search/commits 항목 */
+export interface RawCommitSearchItem {
+  sha?: string | null
+  html_url?: string | null
+  commit?: {
+    message?: string | null
+    author?: { name?: string | null; date?: string | null } | null
+  } | null
+  author?: { login?: string | null; avatar_url?: string | null } | null
+  repository?: { full_name?: string | null } | null
+}

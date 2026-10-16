@@ -25,6 +25,13 @@ const context: QueryContext = {
     } catch {
       return false
     }
+  },
+  viewerLogin: () => {
+    try {
+      return getAuthService().getSession().user?.login ?? null
+    } catch {
+      return null
+    }
   }
 }
 

@@ -3,7 +3,7 @@ import type { ListPage } from '../domain/list'
 import type { OrgRestrictionNotice } from '../domain/org'
 import type { PullRequestRow } from '../domain/pr'
 import type {
-  HomeSummary,
+  HomeQueryResult,
   InboxQueryResult,
   IssuesTab,
   PullsTab,
@@ -17,7 +17,7 @@ import type { RepoSort, RepositorySummary } from '../domain/repo'
 // data:changed 를 받으면 화면이 자동으로 다시 읽는다.
 declare module './contract' {
   interface IpcInvokeChannels {
-    'query:home': { req: void; res: HomeSummary }
+    'query:home': { req: void; res: HomeQueryResult }
     'query:inbox': {
       req: { unreadOnly?: boolean; repoId?: number; reason?: string }
       res: InboxQueryResult

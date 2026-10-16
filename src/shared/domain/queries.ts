@@ -1,4 +1,5 @@
 import type { HomeSummary, SidebarCounts } from './home'
+import type { HomeActivity } from './home-activity'
 import type { NotificationRow } from './notification'
 import type { RepositoryDetail } from './repo-detail'
 import type { RepoAccessStatus, RepoOwnerType, RepositorySummary } from './repo'
@@ -6,6 +7,12 @@ import type { RepoAccessStatus, RepoOwnerType, RepositorySummary } from './repo'
 /** 화면 조회(`query:*`) 응답. 모두 캐시에서 읽은 평범한 값이다 */
 
 export type { HomeSummary }
+
+/**
+ * Home 화면(`query:home`). 기존 카드 다섯 종류(HomeSummary)에 활동 영역 다섯 개(수치, 고정 저장소,
+ * 기여 달력, 최근 커밋, 내 PR)를 더한다. 인사말은 세션에서 읽으므로 여기에 없다.
+ */
+export interface HomeQueryResult extends HomeSummary, HomeActivity {}
 
 /** Inbox 화면 */
 export interface InboxQueryResult {

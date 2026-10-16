@@ -78,6 +78,12 @@ function setup(
     }),
     repositoryDetail: vi.fn(async (repoId: number) => {
       calls.push(`detail:${repoId}`)
+    }),
+    contributions: vi.fn(async () => {
+      calls.push('contributions')
+    }),
+    recentCommits: vi.fn(async () => {
+      calls.push('recentCommits')
     })
   }
   const probe = vi.fn(async () => status)
@@ -170,7 +176,9 @@ const FULL_ROUND = [
   'repoOpenItems',
   'pullRequestLists',
   'issueLists',
-  'starred'
+  'starred',
+  'contributions',
+  'recentCommits'
 ]
 
 /** 대기 중인 마이크로태스크(가짜 갱신 함수의 Promise)를 비운다 */
@@ -267,6 +275,8 @@ describe('SyncEngine', () => {
       expect(h.count('pullRequestLists')).toBe(2)
       expect(h.count('issueLists')).toBe(2)
       expect(h.count('starred')).toBe(2)
+      expect(h.count('contributions')).toBe(2)
+      expect(h.count('recentCommits')).toBe(2)
       expect(h.count('detail:1')).toBe(2)
     })
 
@@ -456,12 +466,28 @@ describe('SyncEngine', () => {
       await flush()
       expect(h.count('detail:1')).toBe(0)
       expect(h.count('repositories')).toBe(0)
+      expect(h.count('contributions')).toBe(0)
+      expect(h.count('recentCommits')).toBe(0)
       expect(h.count('notifications')).toBe(1)
 
       h.setRateLimit('graphql', 400, 5000) // 8%: 상세만 미룬다
       await vi.advanceTimersByTimeAsync(5 * MIN)
       expect(h.count('repositories')).toBe(1)
       expect(h.count('detail:1')).toBe(0)
+    })
+
+    it('검색 한도가 적으면 최근 커밋만 미룬다(기여 달력·다른 목록은 받는다)', async () => {
+      h = setup()
+      h.setLow(['search'])
+      h.engine.setWindowsOpen(true)
+      await flush()
+      expect(h.count('recentCommits')).toBe(0)
+      expect(h.count('contributions')).toBe(1)
+      expect(h.count('repositories')).toBe(1)
+
+      h.setLow([])
+      await vi.advanceTimersByTimeAsync(5 * MIN)
+      expect(h.count('recentCommits')).toBe(1)
     })
 
     it('사용자가 연 저장소는 한도가 적어도 받는다', async () => {
@@ -571,7 +597,17 @@ describe('SyncEngine', () => {
         ['starred', ['starred']],
         ['repositories', ['repositories[1]']],
         ['repo:42', ['detail:42']],
-        ['home', ['notifications', 'pullRequestLists', 'repoOpenItems', 'detail:1']]
+        [
+          'home',
+          [
+            'notifications',
+            'pullRequestLists',
+            'repoOpenItems',
+            'contributions',
+            'recentCommits',
+            'detail:1'
+          ]
+        ]
       ]
       for (const [scope, expected] of cases) {
         h.calls.length = 0
@@ -688,6 +724,19 @@ describe('SyncEngine', () => {
         ['home', 'issues', 'pulls', 'repo:7', 'sidebar'],
         ['home', 'repo:1', 'sidebar']
       ])
+    })
+
+    it('home 범위는 기여 달력·최근 커밋도 받고 home 을 알린다(실패는 따로 삼킨다)', async () => {
+      h = setup()
+      vi.mocked(h.refresh.recentCommits).mockRejectedValueOnce(new Error('404'))
+      await h.engine.refresh('home')
+      expect(h.refresh.contributions).toHaveBeenCalledTimes(1)
+      expect(h.refresh.recentCommits).toHaveBeenCalledTimes(1)
+      expect(h.errors).toEqual(['recentCommits'])
+      // 기여 달력은 home 만 알린다. 실패한 최근 커밋은 알리지 않는다
+      expect(h.notified).toContainEqual(['home'])
+      expect(h.notified.filter((k) => k.length === 1 && k[0] === 'home')).toHaveLength(1)
+      expect(h.count('pullRequestLists')).toBe(1)
     })
 
     it('실패한 갱신은 알리지 않고 lastSyncedAt 도 바꾸지 않는다', async () => {
