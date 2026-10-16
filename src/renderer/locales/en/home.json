@@ -5,7 +5,82 @@
   "more": "+{{count}} more",
   "moreOnGitHub": "+{{count}} more · there may be more on GitHub",
   "mayBeMore": "There may be more on GitHub",
+  "viewAll": "View all",
+  "greeting": {
+    "hello": "Hello, {{name}}",
+    "helloAnonymous": "Hello",
+    "subtitle": "Keep building, one commit at a time.",
+    "quoteLabel": "Today’s note",
+    "quoted": "“{{text}}”"
+  },
+  "quotes": {
+    "0": "Small commits add up to big things.",
+    "1": "Ship it, learn from it, ship it better.",
+    "2": "Good code is a letter to the next maintainer.",
+    "3": "Every bug you fix makes room for something new.",
+    "4": "Build the tool you wished you had yesterday.",
+    "5": "Clarity first, cleverness later.",
+    "6": "Software grows one thoughtful change at a time.",
+    "7": "The best review leaves both people a little wiser."
+  },
+  "stats": {
+    "label": "Your activity",
+    "commits": "Commits (last year)",
+    "repositories": "Repositories",
+    "openPullRequests": "Open pull requests",
+    "streak": "Contribution streak",
+    "streakDays_one": "{{count}} day",
+    "streakDays_other": "{{count}} days"
+  },
   "cards": {
+    "stats": {
+      "title": "Stats"
+    },
+    "pinnedRepos": {
+      "title": "Pinned repositories",
+      "empty": "Pin repositories from the Repositories screen or a repository’s page.",
+      "unpin": "Unpin",
+      "unpinLabel": "Unpin {{name}}",
+      "unavailable": "Unavailable",
+      "notLoaded": "Not loaded yet",
+      "stars": "Stars",
+      "forks": "Forks"
+    },
+    "contributions": {
+      "title": "Contribution activity",
+      "notLoaded": "Contribution activity hasn’t been loaded yet.",
+      "less": "Less",
+      "more": "More",
+      "cell_one": "{{date}}: {{count}} contribution",
+      "cell_other": "{{date}}: {{count}} contributions",
+      "days": {
+        "mon": "Mon",
+        "tue": "Tue",
+        "wed": "Wed",
+        "thu": "Thu",
+        "fri": "Fri",
+        "sat": "Sat",
+        "sun": "Sun"
+      }
+    },
+    "recentCommits": {
+      "title": "Recent commits",
+      "empty": "No recent commits",
+      "notLoaded": "Recent commits haven’t been loaded yet."
+    },
+    "myPullRequests": {
+      "title": "My open pull requests",
+      "empty": "You have no open pull requests.",
+      "comments_one": "{{count}} comment",
+      "comments_other": "{{count}} comments",
+      "status": {
+        "draft": "Draft",
+        "changes_requested": "Changes requested",
+        "approved": "Approved",
+        "review_required": "Review required",
+        "open": "Open"
+      }
+    },
     "reviewRequests": {
       "title": "Review requests",
       "empty": "No pull requests are waiting for your review."

@@ -1,12 +1,15 @@
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { resolveHomeCards, type ResolvedHomeCard } from '@shared/domain/homeCards'
+import { resolveHomeSections, type ResolvedHomeSection } from '@shared/domain/homeCards'
 import type { Settings, SettingsPatch } from '@shared/domain/settings'
 import { Button } from '@renderer/components'
 import { homeCardsPatch, moveHomeCard, toggleHomeCard } from './logic'
 import { SettingsSection, Toggle } from './ui'
 
-/** 홈 카드: 카드마다 켜기·끄기와 순서(spec §4.2). 바꿀 때마다 전체 목록을 저장한다. */
+/**
+ * 홈 카드: 영역 열 개(수치·고정 저장소·기여·최근 커밋·내 PR·할 일 카드 다섯)마다 켜기·끄기와 순서.
+ * 바꿀 때마다 아는 ID 열 개의 전체 목록을 저장한다.
+ */
 export function HomeCardsSection({
   settings,
   save
@@ -16,8 +19,8 @@ export function HomeCardsSection({
 }) {
   const { t } = useTranslation('settings')
   const { t: tHome } = useTranslation('home')
-  const cards = resolveHomeCards(settings?.homeCards ?? [])
-  const write = (next: ResolvedHomeCard[]): void => save(homeCardsPatch(next))
+  const cards = resolveHomeSections(settings?.homeCards ?? [])
+  const write = (next: ResolvedHomeSection[]): void => save(homeCardsPatch(next))
 
   return (
     <SettingsSection id="home-cards" title={t('homeCards.title')}>

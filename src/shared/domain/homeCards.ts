@@ -1,46 +1,6 @@
 import type { HomeCardSetting } from './settings'
 
-/** Home 카드 다섯 종류 (spec §4.2). 기본 순서이며 기본으로 모두 켜져 있다 */
-export const HOME_CARD_IDS = [
-  'reviewRequests',
-  'unreadNotifications',
-  'failedCi',
-  'unanswered',
-  'starChanges'
-] as const
-
-export type HomeCardId = (typeof HOME_CARD_IDS)[number]
-
-export interface ResolvedHomeCard {
-  id: HomeCardId
-  enabled: boolean
-}
-
-export function isHomeCardId(id: string): id is HomeCardId {
-  return (HOME_CARD_IDS as readonly string[]).includes(id)
-}
-
-/**
- * 저장된 홈 카드 설정을 화면에 쓸 목록으로 푼다.
- * - 빈 목록이면 기본 순서로 모두 켠다.
- * - 모르는 ID 와 중복 ID(두 번째부터)는 버린다.
- * - 저장된 목록에 없는 카드는 켠 채로 기본 순서대로 끝에 붙인다.
- */
-export function resolveHomeCards(stored: readonly HomeCardSetting[]): ResolvedHomeCard[] {
-  const result: ResolvedHomeCard[] = []
-  const seen = new Set<HomeCardId>()
-  for (const { id, enabled } of stored) {
-    if (!isHomeCardId(id) || seen.has(id)) continue
-    seen.add(id)
-    result.push({ id, enabled })
-  }
-  for (const id of HOME_CARD_IDS) {
-    if (!seen.has(id)) result.push({ id, enabled: true })
-  }
-  return result
-}
-
-/** 인사말 아래 새 영역 다섯 개. 기본 순서이며 기존 카드보다 앞에 온다 */
+/** 인사말 아래 활동 영역 다섯 개. 기본 순서이며 할 일 카드보다 앞에 온다 */
 export const NEW_HOME_SECTION_IDS = [
   'stats',
   'pinnedRepos',
@@ -49,13 +9,24 @@ export const NEW_HOME_SECTION_IDS = [
   'myPullRequests'
 ] as const
 
+/** 할 일 카드 다섯 개 (spec §4.2). 활동 영역보다 먼저 있던 카드다 */
+export const HOME_TODO_CARD_IDS = [
+  'reviewRequests',
+  'unreadNotifications',
+  'failedCi',
+  'unanswered',
+  'starChanges'
+] as const
+
 /**
  * Home 영역 열 개(인사말은 늘 맨 위라 들어가지 않는다). 기본 순서이며 기본으로 모두 켜져 있다.
- * 기존 카드 다섯 개(`HOME_CARD_IDS`)를 포함한다. 화면이 이 목록으로 옮겨 가면 둘을 합친다.
+ * 설정의 `homeCards` 에는 이 ID 들이 저장된다.
  */
-export const HOME_SECTION_IDS = [...NEW_HOME_SECTION_IDS, ...HOME_CARD_IDS] as const
+export const HOME_SECTION_IDS = [...NEW_HOME_SECTION_IDS, ...HOME_TODO_CARD_IDS] as const
 
 export type HomeSectionId = (typeof HOME_SECTION_IDS)[number]
+
+export type HomeTodoCardId = (typeof HOME_TODO_CARD_IDS)[number]
 
 export interface ResolvedHomeSection {
   id: HomeSectionId
