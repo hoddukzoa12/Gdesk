@@ -33,7 +33,7 @@ Gdesk는 공개 API나 서버가 없다. 바깥에서 기대어 쓰는 경계는
 
 ### 캐시 변경 알림
 
-`data:changed { keys: string[] }`는 메인의 캐시(받아온 정보·연결)가 바뀌었음을 알린다. 키 집합은 `home`, `inbox`, `pulls`, `reviews`, `issues`, `starred`, `repositories`, `sidebar`, `repo:<ID>`다. 화면은 키와 관계없이 `query:`로 시작하는 조회를 모두 다시 읽는다. `query:`가 아닌 채널의 값은 해당 이벤트로 따로 따라가야 한다.
+`data:changed { keys: string[] }`는 메인의 캐시(받아온 정보·연결)가 바뀌었음을 알린다. 키 집합은 `home`, `inbox`, `pulls`, `reviews`, `issues`, `starred`, `repositories`, `sidebar`, `repo:<ID>`, `issue:<저장소 ID>#<번호>`다. 화면은 키와 관계없이 `query:`로 시작하는 조회를 모두 다시 읽는다. `query:`가 아닌 채널의 값은 해당 이벤트로 따로 따라가야 한다.
 
 ## 요청-응답 채널
 
@@ -100,6 +100,21 @@ Gdesk는 공개 API나 서버가 없다. 바깥에서 기대어 쓰는 경계는
 | `actions:getAvailability` | 없음                  | `{ available: true }` 또는 `{ available: false, reason }` | 바뀌면 `actions:availability`                                                       |
 
 같은 대상의 동작은 앞 동작이 끝난 뒤 실행되므로, 응답 순서는 같은 대상 안에서 호출 순서와 같다.
+
+### 이슈 쓰기 동작
+
+막힘은 위와 같다(`actions:getAvailability`·`actions:availability`). 잘못된 요청 값(이슈 키, 반응 종류, 상태·닫기 이유, 저장소 ID, 형식)은 거부한다. 실패 결과는 `{ ok: false, reason }`이고 `reason`은 막힘 4종, `not_allowed`(viewerCan\*가 false), `not_cached`(상세를 받은 적 없음·모르는 반응 대상), `empty_body`, `empty_title`, `repo_not_mine`, `repo_fork`, `repo_archived`, `repo_issues_disabled`, 또는 `failed`(+`message`)다.
+
+| 채널                           | 요청                                             | 응답                                                        | 비고                                                                                            |
+| ------------------------------ | ------------------------------------------------ | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `issueActions:react`           | `{ subjectId, issueRef, content, add }`          | `IssueActionResult`                                         | 이슈·코멘트 노드 ID. 상세 캐시를 먼저 바꾸고 실패하면 되돌린다                                  |
+| `issueActions:comment`         | `{ issueRef, body }`                             | `IssueActionResult`                                         | 성공하면 새 코멘트를 상세에 붙이고 수를 늘린다                                                  |
+| `issueActions:setState`        | `{ issueRef, state: 'open'\|'closed', reason? }` | `IssueActionResult`                                         | `reason`: `completed`(기본)·`not_planned`. 상세를 먼저 바꾸고, 성공하면 이슈 목록을 새로 받는다 |
+| `issueActions:create`          | `{ repoId, title, body?, labels?, assignees? }`  | `{ ok: true, issue: { repoId, number, nodeId } }` 또는 실패 | 내 저장소(포크·보관 아님, 이슈 켬)만. 성공하면 "내 이슈" 목록에 바로 넣는다                     |
+| `issueActions:repoMeta`        | `{ repoId }`                                     | `{ ok: true, labels, assignees }` 또는 실패                 | GitHub 에서 바로 받는다(캐시 없음). 새 이슈와 같은 저장소 조건                                  |
+| `issueActions:previewMarkdown` | `{ repoId, text }`                               | `{ ok: true, html }` 또는 실패                              | GitHub 가 만든 HTML 그대로(화면이 안전하게 그린다). 빈 글은 요청 없이 `''`                      |
+
+같은 이슈에 대한 반응·코멘트·닫기·다시 열기는 앞 동작이 끝난 뒤 실행된다. 성공한 쓰기는 `data:changed`로 `issues`, `home`, `issue:<저장소 ID>#<번호>`를 알린다.
 
 ### 고정
 

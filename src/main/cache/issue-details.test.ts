@@ -6,9 +6,11 @@ import {
   ISSUE_DETAIL_CACHE_LIMIT,
   getIssueDetail,
   lookupRepoFullName,
+  patchIssueDetail,
+  restoreIssueDetail,
   saveIssueDetail
 } from './issue-details'
-import { replaceIssues } from './issues'
+import { addIssueToScope, getIssueTabCounts, listMyIssues, replaceIssues } from './issues'
 import { markRepositoryUnavailable, replaceMyRepositories } from './repositories'
 import { issueRecord, repoRecord } from './test-fixtures'
 import type { IssueDetailRecord } from './types'
@@ -99,5 +101,65 @@ describe('이슈 상세 캐시', () => {
     expect(lookupRepoFullName(db, 2)).toBe('x/y')
     expect(lookupRepoFullName(db, 3)).toBeNull()
     expect(lookupRepoFullName(db, 4)).toBeNull()
+  })
+})
+
+describe('이슈 상세 부분 변경(쓰기 동작)', () => {
+  let db: DatabaseSync
+  beforeEach(() => {
+    db = openDatabase(':memory:')
+  })
+  afterEach(() => db.close())
+
+  const raw = () =>
+    db.prepare('SELECT data, fetched_at FROM cache_issue_details').all() as {
+      data: string
+      fetched_at: number
+    }[]
+
+  it('data 만 바꾸고 받은 시각은 그대로, 되돌리면 원문과 같다', () => {
+    saveIssueDetail(db, detail(1, 1), NOW)
+    const before = raw()
+    const snapshot = patchIssueDetail(db, 1, 1, (r) => ({ ...r, state: 'closed' }))
+    expect(snapshot).not.toBeNull()
+    expect(getIssueDetail(db, 1, 1)).toMatchObject({ state: 'closed', fetchedAt: NOW })
+    restoreIssueDetail(db, snapshot!)
+    expect(raw()).toEqual(before)
+  })
+
+  it('없는 상세나 mutate 가 null 이면 바꾸지 않고 null', () => {
+    expect(patchIssueDetail(db, 1, 1, (r) => r)).toBeNull()
+    saveIssueDetail(db, detail(1, 1), NOW)
+    const before = raw()
+    expect(patchIssueDetail(db, 1, 1, () => null)).toBeNull()
+    expect(raw()).toEqual(before)
+  })
+
+  it('되돌리기는 그사이 지워진 행을 다시 만들지 않는다(로그아웃 등)', () => {
+    saveIssueDetail(db, detail(1, 1), NOW)
+    const snapshot = patchIssueDetail(db, 1, 1, (r) => ({ ...r, title: 'x' }))
+    db.exec('DELETE FROM cache_issue_details')
+    restoreIssueDetail(db, snapshot!)
+    expect(raw()).toEqual([])
+  })
+})
+
+describe('목록에 이슈 한 개 더하기', () => {
+  let db: DatabaseSync
+  beforeEach(() => {
+    db = openDatabase(':memory:')
+  })
+  afterEach(() => db.close())
+
+  it('다른 항목은 두고 더하며, 처음 들어갈 때만 전체 수를 늘린다', () => {
+    replaceIssues(db, 'mine', [issueRecord('I_a', 1, { viewerIsAuthor: true })], { totalCount: 3 })
+    const added = issueRecord('I_b', 1, {
+      viewerIsAuthor: true,
+      updatedAt: '2026-10-16T00:00:00Z'
+    })
+    addIssueToScope(db, 'mine', added)
+    addIssueToScope(db, 'mine', added)
+    expect(listMyIssues(db).items.map((i) => i.id)).toEqual(['I_b', 'I_a'])
+    expect(getIssueTabCounts(db).mine).toBe(4)
   })
 })

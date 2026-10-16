@@ -113,14 +113,112 @@ function write(
   })
 }
 
-/** 나에게 할당된·나를 언급한·내가 올린 이슈 목록 전체를 바꾼다. totalCount 는 검색 결과 총수 */
+/** 앱에서 만든 이슈를 검색에 없어도 "내 이슈"에 남기는 시간(조정 가능). 기본 10분 */
+export const CREATED_ISSUE_GRACE_MS = 10 * 60_000
+
+export interface IssueListWriteOptions extends ListWriteOptions {
+  /** "내 이슈"에서 만든 이슈의 유예를 판단하는 시각(epoch ms). 기본 Date.now() */
+  now?: number
+  /** 만든 이슈 유예 시간. 기본 CREATED_ISSUE_GRACE_MS */
+  createdIssueGraceMs?: number
+}
+
+/**
+ * 앱에서 만든 이슈의 유예 기록을 정리하고, 아직 검색에 없는 것을 돌려준다(트랜잭션 안에서 부른다).
+ * 검색 결과에 나온 것과 유예가 지난 것은 기록을 지운다.
+ */
+function keepCreatedIssues(
+  db: DatabaseSync,
+  fromSearch: readonly IssueRecord[],
+  options: IssueListWriteOptions
+): IssueRecord[] {
+  const now = options.now ?? Date.now()
+  const grace = Math.max(0, options.createdIssueGraceMs ?? CREATED_ISSUE_GRACE_MS)
+  const seen = new Set(fromSearch.map((i) => i.id))
+  const forget = db.prepare('DELETE FROM cache_created_issues WHERE issue_id = ?')
+  const kept: IssueRecord[] = []
+  for (const row of db
+    .prepare('SELECT issue_id, data, created_at FROM cache_created_issues ORDER BY created_at DESC')
+    .all()) {
+    const id = str(row, 'issue_id')
+    const issue = parseCreatedIssue(str(row, 'data'))
+    if (seen.has(id) || issue === null || now - num(row, 'created_at') >= grace) {
+      forget.run(id)
+    } else {
+      kept.push(issue)
+    }
+  }
+  return kept
+}
+
+function parseCreatedIssue(text: string): IssueRecord | null {
+  try {
+    const value: unknown = JSON.parse(text)
+    if (typeof value !== 'object' || value === null) return null
+    const issue = value as IssueRecord
+    return typeof issue.id === 'string' && typeof issue.repoId === 'number' ? issue : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 나에게 할당된·나를 언급한·내가 올린 이슈 목록 전체를 바꾼다. totalCount 는 검색 결과 총수.
+ * "내 이슈"는 앱에서 만들었는데 검색에 아직 없는 이슈를 유예 시간 동안 남긴다(전체 수에도 더한다).
+ */
 export function replaceIssues(
   db: DatabaseSync,
   scope: IssueScope,
   issues: readonly IssueRecord[],
-  options: ListWriteOptions = {}
+  options: IssueListWriteOptions = {}
 ): void {
-  write(db, scope, issues, options, 'replace')
+  withTransaction(db, () => {
+    if (scope !== 'mine') {
+      write(db, scope, issues, options, 'replace')
+      return
+    }
+    const kept = keepCreatedIssues(db, issues, options)
+    const totalCount =
+      options.totalCount === undefined ? undefined : options.totalCount + kept.length
+    write(db, scope, [...kept, ...issues], { totalCount }, 'replace')
+  })
+}
+
+/**
+ * 앱에서 만든 이슈를 기록하고 "내 이슈"에 바로 넣는다(GitHub 검색 반영이 늦으므로).
+ * 검색으로 목록을 다시 쓸 때 유예 시간(CREATED_ISSUE_GRACE_MS) 동안 남는다.
+ */
+export function recordCreatedIssue(db: DatabaseSync, issue: IssueRecord, createdAt: number): void {
+  withTransaction(db, () => {
+    db.prepare(
+      `INSERT INTO cache_created_issues (issue_id, data, created_at) VALUES (?, ?, ?)
+       ON CONFLICT (issue_id) DO UPDATE SET data = excluded.data, created_at = excluded.created_at`
+    ).run(issue.id, JSON.stringify(issue), createdAt)
+    addIssueToScope(db, 'mine', issue)
+  })
+}
+
+/** 만든 이슈의 유예 기록을 지운다(닫은 이슈를 열린 목록에 남기지 않게). 목록 행은 다음 갱신이 정리한다 */
+export function forgetCreatedIssue(db: DatabaseSync, issueId: string): void {
+  db.prepare('DELETE FROM cache_created_issues WHERE issue_id = ?').run(issueId)
+}
+
+/**
+ * 이슈 한 개를 목록에 더한다(새로 만든 이슈를 검색 반영 전에 "내 이슈"에 바로 보이게).
+ * 목록의 다른 항목은 그대로 두고, 새로 들어가면 목록 전체 수(메타)를 1 늘린다. 트랜잭션 안에서 불러도 된다.
+ */
+export function addIssueToScope(db: DatabaseSync, scope: IssueScope, issue: IssueRecord): void {
+  withTransaction(db, () => {
+    upsert(db, [issue])
+    const added = db
+      .prepare('INSERT OR IGNORE INTO cache_issue_scopes (scope, issue_id) VALUES (?, ?)')
+      .run(scope, issue.id)
+    if (Number(added.changes) > 0) {
+      db.prepare('UPDATE cache_list_meta SET total_count = total_count + 1 WHERE scope = ?').run(
+        `${TABLES.kind}:${scope}`
+      )
+    }
+  })
 }
 
 /** 저장소 하나의 열린 이슈를 쓴다. 잘린 목록이면 기존 행을 줄이지 않고 합친다(replaceRepoPullRequests 와 같음) */

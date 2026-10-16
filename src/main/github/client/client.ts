@@ -63,6 +63,11 @@ export interface RestRequestOptions {
   /** 추가 헤더 (예: Accept 바꾸기). Authorization 은 덮어쓸 수 없다. */
   headers?: Record<string, string>
   signal?: AbortSignal
+  /**
+   * 응답 본문 읽기. 기본 'json'(JSON 이면 파싱, 빈 본문이면 null, JSON 이 아니면 문자열).
+   * 'text' 는 언제나 문자열(빈 본문이면 '')이다. `POST /markdown`(text/html) 같은 응답용.
+   */
+  responseType?: 'json' | 'text'
 }
 
 export interface ConditionalRequestOptions extends RestRequestOptions {
@@ -260,6 +265,15 @@ export class GitHubClient {
     return this.restOk<T>('GET', path, undefined, options)
   }
 
+  /** REST POST. body 는 JSON 으로 보낸다(Content-Type: application/json) */
+  async post<T = unknown>(
+    path: string,
+    body?: unknown,
+    options: RestRequestOptions = {}
+  ): Promise<RestResponse<T>> {
+    return this.restOk<T>('POST', path, body, options)
+  }
+
   async put<T = unknown>(
     path: string,
     body?: unknown,
@@ -438,7 +452,8 @@ export class GitHubClient {
       await res.body?.cancel().catch(() => undefined)
       return { ...meta, notModified: true, status: 304 }
     }
-    const data = await readBody(res)
+    // 실패 응답은 형식과 상관없이 JSON 으로 읽어 본다(오류 문구·한도 분류용)
+    const data = await readBody(res, res.ok ? options.responseType : 'json')
     if (!res.ok) this.failFromResponse(res, data, token, resource, method, url.pathname)
     this.refreshStatus()
     return { ...meta, notModified: false, data: data as T }
@@ -658,8 +673,9 @@ function pathOnly(path: string): string {
   return path.split('?')[0] ?? path
 }
 
-async function readBody(res: Response): Promise<unknown> {
+async function readBody(res: Response, responseType: 'json' | 'text' = 'json'): Promise<unknown> {
   const text = await res.text()
+  if (responseType === 'text') return text
   if (!text) return null
   try {
     return JSON.parse(text) as unknown

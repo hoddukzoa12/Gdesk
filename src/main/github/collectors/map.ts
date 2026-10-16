@@ -283,7 +283,7 @@ export function mapReactionGroups(
   return out
 }
 
-function mapIssueComment(raw: RawIssueComment): IssueComment | null {
+export function mapIssueComment(raw: RawIssueComment): IssueComment | null {
   if (!raw.id) return null
   return {
     id: raw.id,

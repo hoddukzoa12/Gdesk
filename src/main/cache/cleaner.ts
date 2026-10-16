@@ -22,7 +22,8 @@ export const CACHE_TABLES = [
   'cache_contribution_days',
   'cache_contribution_summary',
   'cache_recent_commits',
-  'cache_issue_details'
+  'cache_issue_details',
+  'cache_created_issues'
 ] as const
 
 /** 받아온 GitHub 정보를 모두 지운다. clearFetchedData 의 트랜잭션 안에서 불린다 */

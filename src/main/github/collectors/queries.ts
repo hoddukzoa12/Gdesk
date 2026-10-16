@@ -17,6 +17,12 @@ export const OPERATIONS = {
   myIssues: 'GdeskMyIssues',
   mentionedIssues: 'GdeskMentionedIssues',
   issueDetail: 'GdeskIssueDetail',
+  /** 쓰기 동작(spec §6.3): 반응·코멘트·닫기·다시 열기 */
+  addReaction: 'GdeskAddReaction',
+  removeReaction: 'GdeskRemoveReaction',
+  addComment: 'GdeskAddComment',
+  closeIssue: 'GdeskCloseIssue',
+  reopenIssue: 'GdeskReopenIssue',
   repositoryDetail: 'GdeskRepositoryDetail',
   contributions: 'GdeskContributions'
 } as const
@@ -30,7 +36,15 @@ export const REST_ENDPOINTS = {
   contributors: 'GET /repos/{owner}/{repo}/contributors',
   stargazers: 'GET /repos/{owner}/{repo}/stargazers',
   /** 내 최근 커밋(q=author:<login>, sort=author-date, order=desc, per_page). 검색 한도(search)를 쓴다 */
-  searchCommits: 'GET /search/commits'
+  searchCommits: 'GET /search/commits',
+  /** 새 이슈(spec §6.3). 본문 { title, body?, labels?: 이름[], assignees?: 로그인[] } → 201 이슈(node_id, number …) */
+  createIssue: 'POST /repos/{owner}/{repo}/issues',
+  /** 새 이슈 양식의 라벨 선택지(per_page=100, 페이지 상한) */
+  repoLabels: 'GET /repos/{owner}/{repo}/labels',
+  /** 새 이슈 양식의 담당자 선택지(per_page=100, 페이지 상한) */
+  repoAssignees: 'GET /repos/{owner}/{repo}/assignees',
+  /** 마크다운 미리보기. 본문 { text, mode: 'gfm', context: 'owner/name' } → text/html */
+  renderMarkdown: 'POST /markdown'
 } as const
 
 /** 검색 쿼리(가짜 서버가 변수 q 를 확인할 때 쓸 수 있다) */
@@ -402,3 +416,57 @@ query GdeskIssueDetail(
     }
   }
 }`
+
+/**
+ * 쓰기 동작 mutation (spec §6.3). 대상은 캐시된 이슈 상세의 노드 ID(이슈·코멘트)다.
+ * 응답은 화면 갱신에 쓰지 않는 최소 필드만 받는다(코멘트는 새 코멘트를 상세에 붙이려고 전부 받는다).
+ */
+export const ADD_REACTION_MUTATION = `
+mutation GdeskAddReaction($subjectId: ID!, $content: ReactionContent!) {
+  addReaction(input: { subjectId: $subjectId, content: $content }) {
+    reaction { content }
+  }
+}`
+
+export const REMOVE_REACTION_MUTATION = `
+mutation GdeskRemoveReaction($subjectId: ID!, $content: ReactionContent!) {
+  removeReaction(input: { subjectId: $subjectId, content: $content }) {
+    reaction { content }
+  }
+}`
+
+export const ADD_COMMENT_MUTATION = `
+mutation GdeskAddComment($subjectId: ID!, $body: String!) {
+  addComment(input: { subjectId: $subjectId, body: $body }) {
+    commentEdge {
+      node {
+        id
+        createdAt
+        bodyHTML
+        author { __typename login avatarUrl }
+        ${REACTION_GROUPS}
+      }
+    }
+  }
+}`
+
+/** $stateReason: COMPLETED | NOT_PLANNED */
+export const CLOSE_ISSUE_MUTATION = `
+mutation GdeskCloseIssue($issueId: ID!, $stateReason: IssueClosedStateReason) {
+  closeIssue(input: { issueId: $issueId, stateReason: $stateReason }) {
+    issue { id state stateReason }
+  }
+}`
+
+export const REOPEN_ISSUE_MUTATION = `
+mutation GdeskReopenIssue($issueId: ID!) {
+  reopenIssue(input: { issueId: $issueId }) {
+    issue { id state stateReason }
+  }
+}`
+
+/** 새 이슈 양식 선택지 상한(조정 가능): 라벨·담당자 각각 per_page × 최대 페이지(기본 500개) */
+export const REPO_META_LIMITS = {
+  perPage: 100,
+  maxPages: 5
+} as const

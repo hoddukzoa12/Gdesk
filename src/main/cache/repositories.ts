@@ -385,6 +385,39 @@ export function listIssueRepoOptions(db: DatabaseSync): IssueRepoOption[] {
     })
 }
 
+/** 새 이슈 저장소 조건 판단용(캐시에서만) */
+export interface IssueTargetRepo {
+  id: number
+  owner: string
+  name: string
+  fullName: string
+  isMine: boolean
+  fork: boolean
+  archived: boolean
+  hasIssuesEnabled: boolean
+}
+
+/** 저장소 하나의 새 이슈 조건. 캐시에 없으면 null */
+export function getIssueTargetRepo(db: DatabaseSync, repoId: number): IssueTargetRepo | null {
+  const row = db
+    .prepare(
+      `SELECT id, owner, name, full_name, is_mine, fork, archived, has_issues_enabled
+       FROM cache_repositories WHERE id = ?`
+    )
+    .get(repoId)
+  if (row === undefined) return null
+  return {
+    id: num(row, 'id'),
+    owner: str(row, 'owner'),
+    name: str(row, 'name'),
+    fullName: str(row, 'full_name'),
+    isMine: bool(row, 'is_mine'),
+    fork: bool(row, 'fork'),
+    archived: bool(row, 'archived'),
+    hasIssuesEnabled: bool(row, 'has_issues_enabled')
+  }
+}
+
 export interface RepoOwnerSummary {
   login: string
   type: RepoOwnerType
