@@ -4,6 +4,9 @@
  * operationName 으로, REST 를 "메서드 + 경로" 로 구분해 응답한다.
  */
 
+// 상대 경로: 화면 테스트의 가짜 GitHub 서버(Playwright)도 이 파일을 직접 불러온다
+import { HOME_RECENT_COMMIT_LIMIT } from '../../../shared/domain/home-activity'
+
 export const OPERATIONS = {
   myRepositories: 'GdeskMyRepositories',
   starredRepositories: 'GdeskStarredRepositories',
@@ -12,7 +15,8 @@ export const OPERATIONS = {
   reviewRequests: 'GdeskReviewRequests',
   assignedIssues: 'GdeskAssignedIssues',
   myIssues: 'GdeskMyIssues',
-  repositoryDetail: 'GdeskRepositoryDetail'
+  repositoryDetail: 'GdeskRepositoryDetail',
+  contributions: 'GdeskContributions'
 } as const
 
 export type OperationName = (typeof OPERATIONS)[keyof typeof OPERATIONS]
@@ -22,7 +26,9 @@ export const REST_ENDPOINTS = {
   notifications: 'GET /notifications',
   repositoryById: 'GET /repositories/{repository_id}',
   contributors: 'GET /repos/{owner}/{repo}/contributors',
-  stargazers: 'GET /repos/{owner}/{repo}/stargazers'
+  stargazers: 'GET /repos/{owner}/{repo}/stargazers',
+  /** 내 최근 커밋(q=author:<login>, sort=author-date, order=desc, per_page). 검색 한도(search)를 쓴다 */
+  searchCommits: 'GET /search/commits'
 } as const
 
 /** 검색 쿼리(가짜 서버가 변수 q 를 확인할 때 쓸 수 있다) */
@@ -51,7 +57,9 @@ export const LIST_LIMITS = {
   searchMaxPages: 4,
   /** 알림 페이지 크기·최대 페이지 수 */
   notificationsPerPage: 50,
-  notificationsMaxPages: 5
+  notificationsMaxPages: 5,
+  /** Home 최근 커밋 수(커밋 검색 per_page) */
+  recentCommits: HOME_RECENT_COMMIT_LIMIT
 } as const
 
 const REPOSITORY_FRAGMENT = `
@@ -270,3 +278,22 @@ ${REPOSITORY_FRAGMENT}
 ${PULL_REQUEST_FRAGMENT}
 ${ISSUE_FRAGMENT}
 ${RELEASE_FRAGMENT}`
+
+/**
+ * 내 기여 달력(최근 12개월). 기간을 주지 않으면 GitHub 는 지금까지 1년을 준다.
+ * 주는 일요일에 시작하고 마지막 날이 오늘이다. 커밋 수는 totalCommitContributions 그대로 쓴다.
+ */
+export const CONTRIBUTIONS_QUERY = `
+query GdeskContributions {
+  viewer {
+    login
+    contributionsCollection {
+      totalCommitContributions
+      contributionCalendar {
+        weeks {
+          contributionDays { date contributionCount contributionLevel }
+        }
+      }
+    }
+  }
+}`

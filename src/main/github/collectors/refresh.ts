@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite'
 import { getDb } from '../../db/db'
+import { replaceContributions, replaceRecentCommits } from '../../cache/home-activity'
 import { replaceIssues, replaceRepoIssues } from '../../cache/issues'
 import { mergeNotifications, replaceNotifications } from '../../cache/notifications'
 import {
@@ -26,6 +27,7 @@ import { GitHubHttpError, OrgAccessRestrictedError } from '../client'
 import type { GitHubClient, OrgRestriction } from '../client'
 import { StaleRefreshError, resolveClient } from './common'
 import type { CollectorOptions, ListResult } from './common'
+import { collectContributions, collectRecentCommits } from './home-activity'
 import { collectRepoOpenItems } from './items'
 import type { RepoOpenItemsOptions, RepoOpenItemsTarget } from './items'
 import { collectNotifications } from './notifications'
@@ -55,7 +57,9 @@ export const SYNC_SCOPES = {
   reviewRequests: 'review_requests',
   assignedIssues: 'assigned_issues',
   myIssues: 'my_issues',
-  notifications: 'notifications'
+  notifications: 'notifications',
+  contributions: 'contributions',
+  recentCommits: 'recent_commits'
 } as const
 
 /** 저장소 상세의 동기화 범위 이름 */
@@ -328,4 +332,36 @@ export async function refreshRepositoryDetails(
     record(db, result.orgRestrictions, now)
   })
   return result
+}
+
+/** 내 기여 달력(최근 12개월)과 커밋 기여 수를 받아 통째로 바꾼다 (Home 수치·기여 달력) */
+export async function refreshContributions(options: RefreshContext = {}): Promise<void> {
+  const { db, now } = ctx(options)
+  const result = await collectContributions(options)
+  assertCurrent(options)
+  withTransaction(db, () => {
+    replaceContributions(db, {
+      totalCommitContributions: result.totalCommitContributions,
+      days: result.days
+    })
+    updateSyncState(db, SYNC_SCOPES.contributions, { lastSyncedAt: now })
+  })
+}
+
+/**
+ * 내 최근 커밋(커밋 검색)을 받아 통째로 바꾼다. 로그인 이름을 모르면 요청하지 않는다.
+ * 검색 한도(search)를 쓰며, 실패(404·한도·오프라인)는 던져 엔진이 따로 기록하게 한다.
+ */
+export async function refreshRecentCommits(
+  options: RefreshContext & { login: string | null; limit?: number }
+): Promise<void> {
+  const login = options.login
+  if (login === null || login === '') return
+  const { db, now } = ctx(options)
+  const items = await collectRecentCommits({ ...options, login })
+  assertCurrent(options)
+  withTransaction(db, () => {
+    replaceRecentCommits(db, items)
+    updateSyncState(db, SYNC_SCOPES.recentCommits, { lastSyncedAt: now })
+  })
 }
