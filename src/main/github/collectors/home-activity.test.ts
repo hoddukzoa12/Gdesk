@@ -132,6 +132,23 @@ describe('홈 활동 수집(매핑)', () => {
       }
     ])
   })
+
+  it('커밋 검색: html_url 이 없거나 비면 github.com 커밋 주소로 만든다(빈 주소를 두지 않는다)', async () => {
+    const { client } = fakeGitHub({
+      rest: {
+        'GET /search/commits': () =>
+          json({
+            total_count: 2,
+            items: [commitItem('d4', { html_url: undefined }), commitItem('e5', { html_url: '' })]
+          })
+      }
+    })
+    const items = await collectRecentCommits({ client, login: 'me' })
+    expect(items.map((c) => c.url)).toEqual([
+      'https://github.com/me/app/commit/d4',
+      'https://github.com/me/app/commit/e5'
+    ])
+  })
 })
 
 describe('홈 활동 갱신(캐시 쓰기)', () => {

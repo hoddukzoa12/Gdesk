@@ -250,7 +250,7 @@ export function mapContributions(
   return { totalCommitContributions: collection.totalCommitContributions ?? 0, days }
 }
 
-/** 커밋 검색 항목 → 최근 커밋. sha·저장소가 없으면 null. 메시지는 첫 줄만 */
+/** 커밋 검색 항목 → 최근 커밋. sha·저장소가 없으면 null. 메시지는 첫 줄만. 주소가 없으면 github.com 커밋 주소 */
 export function mapCommitSearchItem(
   raw: RawCommitSearchItem | null | undefined
 ): RecentCommit | null {
@@ -262,7 +262,7 @@ export function mapCommitSearchItem(
     message: (raw.commit?.message ?? '').split(/\r?\n/, 1)[0] ?? '',
     authorAvatarUrl: raw.author?.avatar_url ?? null,
     authorDate: raw.commit?.author?.date ?? null,
-    url: raw.html_url ?? ''
+    url: raw.html_url || `https://github.com/${repoFullName}/commit/${raw.sha}`
   }
 }
 
