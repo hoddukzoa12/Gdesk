@@ -2,7 +2,7 @@
 
 ## 맡는 것
 
-- `domain/`: 화면과 메인이 함께 쓰는 도메인 타입, 상태 값 집합(`CI_STATUSES`, `CONNECTION_STATUSES` 등), 작고 순수한 판정 함수(`resolveConnectionStatus`, `resolveHomeSections`, `parseRefreshScope`, `normalizeSearchText`, `crashReportText`).
+- `domain/`: 화면과 메인이 함께 쓰는 도메인 타입, 상태 값 집합(`CI_STATUSES`, `CONNECTION_STATUSES` 등), 작고 순수한 판정 함수(`resolveConnectionStatus`, `resolveHomeSections`, `prDisplayStatus`, `canCommentOnIssue`, `assertIssueRef`, `issueDetailKey`, `parseRefreshScope`, `normalizeSearchText`, `crashReportText`).
 - `ipc/`: 메인 ↔ 화면 채널 계약. `contract.ts`의 빈 인터페이스(`IpcInvokeChannels`, `IpcEventChannels`)를 기능 파일이 선언 병합으로 넓힌다.
 
 ## 맡지 않는 것
@@ -13,8 +13,10 @@
 
 ## 반드시 지킬 것
 
-- 화면으로 가는 타입(`SessionSnapshot`, `AuthResult`, `ActionResult`, `CloneOutcome`, `GitHubSearchResult`, `CrashReport` …)에 토큰을 담을 자리를 만들지 않는다. 원문 오류 객체도 담지 않는다. 화면이 번역할 실패는 문자열 리터럴 유니온 코드로 정의한다.
-- 상태 값 집합은 여기 한 곳에만 정의한다: CI `passing`·`failing`·`pending`·`none`, 리뷰 `approved`·`changes_requested`·`review_required`·`none`, PR `open`·`draft`, 알림 `unread`·`read`, 로컬 연결 `ok`·`missing`, 저장소 `available`·`unavailable`, 연결 `online`·`offline`·`rate_limited`·`session_expired`.
+- 화면으로 가는 타입(`SessionSnapshot`, `AuthResult`, `ActionResult`, `IssueActionResult`, `CloneOutcome`, `GitHubSearchResult`, `CrashReport` …)에 토큰을 담을 자리를 만들지 않는다. `SessionUser.email`은 GitHub 프로필의 공개 이메일만 담는다(email 권한을 요청하지 않는다). 원문 오류 객체도 담지 않는다. 화면이 번역할 실패는 문자열 리터럴 유니온 코드로 정의한다.
+- 상태 값 집합은 여기 한 곳에만 정의한다: CI `passing`·`failing`·`pending`·`none`, 리뷰 `approved`·`changes_requested`·`review_required`·`none`, PR `open`·`draft`, PR 표시 상태(`PR_DISPLAY_STATUSES`), 이슈 `open`·`closed`와 닫힌 이유(`ISSUE_STATE_REASONS`), 닫기 이유(`ISSUE_CLOSE_REASONS`, `completed`·`not_planned`), 반응(`REACTION_CONTENTS` 8종), 연결된 PR 상태(`LINKED_PULL_REQUEST_STATES`), 기여 수준(`CONTRIBUTION_LEVELS`), 이슈 쓰기 거절 이유(`ISSUE_ACTION_REJECT_REASONS`), 이슈 탭(`ISSUES_TABS`), 알림 `unread`·`read`, 로컬 연결 `ok`·`missing`, 저장소 `available`·`unavailable`, 연결 `online`·`offline`·`rate_limited`·`session_expired`.
+- 이슈 하나는 `IssueRef { repoId, number }`로 가리킨다. 화면에서 온 이슈 키는 `assertIssueRef`로 검사한다. 이슈 상세의 캐시 변경 알림 키 모양은 `issueDetailKey`의 `issue:<저장소 ID>#<번호>`다. 메인 동기화 엔진(`src/main/sync/engine.ts`의 `issueKey`)이 같은 모양을 따로 만들므로, 모양을 바꾸면 둘 다 바꾼다.
+- `canCommentOnIssue`: 잠기지 않았으면 참, 잠겼으면 권한이 `WRITE_PERMISSIONS`(`ADMIN`·`MAINTAIN`·`WRITE`)일 때만 참, 권한을 모르면(`null`) 거짓.
 - 연결 상태 우선순위는 `resolveConnectionStatus`의 `session_expired` > `offline` > `rate_limited` > `online`이다. 쓰기 막힘 이유의 우선순위(`session_expired` > `signed_out` > `offline` > `rate_limited`)는 메인 쓰기 서비스가 정한다.
 - Home 영역 ID와 기본 순서는 `HOME_SECTION_IDS`(활동 영역 `stats`, `pinnedRepos`, `contributions`, `recentCommits`, `myPullRequests` 다음에 할 일 카드 `reviewRequests`, `unreadNotifications`, `failedCi`, `unanswered`, `starChanges`)다. 저장된 설정의 ID는 이것과 다를 수 있으므로 `resolveHomeSections`로 풀어 쓴다(모르는 ID 버림, 중복은 처음 것, 활동 영역 ID가 하나도 없으면 활동 영역 다섯 개를 켠 채로 맨 앞에 한 번 넣음, 그 밖에 빠진 영역은 켠 채로 끝에).
 - 저장소 식별자는 GitHub 숫자 저장소 ID(`number`)다. 고정·연결 타입에 이름 필드를 식별자로 더하지 않는다.
@@ -49,5 +51,5 @@ export {}
 
 ## 테스트
 
-- 순수 함수는 옆에 `*.test.ts`(node 환경)를 둔다. 지금 `connection.test.ts`(우선순위 모든 조합), `homeCards.test.ts`(빈 목록, 모르는 ID, 중복, 빠진 카드, 순서 유지)가 있다.
+- 순수 함수는 옆에 `*.test.ts`(node 환경)를 둔다. 지금 `connection.test.ts`(우선순위 모든 조합), `homeCards.test.ts`(빈 목록, 모르는 ID, 중복, 활동 영역 맨 앞 끼워 넣기와 한 번만 일어나기, 일부만 있으면 끝에 붙이기, 순서 유지), `home-activity.test.ts`(PR 표시 상태, 커밋 검색 주소), `issue-detail.test.ts`(코멘트 가능 판정, 이슈 키 검사)가 있다.
 - 값 집합에 값을 더하거나 빼면 그 값을 쓰는 화면 번역 키와 메인 매핑 테스트를 함께 바꾼다. 화면의 실패 코드 목록(`features/clone/clone-logic.ts`의 `CLONE_FAILURE_CODES` 등)은 이 유니온과 같아야 한다.
