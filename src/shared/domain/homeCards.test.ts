@@ -1,79 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
-  HOME_CARD_IDS,
   HOME_SECTION_IDS,
+  HOME_TODO_CARD_IDS,
   NEW_HOME_SECTION_IDS,
-  isHomeCardId,
   isHomeSectionId,
-  resolveHomeCards,
   resolveHomeSections
 } from './homeCards'
-
-const allEnabled = HOME_CARD_IDS.map((id) => ({ id, enabled: true }))
-
-describe('resolveHomeCards', () => {
-  it('빈 목록이면 기본 순서로 모두 켠다', () => {
-    expect(resolveHomeCards([])).toEqual(allEnabled)
-    expect(HOME_CARD_IDS).toEqual([
-      'reviewRequests',
-      'unreadNotifications',
-      'failedCi',
-      'unanswered',
-      'starChanges'
-    ])
-  })
-
-  it('모르는 ID 는 버린다', () => {
-    expect(
-      resolveHomeCards([
-        { id: 'legacyCard', enabled: false },
-        { id: 'failedCi', enabled: false }
-      ])
-    ).toEqual([
-      { id: 'failedCi', enabled: false },
-      { id: 'reviewRequests', enabled: true },
-      { id: 'unreadNotifications', enabled: true },
-      { id: 'unanswered', enabled: true },
-      { id: 'starChanges', enabled: true }
-    ])
-  })
-
-  it('빠진 카드는 켠 채로 기본 순서대로 끝에 붙인다', () => {
-    expect(resolveHomeCards([{ id: 'starChanges', enabled: false }])).toEqual([
-      { id: 'starChanges', enabled: false },
-      { id: 'reviewRequests', enabled: true },
-      { id: 'unreadNotifications', enabled: true },
-      { id: 'failedCi', enabled: true },
-      { id: 'unanswered', enabled: true }
-    ])
-  })
-
-  it('저장된 순서를 지킨다', () => {
-    const stored = [
-      { id: 'unanswered', enabled: true },
-      { id: 'starChanges', enabled: false },
-      { id: 'reviewRequests', enabled: true },
-      { id: 'failedCi', enabled: true },
-      { id: 'unreadNotifications', enabled: false }
-    ]
-    expect(resolveHomeCards(stored)).toEqual(stored)
-  })
-
-  it('중복 ID 는 처음 것만 쓴다', () => {
-    expect(
-      resolveHomeCards([
-        { id: 'failedCi', enabled: false },
-        { id: 'failedCi', enabled: true }
-      ])[0]
-    ).toEqual({ id: 'failedCi', enabled: false })
-    expect(resolveHomeCards([{ id: 'failedCi', enabled: true }])).toHaveLength(5)
-  })
-
-  it('isHomeCardId', () => {
-    expect(isHomeCardId('failedCi')).toBe(true)
-    expect(isHomeCardId('nope')).toBe(false)
-  })
-})
 
 describe('resolveHomeSections (인사말 아래 10개 영역)', () => {
   const NEW = ['stats', 'pinnedRepos', 'contributions', 'recentCommits', 'myPullRequests']
@@ -82,6 +14,7 @@ describe('resolveHomeSections (인사말 아래 10개 영역)', () => {
 
   it('기본 순서: 새 영역 다섯 개 → 기존 카드 다섯 개', () => {
     expect(NEW_HOME_SECTION_IDS).toEqual(NEW)
+    expect(HOME_TODO_CARD_IDS).toEqual(OLD)
     expect(HOME_SECTION_IDS).toEqual([...NEW, ...OLD])
   })
 
@@ -154,6 +87,11 @@ describe('resolveHomeSections (인사말 아래 10개 영역)', () => {
 
   it('모르는 ID 만 있으면 빈 목록과 같다(기본 순서로 모두 켬)', () => {
     expect(resolveHomeSections([{ id: 'legacy', enabled: false }])).toEqual(on([...NEW, ...OLD]))
+  })
+
+  it('열 개가 모두 저장된 목록은 순서·켬끔을 그대로 쓴다', () => {
+    const stored = [...OLD, ...NEW].map((id, i) => ({ id, enabled: i % 2 === 0 }))
+    expect(resolveHomeSections(stored)).toEqual(stored)
   })
 
   it('isHomeSectionId', () => {

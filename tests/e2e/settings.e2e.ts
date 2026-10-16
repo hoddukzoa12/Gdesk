@@ -84,18 +84,24 @@ test('언어·테마는 다시 켜도 유지된다', async ({ launchGdesk }) => 
 
 test('홈 카드: 실패한 CI 를 끄고 스타 변화를 맨 위로 올리면 홈에 반영된다', async ({ page }) => {
   await openSettings(page)
+  const rows = page.getByTestId('settings-home-cards').locator('li')
+  await expect(rows).toHaveCount(10)
   await page.getByTestId('settings-card-failedCi-toggle').click()
   await expect(page.getByTestId('settings-card-failedCi')).toHaveAttribute('data-enabled', 'false')
   const up = page.getByTestId('settings-card-starChanges-up')
-  for (let i = 0; i < 4; i++) await up.click()
+  for (let i = 0; i < 9; i++) await up.click()
   await expect(up).toBeDisabled()
-  const rows = page.getByTestId('settings-home-cards').locator('li')
   await expect(rows.first()).toHaveAttribute('data-testid', 'settings-card-starChanges')
 
   await expect
     .poll(async () => (await invoke(page, 'settings:get')).homeCards)
     .toEqual([
       { id: 'starChanges', enabled: true },
+      { id: 'stats', enabled: true },
+      { id: 'pinnedRepos', enabled: true },
+      { id: 'contributions', enabled: true },
+      { id: 'recentCommits', enabled: true },
+      { id: 'myPullRequests', enabled: true },
       { id: 'reviewRequests', enabled: true },
       { id: 'unreadNotifications', enabled: true },
       { id: 'failedCi', enabled: false },
@@ -106,8 +112,22 @@ test('홈 카드: 실패한 CI 를 끄고 스타 변화를 맨 위로 올리면 
   await expect(page.getByTestId('home-card-starChanges')).toBeVisible({ timeout: SYNC_TIMEOUT })
   await expect(page.getByTestId('home-card-failedCi')).toHaveCount(0)
   const cards = page.getByTestId(/^home-card-[A-Za-z]+$/)
-  await expect(cards).toHaveCount(4)
+  await expect(cards).toHaveCount(9)
   await expect(cards.first()).toHaveAttribute('data-testid', 'home-card-starChanges')
+})
+
+test('홈 카드: 새 영역(최근 커밋)을 끄면 홈에서 사라진다', async ({ page }) => {
+  await openSettings(page)
+  await page.getByTestId('settings-card-recentCommits-toggle').click()
+  await expect(page.getByTestId('settings-card-recentCommits')).toHaveAttribute(
+    'data-enabled',
+    'false'
+  )
+  await goto(page, '/home')
+  await expect(page.getByTestId('home-card-myPullRequests')).toBeVisible({
+    timeout: SYNC_TIMEOUT
+  })
+  await expect(page.getByTestId('home-card-recentCommits')).toHaveCount(0)
 })
 
 test('홈의 카드 설정 버튼은 홈 카드 항목으로 간다', async ({ page }) => {

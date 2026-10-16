@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HOME_CARD_IDS, resolveHomeCards } from '@shared/domain/homeCards'
+import { HOME_SECTION_IDS, isHomeSectionId, resolveHomeSections } from '@shared/domain/homeCards'
 import type { Settings } from '@shared/domain/settings'
 import {
   editorOptions,
@@ -48,58 +48,59 @@ describe('테마·언어 ↔ 설정', () => {
 })
 
 describe('홈 카드', () => {
-  const defaults = resolveHomeCards([])
+  const defaults = resolveHomeSections([])
+  const ALL = [...HOME_SECTION_IDS]
 
-  it('끄면 그 카드만 enabled=false 이고 다섯 개가 기본 순서로 저장된다', () => {
-    const patch = homeCardsPatch(toggleHomeCard(defaults, 'failedCi', false))
+  it('기본은 열 개 모두 켬, 기본 순서', () => {
+    expect(defaults.map((c) => c.id)).toEqual(ALL)
+    expect(defaults.every((c) => c.enabled)).toBe(true)
+  })
+
+  it('끄면 그 영역만 enabled=false 이고 열 개가 기본 순서로 저장된다', () => {
+    const patch = homeCardsPatch(toggleHomeCard(defaults, 'contributions', false))
     expect(patch).toEqual({
-      homeCards: [
-        { id: 'reviewRequests', enabled: true },
-        { id: 'unreadNotifications', enabled: true },
-        { id: 'failedCi', enabled: false },
-        { id: 'unanswered', enabled: true },
-        { id: 'starChanges', enabled: true }
-      ]
+      homeCards: ALL.map((id) => ({ id, enabled: id !== 'contributions' }))
     })
   })
 
   it('위·아래로 옮기고, 끝에서는 그대로다', () => {
     let cards = defaults
-    for (let i = 0; i < 4; i++) cards = moveHomeCard(cards, 'starChanges', -1)
+    for (let i = 0; i < ALL.length - 1; i++) cards = moveHomeCard(cards, 'starChanges', -1)
     expect(cards.map((c) => c.id)).toEqual([
       'starChanges',
-      'reviewRequests',
-      'unreadNotifications',
-      'failedCi',
-      'unanswered'
+      ...ALL.filter((id) => id !== 'starChanges')
     ])
     expect(moveHomeCard(cards, 'starChanges', -1)).toEqual(cards)
     expect(moveHomeCard(cards, 'unanswered', 1)).toEqual(cards)
     expect(
-      moveHomeCard(cards, 'reviewRequests', 1)
+      moveHomeCard(cards, 'stats', 1)
         .map((c) => c.id)
         .slice(0, 3)
-    ).toEqual(['starChanges', 'unreadNotifications', 'reviewRequests'])
+    ).toEqual(['starChanges', 'pinnedRepos', 'stats'])
   })
 
-  it('모르는 ID·중복은 버리고 빠진 카드는 켠 채로 붙여 아는 ID 다섯 개만 저장한다', () => {
+  it('모르는 ID·중복은 버리고 빠진 영역은 켠 채로 채워 아는 ID 열 개만 저장한다', () => {
     const patch = homeCardsPatch([
       { id: 'starChanges', enabled: false },
       { id: 'bogus', enabled: false },
       { id: 'starChanges', enabled: true },
-      { id: 'failedCi', enabled: false }
+      { id: 'recentCommits', enabled: false }
     ])
     expect(patch.homeCards.map((c) => c.id)).toEqual([
       'starChanges',
-      'failedCi',
+      'recentCommits',
+      'stats',
+      'pinnedRepos',
+      'contributions',
+      'myPullRequests',
       'reviewRequests',
       'unreadNotifications',
+      'failedCi',
       'unanswered'
     ])
-    expect(patch.homeCards.every((c) => (HOME_CARD_IDS as readonly string[]).includes(c.id))).toBe(
-      true
-    )
+    expect(patch.homeCards.every((c) => isHomeSectionId(c.id))).toBe(true)
     expect(patch.homeCards.find((c) => c.id === 'starChanges')?.enabled).toBe(false)
+    expect(patch.homeCards.find((c) => c.id === 'recentCommits')?.enabled).toBe(false)
     expect(patch.homeCards.find((c) => c.id === 'reviewRequests')?.enabled).toBe(true)
   })
 

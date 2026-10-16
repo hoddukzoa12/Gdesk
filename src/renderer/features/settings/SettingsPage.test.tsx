@@ -7,6 +7,7 @@ import { I18nextProvider } from 'react-i18next'
 import { MemoryRouter } from 'react-router'
 import type { GdeskApi } from '@shared/ipc/contract'
 import type { EditorInfo } from '@shared/domain/local'
+import { HOME_SECTION_IDS } from '@shared/domain/homeCards'
 import type { Settings, SettingsPatch } from '@shared/domain/settings'
 import { i18n } from '@renderer/app/i18n'
 import { PreferencesProvider } from '@renderer/app/preferences'
@@ -143,7 +144,23 @@ describe('설정 화면 · 테마·언어 공급', () => {
 })
 
 describe('설정 화면 · 홈 카드', () => {
-  it('끄기·옮기기는 아는 카드 다섯 개 전체 목록을 저장한다', async () => {
+  const ALL = [...HOME_SECTION_IDS]
+
+  it('영역 열 개를 이름·스위치·순서 버튼과 함께 기본 순서로 보인다', async () => {
+    stub()
+    renderPage()
+    const list = await screen.findByTestId('settings-home-cards')
+    const rows = [...list.querySelectorAll('li')]
+    expect(rows.map((li) => li.dataset.testid)).toEqual(ALL.map((id) => `settings-card-${id}`))
+    expect(screen.getAllByRole('switch')).toHaveLength(10)
+    expect(screen.getByTestId('settings-card-stats').textContent).toContain('Stats')
+    expect(screen.getByTestId('settings-card-contributions').textContent).toContain(
+      'Contribution activity'
+    )
+    expect(rows.every((li) => li.dataset.enabled === 'true')).toBe(true)
+  })
+
+  it('끄기·옮기기는 아는 영역 열 개 전체 목록을 저장한다', async () => {
     stub({ homeCards: [{ id: 'bogus', enabled: false }] })
     renderPage()
     const toggle = await screen.findByTestId('settings-card-failedCi-toggle')
@@ -155,25 +172,22 @@ describe('설정 화면 · 홈 카드', () => {
     fireEvent.click(toggle)
     await waitFor(() => expect(updates()).toHaveLength(1))
     expect(updates()[0]).toEqual({
-      homeCards: [
-        { id: 'reviewRequests', enabled: true },
-        { id: 'unreadNotifications', enabled: true },
-        { id: 'failedCi', enabled: false },
-        { id: 'unanswered', enabled: true },
-        { id: 'starChanges', enabled: true }
-      ]
+      homeCards: ALL.map((id) => ({ id, enabled: id !== 'failedCi' }))
     })
 
-    fireEvent.click(screen.getByTestId('settings-card-starChanges-up'))
+    fireEvent.click(screen.getByTestId('settings-card-pinnedRepos-toggle'))
     await waitFor(() => expect(updates()).toHaveLength(2))
-    expect(updates()[1]?.homeCards?.map((c) => c.id)).toEqual([
-      'reviewRequests',
-      'unreadNotifications',
-      'failedCi',
+    expect(updates()[1]?.homeCards?.find((c) => c.id === 'pinnedRepos')?.enabled).toBe(false)
+
+    fireEvent.click(screen.getByTestId('settings-card-starChanges-up'))
+    await waitFor(() => expect(updates()).toHaveLength(3))
+    expect(updates()[2]?.homeCards?.map((c) => c.id)).toEqual([
+      ...ALL.slice(0, 8),
       'starChanges',
       'unanswered'
     ])
-    expect(updates()[1]?.homeCards?.find((c) => c.id === 'failedCi')?.enabled).toBe(false)
+    expect(updates()[2]?.homeCards?.find((c) => c.id === 'failedCi')?.enabled).toBe(false)
+    expect(updates()[2]?.homeCards).toHaveLength(10)
   })
 })
 
