@@ -48,7 +48,7 @@ GitHub API 호출, 토큰, 내장 git 실행, SQLite, 파일 시스템, 외부 �
 - `query:*` 처리기는 캐시만 읽고 GitHub에 요청하지 않는다.
 - 네트워크 응답을 캐시에 쓰는 코드는 요청 시작 때 `db/cleanup.ts`의 `currentDataGuard()`로 계정 데이터 세대를 잡고, 쓰기 트랜잭션 바로 앞에서 확인한다. 그사이 로그아웃(`clearFetchedData`)·계정 전환(`clearAccountData`)으로 세대가 바뀌었으면 아무것도 쓰지 않는다(`StaleRefreshError`, 오류로 기록하지 않음).
 - 쓰기 동작은 `online` + 로그인일 때만 하고, 실패하면 캐시를 이전 값으로 되돌린다. 대기열을 두지 않는다. 막힘 판단은 `actions.service.ts`의 `resolveActionBlockReason` 하나를 쓰고(이슈 쓰기도 같은 함수), 같은 대상 직렬화는 `createKeyedSerializer`로 한다. 이슈 쓰기의 키는 이슈 하나(`issue:<저장소 ID>#<번호>`, 반응 대상이 코멘트여도 같은 키), 새 이슈는 `create:<저장소 ID>`다.
-- 이슈 쓰기의 권한 판정은 캐시된 이슈 상세(`viewerCan*`, `viewerCanComment`)로만 한다. 상세가 없으면 요청하지 않고 `not_cached`다. 응답을 받은 뒤 캐시를 쓰는 코멘트·새 이슈는 요청 시작 때 `currentDataGuard()`를 잡는다.
+- 이슈 쓰기의 권한 판정은 캐시된 이슈 상세(`viewerCan*`, `viewerCanComment`)로만 한다. 상세가 없으면 요청하지 않고 `not_cached`다. 응답을 받은 뒤 캐시를 쓰는 코멘트·새 이슈는 요청 시작 때 `currentDataGuard()`를 잡는다. 캐시를 먼저 바꾸는 반응·닫기·다시 열기도 바꾸기 전에 세대를 잡고, 실패해서 되돌릴 때(`restoreIssueDetail`) 세대가 그대로일 때만 쓴다.
 - 로그아웃(세션 `signed_out`)과 계정 전환(`onAccountDataCleared`) 때 동기화 엔진은 보고 있던 저장소와 이슈를 잊는다. 보고 있는 대상을 새로 더하면 이 두 경로에서 함께 지운다.
 - "내 이슈" 검색 목록은 `replaceIssues`가 `cache_created_issues`의 유예 기록을 합쳐 쓴다. 검색 목록을 다른 함수로 직접 바꾸면 앱에서 만든 이슈가 검색 반영 전에 사라진다. 앱에서 이슈를 닫으면 `forgetCreatedIssue`를 부른다.
 
