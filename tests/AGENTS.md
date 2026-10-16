@@ -116,6 +116,7 @@ test.use({
 
 - 화면을 바꾸면 그 흐름의 화면 테스트를 더하거나 고친다. 쓰기 동작은 성공, `failNextWrites`로 실패 → 되돌림과 오류 표시, `goOffline`으로 버튼 비활성화까지 본다.
 - 로그인 관련은 토큰 로그인, 잘못된 토큰, 세분화 토큰, 기기 인증 승인·거부, 401 → 만료 배너, 로그아웃을 이미 다룬다. 계정 전환은 아직 화면 테스트가 없다. 오류 보고 대화상자는 `crash.e2e.ts`가 다룬다.
+- GitHub HTML을 보이는 화면을 바꾸면 악성 예시(`MALICIOUS_BODY_MARKERS`)가 들어간 이슈를 열고, 표식 전역 변수가 생기지 않았는지(`page.evaluate`로 `undefined`) 확인한다. `issues.e2e.ts`의 101#45 상세 테스트가 본보기다. 본문 링크를 누르면 앱 창 주소는 그대로이고 `openedExternalUrls`에만 하나 늘어야 한다.
 - 클론 테스트의 주소 복사는 실제 시스템 클립보드를 덮어쓴다.
 - 리눅스에서는 `xvfb-run -a pnpm test:e2e`. CI의 화면 테스트는 맥·리눅스에서만 돈다.
 - 가짜 서버 자체를 바꾸면 `tests/unit/fake-github*.test.ts`가 통과하는지 본다.

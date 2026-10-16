@@ -14,10 +14,10 @@ github_desktop/
 ├── CONTRIBUTING.md                   ← 기여자용 안내(명령, 번역, IPC 등록, 커밋 형식)
 ├── docs/
 │   ├── architecture.md               ← 프로세스·구성 요소·의존 방향, 시작 순서, 대표 흐름, 경계
-│   ├── business-rules.md             ← 업무 규칙: 세션, 동기화, 한도, 카드 계산, 클론·연결, 오류 보고
-│   ├── security.md                   ← 토큰 수명, 인증 흐름과 실패 경로, 권한 표, 테스트 모드, 기록
+│   ├── business-rules.md             ← 업무 규칙: 세션, 동기화, 한도, Home 영역·카드 계산, Issues·이슈 쓰기, 클론·연결, 오류 보고
+│   ├── security.md                   ← 토큰 수명, 인증 흐름과 실패 경로, 권한 표·GitHub 쓰기, HTML 정리, 테스트 모드, 기록
 │   ├── standards.md                  ← 검증 관문, 모듈 경계, 자동 수집 규칙, 마이그레이션·번역 규칙
-│   ├── engineering-notes.md          ← 함정(화면 갱신, 초기화 순서, 테스트 모드, 패키징, 화면 테스트 격리)
+│   ├── engineering-notes.md          ← 함정(화면 갱신, 초기화 순서, 테스트 모드, 패키징, 검색 지연, HTML 정리, iCloud)
 │   ├── operations.md                 ← 설정·명령·환경 변수·포장·CI·릴리스 절차
 │   ├── contracts.md                  ← 메인 ↔ 화면 IPC 채널 목록, 빌드 입력
 │   ├── oauth-app.md                  ← OAuth App 등록 안내(사람용)
@@ -27,7 +27,7 @@ github_desktop/
 │       ├── findings.md               ← 풀리지 않은 문제와 못 푸는 이유
 │       └── decisions/
 │           ├── index.md              ← 결정 기록 목록
-│           └── 0001~0009-*.md        ← 개별 결정(맥락·선택지·결과)
+│           └── 0001~0013-*.md        ← 개별 결정(맥락·선택지·결과)
 ├── src/
 │   ├── main/
 │   │   └── AGENTS.md                 ← 메인 프로세스: GitHub·토큰·git·DB·동기화·IPC 처리기
@@ -57,18 +57,21 @@ github_desktop/
 
 작업 종류별:
 
-| 하려는 일                                  | 먼저 읽을 곳                                                                                                                                          |
-| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 로그인·토큰·세션, git 인증, 오류 보고 내용 | `docs/security.md`의 토큰·인증 흐름·오류 보고 절, `src/main/AGENTS.md`의 "반드시 지킬 것"                                                             |
-| 로그아웃·계정 전환에 걸리는 데이터 추가    | `docs/business-rules.md`의 세션 상태 전이 표, `docs/standards.md`의 DB 마이그레이션 절(`CACHE_TABLES`, `clearAccountData`)과 캐시 쓰기 세대 확인 규칙 |
-| 캐시 테이블·마이그레이션 추가              | `docs/standards.md`의 DB 마이그레이션 절(새 ID 접두사, 배포된 마이그레이션 수정 금지, `cache_` 이름과 정리 등록)                                      |
-| 새 화면·화면 요소                          | `src/renderer/AGENTS.md`(route.tsx·slots.tsx·locales, `query:`가 아닌 채널 갱신), `docs/engineering-notes.md`의 "화면 데이터가 갱신되지 않는다"       |
-| 새 IPC 채널                                | `docs/contracts.md`의 공통 규칙, `src/shared/AGENTS.md`의 채널 선언 예시                                                                              |
-| GitHub 요청 추가·변경                      | `docs/business-rules.md`의 자동 갱신·요청 한도 보호 절, `tests/AGENTS.md`의 가짜 서버(operationName 등록)                                             |
-| 클론·로컬 연결·폴더를 건드리는 코드        | `docs/business-rules.md`의 클론·로컬 연결 절, `docs/security.md`의 폴더 절                                                                            |
-| 동기화 주기·상세 추적                      | `docs/business-rules.md`의 자동 갱신 절, `docs/tracking/decisions/0002-detail-only-for-tracked-repos.md`                                              |
-| 포장·서명·릴리스                           | `docs/operations.md`, `docs/engineering-notes.md`의 패키징 항목들                                                                                     |
-| 무엇이 끝났고 무엇이 남았는지              | `docs/tracking/status.md`, `docs/tracking/findings.md`                                                                                                |
+| 하려는 일                                     | 먼저 읽을 곳                                                                                                                                               |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 로그인·토큰·세션, git 인증, 오류 보고 내용    | `docs/security.md`의 토큰·인증 흐름·오류 보고 절, `src/main/AGENTS.md`의 "반드시 지킬 것"                                                                  |
+| 로그아웃·계정 전환에 걸리는 데이터 추가       | `docs/business-rules.md`의 세션 상태 전이 표, `docs/standards.md`의 DB 마이그레이션 절(`CACHE_TABLES`, `clearAccountData`)과 캐시 쓰기 세대 확인 규칙      |
+| 캐시 테이블·마이그레이션 추가                 | `docs/standards.md`의 DB 마이그레이션 절(새 ID 접두사, 배포된 마이그레이션 수정 금지, `cache_` 이름과 정리 등록)                                           |
+| 새 화면·화면 요소                             | `src/renderer/AGENTS.md`(route.tsx·slots.tsx·locales, `query:`가 아닌 채널 갱신), `docs/engineering-notes.md`의 "화면 데이터가 갱신되지 않는다"            |
+| 새 IPC 채널                                   | `docs/contracts.md`의 공통 규칙, `src/shared/AGENTS.md`의 채널 선언 예시                                                                                   |
+| GitHub 요청 추가·변경                         | `docs/business-rules.md`의 자동 갱신·요청 한도 보호 절, `docs/standards.md`의 입출력 계약 패턴(operationName·mutation 등록), `tests/AGENTS.md`의 가짜 서버 |
+| 이슈 본문·코멘트 등 GitHub HTML을 그리는 화면 | `docs/security.md`의 "GitHub HTML 표시" 절, `docs/standards.md`의 "GitHub HTML 표시" 절, `docs/engineering-notes.md`의 DOMPurify 훅 항목                   |
+| 이슈 쓰기 동작·이슈 목록 갱신                 | `docs/business-rules.md`의 "Issues" 절(거절 이유, 만든 이슈의 유예), `src/main/AGENTS.md`의 "반드시 지킬 것"                                               |
+| Home 영역 추가·순서·설정                      | `docs/business-rules.md`의 "Home" 절(영역 목록 풀기), `docs/tracking/decisions/0011-home-merges-activity-and-todo.md`                                      |
+| 클론·로컬 연결·폴더를 건드리는 코드           | `docs/business-rules.md`의 클론·로컬 연결 절, `docs/security.md`의 폴더 절                                                                                 |
+| 동기화 주기·상세 추적                         | `docs/business-rules.md`의 자동 갱신 절, `docs/tracking/decisions/0002-detail-only-for-tracked-repos.md`                                                   |
+| 포장·서명·릴리스                              | `docs/operations.md`, `docs/engineering-notes.md`의 패키징 항목들                                                                                          |
+| 무엇이 끝났고 무엇이 남았는지                 | `docs/tracking/status.md`, `docs/tracking/findings.md`                                                                                                     |
 
 ## 문제를 발견했을 때
 
@@ -79,5 +82,6 @@ github_desktop/
 - 다른 계정으로 로그인한 뒤 이전 계정의 받아온 정보·고정·로컬 연결이 보이는 경로
 - 테스트용 덮어쓰기(주소 바꾸기, 토큰 주입 등)가 배포 빌드에서 켜질 수 있는 경로. 테스트 빌드(`out/`)가 설치 파일로 포장되는 경우 포함
 - GitHub 이외의 호스트로 데이터가 나가는 경로
+- 정리하지 않은 GitHub HTML(이슈 본문·코멘트·미리보기)이 화면 DOM에 들어가거나, 본문 안 링크가 앱 창을 다른 페이지로 옮길 수 있는 경로
 
 그 밖의 문제(버그, 확인되지 않은 플랫폼 동작, 비용·설계 문제)는 그 자리에서 풀 수 없으면 `docs/tracking/findings.md`에 현상·영향·못 푸는 이유·방법으로 기록한다.

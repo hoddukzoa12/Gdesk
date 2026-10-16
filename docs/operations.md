@@ -43,6 +43,7 @@ pnpm dev              # 개발 실행. 로그인 화면에서 브라우저 로�
 - `pnpm test:e2e` 뒤 `out/`은 테스트 빌드다. 그 상태로 `electron-builder`를 직접 부르면 테스트 빌드가 포장된다. 포장은 `pnpm dist`/`pnpm dist:dir`로만 한다(먼저 다시 빌드한다).
 - 애플 실리콘에서 `pnpm dist`가 도는 동안에는 테스트·개발 실행을 하지 않는다. Intel 앱을 만드는 동안 `node_modules/dugite/git`이 x64 git으로 바뀌어 있다.
 - 화면 테스트는 직렬(`workers: 1`)이고 테스트마다 앱을 새로 띄운다. CI에서는 실패 시 한 번 다시 돈다.
+- `release/`는 포장 결과일 뿐이라 언제 지워도 된다(`rm -rf release`). 프로젝트가 iCloud로 동기화되는 폴더에 있으면 iCloud가 그 안에 " 2"가 붙은 중복 파일을 만들고, `pnpm exec prettier --check .`가 이를 훑다 `ETIMEDOUT`으로 실패한다. 그때도 `release/`를 지우면 된다.
 
 ## 로컬에서 서명 없이 포장
 
