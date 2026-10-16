@@ -63,15 +63,17 @@ pnpm dist         # 지금 OS 용 설치 파일 만들기 (release/)
 ## 빌드 설정 / Build configuration
 
 모두 **빌드할 때** 환경 변수로 넣는다. 비밀 키(client secret)는 어디에도 넣지 않는다.
+OAuth 공개 client ID 는 비밀이 아니어서 기본값이 코드에 들어 있고, 환경 변수가 있으면 그 값이 덮어쓴다.
 
 | 환경 변수                | 뜻                                                                                      | 비어 있으면                                                                             |
 | ------------------------ | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `GDESK_GITHUB_CLIENT_ID` | GitHub OAuth App 의 공개 client ID. 브라우저 코드 로그인(Device Flow)에 쓴다.           | 브라우저 로그인을 숨기고 토큰 입력만 제공                                               |
+| `GDESK_GITHUB_CLIENT_ID` | GitHub OAuth App 의 공개 client ID. 브라우저 코드 로그인(Device Flow)에 쓴다.           | 없으면 기본값(Gdesk OAuth App). 빈 값이면 브라우저 로그인을 숨기고 토큰 입력만 제공     |
 | `GDESK_REPO`             | Gdesk 저장소 `소유자/이름`. 업데이트 확인과 오류 보고 이슈에 쓴다.                      | 업데이트 확인 안 함(`unavailable`). 오류 보고의 "보내기"는 이슈 열기 대신 클립보드 복사 |
 | `GDESK_MAC_SIGNED`       | `1` 이면 서명된 맥 빌드로 보고 자동 업데이트를 켠다. CI 가 인증서가 있을 때만 설정한다. | 맥은 "새 버전 있음" 알림만                                                              |
 
 ```bash
-GDESK_GITHUB_CLIENT_ID=Iv1.xxxxxxxx GDESK_REPO=owner/gdesk pnpm dist
+GDESK_REPO=owner/gdesk pnpm dist                                        # 기본 client ID
+GDESK_GITHUB_CLIENT_ID=Ov23lixxxxxxxx GDESK_REPO=owner/gdesk pnpm dist  # 다른 OAuth App
 ```
 
 - OAuth App 등록 방법: [docs/oauth-app.md](docs/oauth-app.md)

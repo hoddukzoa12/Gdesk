@@ -44,7 +44,7 @@ github_desktop/
 ## 절대 규칙
 
 1. **토큰은 메인 프로세스 밖으로 나가지 않는다.** 메모리(로그인 서비스)와 OS 보안 저장소(리눅스 키링이 없으면 사용자가 동의한 0600 파일)에만 둔다. IPC 응답·이벤트, 로그, 오류 문구, 오류 보고, git 인자, 원격 주소, `.git/config`, 클론 폴더 어디에도 나타나면 안 된다.
-2. **통신 상대는 GitHub뿐이다.** api.github.com, github.com(기기 인증·git), GitHub Releases(업데이트) 말고는 어떤 서버와도 통신하지 않는다. 사용 통계·원격 오류 수집을 넣지 않는다. OAuth client secret은 코드·빌드·저장소 어디에도 넣지 않는다.
+2. **통신 상대는 GitHub뿐이다.** api.github.com, github.com(기기 인증·git), GitHub Releases(업데이트) 말고는 어떤 서버와도 통신하지 않는다. 사용 통계·원격 오류 수집을 넣지 않는다. OAuth client secret은 코드·빌드·저장소 어디에도 넣지 않는다(공개 client ID는 비밀이 아니어서 기본값이 `build/client-id.ts`에 있고, `GDESK_GITHUB_CLIENT_ID`로 덮어쓴다).
 3. **사용자 폴더를 지우지 않는다.** 앱이 지우는 폴더는 클론이 실패·취소됐을 때 그 클론이 새로 만든 대상 폴더 하나뿐이다(원래 있던 빈 폴더에 클론했는데 `.git/config`에 토큰이 남았으면 그 클론이 만든 `.git`만 지운다). 연결 해제·로그아웃·계정 전환은 DB 행만 바꾼다.
 4. **테스트용 덮어쓰기는 테스트 빌드 + 테스트 모드에서만.** API 주소 바꾸기, 토큰 주입, 사용자 데이터 폴더 바꾸기 등은 빌드 상수 `__GDESK_TEST_BUILD__`와 실행 시 `GDESK_TEST_MODE=1`이 모두 있어야 켜진다. 화면 테스트는 가짜 GitHub 서버에만 붙는다.
 5. **문구는 en·ko 함께, 검증은 모두 통과.** 사용자에게 보이는 문구는 `src/renderer/locales/{en,ko}/`에 함께 넣는다. 변경을 마치기 전에 `pnpm typecheck && pnpm lint && pnpm test`가 통과해야 하고, 화면을 바꿨다면 `pnpm test:e2e`도 통과해야 한다.
