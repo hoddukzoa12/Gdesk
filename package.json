@@ -26,6 +26,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.104.3",
     "clsx": "^2.1.1",
+    "dompurify": "^3.4.17",
     "dugite": "^3.2.3",
     "electron-updater": "^6.8.9",
     "i18next": "^26.4.5",
