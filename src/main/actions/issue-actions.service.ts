@@ -384,7 +384,10 @@ export function createIssueActionsService(
     })
   }
 
-  /** 상세 캐시를 먼저 바꾸고(apply) notify → 요청 → 실패면 원문으로 되돌리고 notify */
+  /**
+   * 상세 캐시를 먼저 바꾸고(apply) notify → 요청 → 실패면 원문으로 되돌리고 notify.
+   * 요청 사이에 로그아웃·계정 전환으로 데이터 세대가 바뀌었으면 되돌리지 않는다(이전 상세를 다시 쓰지 않게).
+   */
   async function optimistic(
     db: DatabaseSync,
     ref: IssueRef,
@@ -392,16 +395,14 @@ export function createIssueActionsService(
     request: () => Promise<unknown>
   ): Promise<IssueActionResult> {
     const keys = issueActionKeys(ref)
+    const isCurrent = dataGuard()
     const snapshot: IssueDetailSnapshot | null = patchIssueDetail(db, ref.repoId, ref.number, apply)
     if (snapshot !== null) notify(keys)
     try {
       await request()
       return { ok: true }
     } catch (error) {
-      if (snapshot !== null) {
-        restoreIssueDetail(db, snapshot)
-        notify(keys)
-      }
+      if (snapshot !== null && restoreIssueDetail(db, snapshot, isCurrent)) notify(keys)
       return failed(safeMessage(error))
     }
   }

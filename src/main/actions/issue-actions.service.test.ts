@@ -301,6 +301,24 @@ describe('이슈 쓰기 동작 서비스', () => {
       expect(detail()).toEqual(before)
     })
 
+    it('요청 중 로그아웃·계정 전환 뒤 실패하면 이전 상세를 다시 쓰지 않는다', async () => {
+      const { client } = fakeClient(() => {
+        // 로그아웃 뒤 다시 받은 상세(다른 계정 데이터)
+        current = false
+        saveIssueDetail(db, issueDetailRecord(1, 5, { title: '다른 계정' }), NOW)
+        return json({ message: 'boom' }, 502)
+      })
+      const result = await make(client).react({
+        subjectId: 'I_1_5',
+        issueRef: REF,
+        content: 'THUMBS_UP',
+        add: true
+      })
+      expect(result).toMatchObject({ ok: false, reason: 'failed' })
+      expect(detail()?.title).toBe('다른 계정')
+      expect(notify).toHaveBeenCalledTimes(1)
+    })
+
     it('viewerCanReact 가 false 면 not_allowed(요청·캐시 변경 없음)', async () => {
       saveIssueDetail(db, issueDetailRecord(1, 5, { viewerCanReact: false }), NOW)
       const before = detail()
@@ -487,6 +505,20 @@ describe('이슈 쓰기 동작 서비스', () => {
       expect(raw()).toEqual(before)
       expect(notify).toHaveBeenCalledTimes(2)
       expect(refreshIssueLists).not.toHaveBeenCalled()
+    })
+
+    it('요청 중 로그아웃·계정 전환 뒤 닫기가 실패하면 이전 상세를 다시 쓰지 않는다', async () => {
+      const { client } = fakeClient(() => {
+        current = false
+        saveIssueDetail(db, issueDetailRecord(1, 5, { title: '다른 계정' }), NOW)
+        return json({ message: 'x' }, 500)
+      })
+      expect(await make(client).setState({ issueRef: REF, state: 'closed' })).toMatchObject({
+        ok: false,
+        reason: 'failed'
+      })
+      expect(detail()).toMatchObject({ title: '다른 계정', state: 'open' })
+      expect(notify).toHaveBeenCalledTimes(1)
     })
 
     it('viewerCanClose·viewerCanReopen 이 false 면 not_allowed', async () => {

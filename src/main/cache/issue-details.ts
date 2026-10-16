@@ -125,11 +125,19 @@ export function patchIssueDetail(
 
 /**
  * patchIssueDetail 전 값으로 되돌린다. 그사이 행이 지워졌으면(로그아웃·계정 전환·개수 제한) 다시 만들지 않는다.
+ * isCurrent 는 patch 전에 잡은 계정 데이터 세대(currentDataGuard())다. 세대가 바뀌었으면(그사이 로그아웃·계정 전환 뒤
+ * 다시 받은 상세가 있을 수 있다) 아무것도 쓰지 않는다. 되돌렸으면 true.
  */
-export function restoreIssueDetail(db: DatabaseSync, snapshot: IssueDetailSnapshot): void {
+export function restoreIssueDetail(
+  db: DatabaseSync,
+  snapshot: IssueDetailSnapshot,
+  isCurrent: () => boolean
+): boolean {
+  if (!isCurrent()) return false
   db.prepare('UPDATE cache_issue_details SET data = ? WHERE repo_id = ? AND number = ?').run(
     snapshot.data,
     snapshot.repoId,
     snapshot.number
   )
+  return true
 }

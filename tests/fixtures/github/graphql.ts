@@ -569,6 +569,11 @@ function renderComment(
   }
 }
 
+/** GraphQL 연결의 last: n. 끝에서부터 n 개를 원래 순서대로 */
+function lastItems<T>(items: readonly T[], count: number): T[] {
+  return count <= 0 ? [] : items.slice(Math.max(0, items.length - count))
+}
+
 function renderTimeline(ctx: GraphQLContext, item: FixtureItem): RawIssueTimelineItem[] {
   return (item.timeline ?? []).map((e) => {
     if (e.type === 'ReferencedEvent') {
@@ -660,7 +665,8 @@ function issueDetail(ctx: GraphQLContext, vars: Vars): GraphQLBody {
           .slice(0, closingCount)
           .map((pr) => linkedPullRequest(ctx, pr))
       },
-      timelineItems: { nodes: renderTimeline(ctx, item).slice(0, timelineCount) }
+      // 앱은 last: $timelineCount 로 받는다: 끝(최근)에서부터 그 수만큼, 순서는 오래된 것 → 최근
+      timelineItems: { nodes: lastItems(renderTimeline(ctx, item), timelineCount) }
     }
   }
   return { data: { repository } }

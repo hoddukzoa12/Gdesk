@@ -133,7 +133,7 @@ export function isIssueCloseReason(value: unknown): value is IssueCloseReason {
   return typeof value === 'string' && (ISSUE_CLOSE_REASONS as readonly string[]).includes(value)
 }
 
-/** 이슈 상세 캐시 변경 알림 키. 동기화 엔진의 이슈 상세 키와 같은 모양이다 */
+/** 이슈 상세 캐시 변경 알림 키. 동기화 엔진(이슈 상세 갱신)과 이슈 쓰기가 함께 쓴다 */
 export function issueDetailKey(ref: IssueRef): string {
   return `issue:${ref.repoId}#${ref.number}`
 }

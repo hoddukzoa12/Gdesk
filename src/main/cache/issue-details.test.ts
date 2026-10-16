@@ -123,7 +123,7 @@ describe('이슈 상세 부분 변경(쓰기 동작)', () => {
     const snapshot = patchIssueDetail(db, 1, 1, (r) => ({ ...r, state: 'closed' }))
     expect(snapshot).not.toBeNull()
     expect(getIssueDetail(db, 1, 1)).toMatchObject({ state: 'closed', fetchedAt: NOW })
-    restoreIssueDetail(db, snapshot!)
+    expect(restoreIssueDetail(db, snapshot!, () => true)).toBe(true)
     expect(raw()).toEqual(before)
   })
 
@@ -139,8 +139,18 @@ describe('이슈 상세 부분 변경(쓰기 동작)', () => {
     saveIssueDetail(db, detail(1, 1), NOW)
     const snapshot = patchIssueDetail(db, 1, 1, (r) => ({ ...r, title: 'x' }))
     db.exec('DELETE FROM cache_issue_details')
-    restoreIssueDetail(db, snapshot!)
+    restoreIssueDetail(db, snapshot!, () => true)
     expect(raw()).toEqual([])
+  })
+
+  it('데이터 세대가 바뀌었으면(로그아웃·계정 전환) 되돌리지 않는다', () => {
+    saveIssueDetail(db, detail(1, 1), NOW)
+    const snapshot = patchIssueDetail(db, 1, 1, (r) => ({ ...r, title: 'x' }))
+    // 다른 계정으로 다시 받은 상세
+    saveIssueDetail(db, detail(1, 1, { title: 'other account' }), NOW)
+    const after = raw()
+    expect(restoreIssueDetail(db, snapshot!, () => false)).toBe(false)
+    expect(raw()).toEqual(after)
   })
 })
 

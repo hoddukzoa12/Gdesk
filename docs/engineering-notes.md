@@ -176,4 +176,5 @@
 4. 문구는 `en`·`ko` 둘 다. `pnpm test`의 번역 키 검사로 확인한다.
 5. GitHub 요청을 새로 하면 가짜 GitHub 서버(`tests/fixtures/github`)에 응답을 더하고, GraphQL이면 `OPERATIONS`에 이름을 등록한다. `server.requestKeys()`로 실제로 그 요청이 갔는지 본다.
 6. 쓰기면 막힘(`getAvailability`)을 확인하고, 실패 시 되돌림을 `server.failNextWrites()`로 화면 테스트한다.
-7. `pnpm typecheck && pnpm lint && pnpm test && pnpm exec prettier --check . && pnpm test:e2e`.
+7. GraphQL mutation은 가짜 서버의 `MUTATIONS`(`tests/fixtures/github/graphql.ts`)에 처리기를 등록한다. 응답만 받는 POST(`POST /markdown` 같은)는 `READ_ONLY_POSTS`(`tests/fixtures/github/server.ts`)에 더한다. 빠지면 `failNextWrites`가 쓰기 수를 잘못 센다(mutation을 쓰기로 세지 않거나, 읽기 POST를 쓰기로 세어 실패시킨다).
+8. `pnpm typecheck && pnpm lint && pnpm test && pnpm exec prettier --check . && pnpm test:e2e`.

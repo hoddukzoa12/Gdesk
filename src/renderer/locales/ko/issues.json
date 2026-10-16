@@ -93,7 +93,7 @@
   },
   "linked": {
     "title": "연결된 PR·커밋",
-    "pullRequests": "Pull requests",
+    "pullRequests": "PR",
     "commits": "커밋",
     "empty": "연결된 PR·커밋이 없습니다",
     "noPullRequests": "연결된 PR이 없습니다.",

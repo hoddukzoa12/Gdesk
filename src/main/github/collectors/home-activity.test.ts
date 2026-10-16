@@ -119,6 +119,7 @@ describe('홈 활동 수집(매핑)', () => {
         sha: 'a1',
         message: 'fix: a1',
         authorAvatarUrl: 'https://avatars/me',
+        authorLogin: 'me',
         authorDate: '2026-10-15T10:00:00Z',
         url: 'https://github.com/me/app/commit/a1'
       },
@@ -127,9 +128,28 @@ describe('홈 활동 수집(매핑)', () => {
         sha: 'b2',
         message: 'fix: b2',
         authorAvatarUrl: null,
+        // GitHub 계정과 연결되지 않은 커밋은 커밋의 작성자 이름
+        authorLogin: 'Me',
         authorDate: '2026-10-15T10:00:00Z',
         url: 'https://github.com/me/app/commit/b2'
       }
+    ])
+  })
+
+  it('커밋 검색: html_url 이 없거나 비면 github.com 커밋 주소로 만든다(빈 주소를 두지 않는다)', async () => {
+    const { client } = fakeGitHub({
+      rest: {
+        'GET /search/commits': () =>
+          json({
+            total_count: 2,
+            items: [commitItem('d4', { html_url: undefined }), commitItem('e5', { html_url: '' })]
+          })
+      }
+    })
+    const items = await collectRecentCommits({ client, login: 'me' })
+    expect(items.map((c) => c.url)).toEqual([
+      'https://github.com/me/app/commit/d4',
+      'https://github.com/me/app/commit/e5'
     ])
   })
 })

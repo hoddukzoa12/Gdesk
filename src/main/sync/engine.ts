@@ -1,4 +1,5 @@
 import type { ConnectionStatus } from '@shared/domain/connection'
+import { issueDetailKey } from '@shared/domain/issue-actions'
 import { assertIssueRef } from '@shared/domain/issue-detail'
 import type { IssueRef } from '@shared/domain/issue-detail'
 import type { OrgRestrictionNotice } from '@shared/domain/org'
@@ -152,10 +153,6 @@ function assertRepoId(repoId: unknown): asserts repoId is number {
   if (typeof repoId !== 'number' || !Number.isSafeInteger(repoId) || repoId <= 0) {
     throw new Error(`Invalid repository id: ${String(repoId)}`)
   }
-}
-
-function issueKey(ref: IssueRef): string {
-  return `issue:${ref.repoId}#${ref.number}`
 }
 
 export class SyncEngine {
@@ -609,9 +606,9 @@ export class SyncEngine {
 
   private runIssueDetail(ref: IssueRef): Promise<boolean> {
     const { repoId, number } = ref
-    return this.execute(issueKey(ref), async () => {
+    return this.execute(issueDetailKey(ref), async () => {
       await this.options.refresh.issueDetail(repoId, number)
-      return ['issues', issueKey(ref)]
+      return ['issues', issueDetailKey(ref)]
     })
   }
 

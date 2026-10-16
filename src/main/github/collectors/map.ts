@@ -250,7 +250,7 @@ export function mapContributions(
   return { totalCommitContributions: collection.totalCommitContributions ?? 0, days }
 }
 
-/** 커밋 검색 항목 → 최근 커밋. sha·저장소가 없으면 null. 메시지는 첫 줄만 */
+/** 커밋 검색 항목 → 최근 커밋. sha·저장소가 없으면 null. 메시지는 첫 줄만. 주소가 없으면 github.com 커밋 주소 */
 export function mapCommitSearchItem(
   raw: RawCommitSearchItem | null | undefined
 ): RecentCommit | null {
@@ -261,8 +261,9 @@ export function mapCommitSearchItem(
     sha: raw.sha,
     message: (raw.commit?.message ?? '').split(/\r?\n/, 1)[0] ?? '',
     authorAvatarUrl: raw.author?.avatar_url ?? null,
+    authorLogin: raw.author?.login || raw.commit?.author?.name || null,
     authorDate: raw.commit?.author?.date ?? null,
-    url: raw.html_url ?? ''
+    url: raw.html_url || `https://github.com/${repoFullName}/commit/${raw.sha}`
   }
 }
 
@@ -319,6 +320,8 @@ function mapLinkedPullRequest(
 /**
  * 연결된 PR: 닫는 PR(closedByPullRequestsReferences) → 타임라인 순서. 같은 PR 은 한 번만(처음 자리).
  * 사이드바 연결(ConnectedEvent)은 뒤의 DisconnectedEvent 로 풀리면 뺀다. 교차 참조·닫는 PR 은 남는다.
+ * 타임라인은 최근 항목만(last) 오지만 그 안에서는 시간 순서라 연결 → 해제 판단이 그대로 맞는다.
+ * 받은 범위 밖의 연결에 대한 해제는 아무것도 빼지 않는다.
  */
 function mapLinkedPullRequests(
   closing: readonly (RawLinkedPullRequest | null)[] | null | undefined,

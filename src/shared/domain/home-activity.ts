@@ -88,6 +88,8 @@ export interface RecentCommit {
   /** 메시지 첫 줄 */
   message: string
   authorAvatarUrl: string | null
+  /** 작성자 로그인. GitHub 계정과 연결되지 않은 커밋은 커밋의 작성자 이름, 둘 다 없으면 null */
+  authorLogin: string | null
   /** 작성 시각(ISO 8601) */
   authorDate: string | null
   /** GitHub 커밋 페이지 */
