@@ -226,6 +226,7 @@ describe('화면 조회', () => {
         sha: 'a1',
         message: 'fix',
         authorAvatarUrl: null,
+        authorLogin: null,
         authorDate: '2026-10-15T00:00:00Z',
         url: 'https://github.com/me/app/commit/a1'
       },
@@ -234,6 +235,7 @@ describe('화면 조회', () => {
         sha: 'b2',
         message: 'feat',
         authorAvatarUrl: 'https://avatars/me',
+        authorLogin: 'me',
         authorDate: '2026-10-14T00:00:00Z',
         url: 'https://github.com/x/lib/commit/b2'
       }
@@ -242,11 +244,13 @@ describe('화면 조회', () => {
     const recent = queryHome(db, ctx).recentCommits
     expect(recent.fetched).toBe(true)
     expect(recent.items.map((c) => c.sha)).toEqual(['a1', 'b2'])
+    expect(recent.items[0]?.authorLogin).toBeNull()
     expect(recent.items[1]).toEqual({
       repoFullName: 'x/lib',
       sha: 'b2',
       message: 'feat',
       authorAvatarUrl: 'https://avatars/me',
+      authorLogin: 'me',
       authorDate: '2026-10-14T00:00:00Z',
       url: 'https://github.com/x/lib/commit/b2'
     })

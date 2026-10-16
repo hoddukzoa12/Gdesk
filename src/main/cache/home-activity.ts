@@ -62,11 +62,21 @@ export function replaceRecentCommits(db: DatabaseSync, items: readonly RecentCom
     db.exec('DELETE FROM cache_recent_commits')
     const insert = db.prepare(
       `INSERT INTO cache_recent_commits
-         (position, repo_full_name, sha, message, author_avatar_url, author_date, url)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+         (position, repo_full_name, sha, message,
+          author_avatar_url, author_login, author_date, url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
     items.forEach((c, i) =>
-      insert.run(i, c.repoFullName, c.sha, c.message, c.authorAvatarUrl, c.authorDate, c.url)
+      insert.run(
+        i,
+        c.repoFullName,
+        c.sha,
+        c.message,
+        c.authorAvatarUrl,
+        c.authorLogin,
+        c.authorDate,
+        c.url
+      )
     )
   })
 }
@@ -85,6 +95,7 @@ export function listRecentCommits(
       sha: str(row, 'sha'),
       message: str(row, 'message'),
       authorAvatarUrl: strOrNull(row, 'author_avatar_url'),
+      authorLogin: strOrNull(row, 'author_login'),
       authorDate: strOrNull(row, 'author_date'),
       url: str(row, 'url')
     }))

@@ -261,6 +261,7 @@ export function mapCommitSearchItem(
     sha: raw.sha,
     message: (raw.commit?.message ?? '').split(/\r?\n/, 1)[0] ?? '',
     authorAvatarUrl: raw.author?.avatar_url ?? null,
+    authorLogin: raw.author?.login || raw.commit?.author?.name || null,
     authorDate: raw.commit?.author?.date ?? null,
     url: raw.html_url || `https://github.com/${repoFullName}/commit/${raw.sha}`
   }

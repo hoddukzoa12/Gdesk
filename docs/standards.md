@@ -58,7 +58,7 @@
 
 ## DB 마이그레이션
 
-- 마이그레이션 ID는 전역에서 유일한 문자열이고 문자열 순서로 적용된다. 핵심 테이블은 `0001_core`, 캐시는 `0100_cache`·`0101_cache_list_meta`·`0102_home_activity`·`0103_issue_detail`·`0104_issue_actions`다. 새 마이그레이션은 기존 것보다 큰 접두사를 쓴다. 중복 ID는 시작 때 오류다.
+- 마이그레이션 ID는 전역에서 유일한 문자열이고 문자열 순서로 적용된다. 핵심 테이블은 `0001_core`, 캐시는 `0100_cache`·`0101_cache_list_meta`·`0102_home_activity`·`0103_issue_detail`·`0104_issue_actions`·`0105_recent_commit_author`다. 새 마이그레이션은 기존 것보다 큰 접두사를 쓴다. 중복 ID는 시작 때 오류다.
 - 이미 배포된 마이그레이션은 고치지 않는다. 바꿀 것이 있으면 새 ID로 더한다. 적용 여부는 `schema_migrations`의 ID로만 판단하므로 고친 내용은 이미 설치된 앱에 반영되지 않는다.
 - 받아온 정보를 담는 테이블은 이름을 `cache_`로 시작하고 `src/main/cache/cleaner.ts`의 `CACHE_TABLES`에 더한다. 빠지면 로그아웃·계정 전환 때 지워지지 않는다(단위 테스트가 빠진 테이블을 잡는다).
 - 계정과 무관한 데이터(설정)는 `cache_` 테이블에 넣지 않는다. 계정에 묶이지만 받아온 정보가 아닌 데이터(고정·로컬 연결 같은 것)를 새로 만들면 `src/main/db/cleanup.ts`의 `clearAccountData`에 지우기를 더한다.

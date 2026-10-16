@@ -104,6 +104,7 @@ const activity: HomeActivity = {
         sha: 'abcdef1234567890',
         message: 'Merge pull request #38 from alice-dev/quick-search\n\nbody',
         authorAvatarUrl: null,
+        authorLogin: 'alice-dev',
         authorDate: NOW,
         url: 'https://github.example/octo-maintainer/gdesk-demo/commit/abcdef1234567890'
       }
@@ -459,6 +460,10 @@ describe('HomePage', () => {
     expect(row.textContent).toContain('octo-maintainer/gdesk-demo')
     expect(row.textContent).toContain('abcdef1')
     expect(row.textContent).not.toContain('abcdef12')
+    // 아바타 대체 글자는 저장소가 아니라 작성자 이름에서
+    expect(within(row).getByRole('img', { hidden: true }).getAttribute('aria-label')).toBe(
+      'alice-dev'
+    )
     fireEvent.click(row)
     expect(invoke).toHaveBeenCalledWith('app:openExternal', {
       url: 'https://github.example/octo-maintainer/gdesk-demo/commit/abcdef1234567890'

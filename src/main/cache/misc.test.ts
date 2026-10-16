@@ -87,6 +87,7 @@ function fillEverything(db: DatabaseSync): void {
       sha: 'b'.repeat(40),
       message: 'm',
       authorAvatarUrl: null,
+      authorLogin: 'me',
       authorDate: '2026-10-15T00:00:00Z',
       url: 'u'
     }

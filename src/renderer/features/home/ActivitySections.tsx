@@ -391,7 +391,7 @@ export function RecentCommitsCard({
               icon={
                 <Avatar
                   src={commit.authorAvatarUrl}
-                  name={commit.repoFullName}
+                  name={commit.authorLogin ?? commit.repoFullName}
                   size={28}
                   aria-hidden
                 />

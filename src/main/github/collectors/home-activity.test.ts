@@ -119,6 +119,7 @@ describe('홈 활동 수집(매핑)', () => {
         sha: 'a1',
         message: 'fix: a1',
         authorAvatarUrl: 'https://avatars/me',
+        authorLogin: 'me',
         authorDate: '2026-10-15T10:00:00Z',
         url: 'https://github.com/me/app/commit/a1'
       },
@@ -127,6 +128,8 @@ describe('홈 활동 수집(매핑)', () => {
         sha: 'b2',
         message: 'fix: b2',
         authorAvatarUrl: null,
+        // GitHub 계정과 연결되지 않은 커밋은 커밋의 작성자 이름
+        authorLogin: 'Me',
         authorDate: '2026-10-15T10:00:00Z',
         url: 'https://github.com/me/app/commit/b2'
       }

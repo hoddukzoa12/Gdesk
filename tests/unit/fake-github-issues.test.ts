@@ -93,6 +93,7 @@ describe('Home 활동', () => {
       url: expect.stringContaining(`${server.webBase}/${R.demo.fullName}/commit/`)
     })
     expect(commits[0]?.authorAvatarUrl).toMatch(/^data:image/)
+    expect(commits[0]?.authorLogin).toBe(V)
     const req = server.findRequests('GET /search/commits')[0]
     expect(req?.query).toMatchObject({
       q: `author:${V}`,
