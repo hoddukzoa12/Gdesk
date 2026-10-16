@@ -1,9 +1,11 @@
 {
   "title": "이슈",
+  "subtitle": "내 저장소 전체의 이슈를 한곳에서 살피고 관리하세요.",
   "tabs": {
     "label": "이슈 목록",
     "incoming": "들어온 이슈",
     "assigned": "나에게 할당",
+    "mentioned": "멘션",
     "mine": "내가 올린 이슈"
   },
   "empty": {
@@ -15,14 +17,36 @@
       "title": "나에게 할당된 이슈가 없습니다",
       "description": "나에게 할당된 열린 이슈가 여기에 표시됩니다."
     },
+    "mentioned": {
+      "title": "나를 멘션한 이슈가 없습니다",
+      "description": "나를 멘션한 열린 이슈가 여기에 표시됩니다."
+    },
     "mine": {
       "title": "내가 올린 열린 이슈가 없습니다",
       "description": "어느 저장소든 내가 올린 열린 이슈가 여기에 표시됩니다."
     }
   },
+  "filters": {
+    "label": "필터",
+    "byRepo": "저장소",
+    "byLabel": "라벨",
+    "byAssignee": "담당자",
+    "allRepos": "모든 저장소",
+    "allLabels": "모든 라벨",
+    "allAssignees": "모든 담당자",
+    "clear": "필터 지우기",
+    "noMatch": "필터에 맞는 이슈가 없습니다"
+  },
+  "sort": {
+    "label": "정렬",
+    "newest": "최신순",
+    "updated": "최근 갱신순",
+    "comments": "댓글 많은 순"
+  },
   "row": {
     "label": "{{repo}}#{{number}} {{title}}",
     "labels": "라벨",
+    "opened": "{{time}} 열림",
     "comments_one": "댓글 {{count}}개",
     "comments_other": "댓글 {{count}}개"
   },
@@ -30,5 +54,129 @@
     "text": "전체 {{total}}개 중 {{shown}}개를 보여 줍니다.",
     "link": "GitHub에서 더 보기"
   },
-  "error": "이슈 목록을 불러오지 못했습니다."
+  "error": "이슈 목록을 불러오지 못했습니다.",
+  "state": {
+    "open": "열림",
+    "closed": "닫힘",
+    "closedWithReason": "닫힘 · {{reason}}",
+    "reason": {
+      "completed": "완료",
+      "not_planned": "계획 없음",
+      "duplicate": "중복"
+    }
+  },
+  "detail": {
+    "label": "이슈 상세",
+    "selectTitle": "이슈를 선택하세요",
+    "selectDescription": "목록에서 이슈를 고르면 여기에서 읽을 수 있습니다.",
+    "offlineTitle": "오프라인이라 불러올 수 없음",
+    "unavailableTitle": "지금은 이 이슈를 불러올 수 없음",
+    "unavailableDescription": "아직 받은 적이 없는 이슈입니다. GitHub에 연결되면 불러옵니다.",
+    "opened": "#{{number}} · {{time}} {{author}}님이 열었음",
+    "menu": "더 보기",
+    "openOnGitHub": "GitHub에서 열기",
+    "copyLink": "링크 복사",
+    "linkCopied": "링크를 복사했습니다.",
+    "copyFailed": "링크를 복사하지 못했습니다.",
+    "close": "패널 닫기",
+    "assignees": "담당자",
+    "noDescription": "설명이 없습니다.",
+    "brokenImage": "[이미지]",
+    "comments": "댓글",
+    "commentsHeading_one": "댓글 {{count}}개",
+    "commentsHeading_other": "댓글 {{count}}개",
+    "moreComments_one": "GitHub에서 나머지 보기({{count}}개)",
+    "moreComments_other": "GitHub에서 나머지 보기({{count}}개)"
+  },
+  "linked": {
+    "title": "연결된 PR·커밋",
+    "pullRequests": "Pull requests",
+    "commits": "커밋",
+    "empty": "연결된 PR·커밋이 없습니다",
+    "noPullRequests": "연결된 PR이 없습니다.",
+    "noCommits": "참조한 커밋이 없습니다.",
+    "unknownAuthor": "알 수 없는 작성자",
+    "prState": {
+      "open": "열림",
+      "merged": "병합됨",
+      "closed": "닫힘"
+    }
+  },
+  "reactions": {
+    "add": "반응 추가",
+    "chip_one": "{{reaction}}: {{count}}명",
+    "chip_other": "{{reaction}}: {{count}}명",
+    "names": {
+      "THUMBS_UP": "좋아요",
+      "THUMBS_DOWN": "싫어요",
+      "LAUGH": "웃음",
+      "HOORAY": "축하",
+      "CONFUSED": "혼란",
+      "HEART": "하트",
+      "ROCKET": "로켓",
+      "EYES": "눈"
+    }
+  },
+  "editor": {
+    "tabs": "입력 방식",
+    "write": "작성",
+    "preview": "미리보기",
+    "nothingToPreview": "미리 볼 내용이 없습니다."
+  },
+  "composer": {
+    "label": "댓글",
+    "placeholder": "댓글을 남기세요(마크다운 지원)",
+    "submit": "댓글",
+    "sending": "보내는 중…",
+    "cannotComment": "잠긴 이슈입니다. 쓰기 권한이 있는 사람만 댓글을 달 수 있습니다."
+  },
+  "actions": {
+    "close": "이슈 닫기",
+    "closeReasonLabel": "닫는 이유",
+    "closeCompleted": "완료로 닫기",
+    "closeNotPlanned": "계획 없음으로 닫기",
+    "reopen": "다시 열기"
+  },
+  "newIssue": {
+    "button": "새 이슈",
+    "title": "새 이슈",
+    "description": "내 저장소 중 하나에 이슈를 만듭니다.",
+    "repo": "저장소",
+    "repoSearch": "저장소 검색",
+    "noRepos": "저장소가 없습니다.",
+    "issuesDisabled": "이슈 기능이 꺼져 있음",
+    "selectedRepo": "{{repo}}에 만듭니다",
+    "titleLabel": "제목",
+    "titlePlaceholder": "제목(필수)",
+    "bodyLabel": "설명",
+    "bodyPlaceholder": "이슈 내용을 적으세요(마크다운 지원)",
+    "labels": "라벨",
+    "assignees": "담당자",
+    "noLabels": "이 저장소에는 라벨이 없습니다.",
+    "noAssignees": "이 저장소에서 지정할 수 있는 담당자가 없습니다.",
+    "cancel": "취소",
+    "create": "이슈 만들기",
+    "creating": "만드는 중…"
+  },
+  "blocked": {
+    "offline": "오프라인입니다. 다시 연결될 때까지 쓰기가 꺼집니다.",
+    "session_expired": "세션이 만료되었습니다. 다시 로그인해야 쓸 수 있습니다.",
+    "rate_limited": "GitHub 요청 한도에 걸렸습니다. 한도가 풀리면 다시 쓸 수 있습니다.",
+    "signed_out": "로그인해야 쓸 수 있습니다."
+  },
+  "failure": {
+    "offline": "오프라인입니다. 연결된 뒤 다시 시도하세요.",
+    "session_expired": "세션이 만료되었습니다. 다시 로그인한 뒤 시도하세요.",
+    "rate_limited": "GitHub 요청 한도에 걸렸습니다. 잠시 뒤 다시 시도하세요.",
+    "signed_out": "로그아웃 상태입니다. 로그인한 뒤 다시 시도하세요.",
+    "not_allowed": "GitHub가 이 이슈에서 이 동작을 허용하지 않습니다.",
+    "not_cached": "아직 이 이슈를 받지 못했습니다. 잠시 뒤 다시 시도하세요.",
+    "empty_body": "댓글이 비어 있습니다.",
+    "empty_title": "제목을 입력하세요.",
+    "repo_not_mine": "내 저장소에만 이슈를 만들 수 있습니다.",
+    "repo_fork": "포크 저장소에는 이슈를 만들 수 없습니다.",
+    "repo_archived": "보관된 저장소입니다.",
+    "repo_issues_disabled": "이 저장소는 이슈 기능이 꺼져 있습니다.",
+    "failed": "문제가 생겼습니다."
+  }
 }

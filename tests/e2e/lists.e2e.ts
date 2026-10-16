@@ -79,7 +79,7 @@ test('Review requests: 나·내 팀에게 요청된 PR 3개', async ({ page }) =
   )
 })
 
-test('Issues: 들어온 이슈 · 나에게 할당 · 내가 올린 이슈', async ({ page }) => {
+test('Issues: 들어온 이슈 · 나에게 할당 · 멘션 · 내가 올린 이슈', async ({ page }) => {
   await openNav(page, 'issues')
 
   await expect(issueRow(page, DEMO, 45)).toBeVisible({ timeout: 20_000 })
@@ -93,13 +93,18 @@ test('Issues: 들어온 이슈 · 나에게 할당 · 내가 올린 이슈', asy
   await expect(issueRow(page, DEMO, 44)).toBeVisible()
   expect(hashOf(page)).toBe('#/issues?tab=assigned')
 
+  await tab(page, 'mentioned').click()
+  await expect(issueRow(page, ORG, 7)).toBeVisible()
+  await expect(issueRow(page, UPSTREAM, 91)).toBeVisible()
+  expect(hashOf(page)).toBe('#/issues?tab=mentioned')
+
   await tab(page, 'mine').click()
   await expect(issueRow(page, DEMO, 43)).toBeVisible()
   await expect(issueRow(page, UPSTREAM, 90)).toBeVisible()
   expect(hashOf(page)).toBe('#/issues?tab=mine')
 })
 
-test('행을 누르면 GitHub 페이지를 브라우저로 연다', async ({ app, page, server }) => {
+test('PR 행은 GitHub 페이지를 열고, 이슈 행은 상세 패널을 연다', async ({ app, page, server }) => {
   await openNav(page, 'pulls')
   await prRow(page, DEMO, 42).getByRole('button').click()
   await expect.poll(() => openedExternalUrls(app)).toContain(`${server.webBase}/${DEMO}/pull/42`)
@@ -109,9 +114,10 @@ test('행을 누르면 GitHub 페이지를 브라우저로 연다', async ({ app
   await expect.poll(() => openedExternalUrls(app)).toContain(`${server.webBase}/${ORG}/pull/13`)
 
   await page.locator('[data-nav="issues"]').click()
-  await issueRow(page, DEMO, 45).getByRole('button').click()
-  await expect.poll(() => openedExternalUrls(app)).toContain(`${server.webBase}/${DEMO}/issues/45`)
-
-  // 앱 창은 그대로(웹 주소로 이동하지 않는다)
-  expect(hashOf(page)).toBe('#/issues')
+  const opened = (await openedExternalUrls(app)).length
+  await issueRow(page, DEMO, 45).getByRole('button').first().click()
+  await expect(page.getByTestId('issue-panel')).toBeVisible({ timeout: 20_000 })
+  // 앱 안 패널로 열고, 브라우저는 열지 않는다
+  expect(hashOf(page)).toBe('#/issues?issue=101-45')
+  expect((await openedExternalUrls(app)).length).toBe(opened)
 })
