@@ -4,8 +4,10 @@ import { clearFetchedData, resetFetchedDataCleaners } from '../db/cleanup'
 import { openDatabase } from '../db/connection'
 import { listPins, pinRepo } from '../pins/pins.service'
 import { CACHE_TABLES, clearCache, initCache } from './cleaner'
+import { replaceContributions, replaceRecentCommits } from './home-activity'
 import { listOrgRestrictions, recordOrgRestrictions } from './org-restrictions'
-import { replaceRepoIssues } from './issues'
+import { saveIssueDetail } from './issue-details'
+import { recordCreatedIssue, replaceRepoIssues } from './issues'
 import { removeNotification, replaceNotifications } from './notifications'
 import { replacePullRequests, replaceRepoPullRequests } from './pull-requests'
 import { saveRepositoryDetail } from './repo-detail'
@@ -14,6 +16,7 @@ import { searchLocal } from './search'
 import { getSyncState, listSyncStates, updateSyncState } from './sync-state'
 import {
   detailRecord,
+  issueDetailRecord,
   issueRecord,
   notificationRecord,
   prRecord,
@@ -64,10 +67,31 @@ function fillEverything(db: DatabaseSync): void {
   replaceRepoPullRequests(db, 1, [prRecord('p', 1)])
   replacePullRequests(db, 'mine', [prRecord('m', 2, { viewerIsAuthor: true })])
   replaceRepoIssues(db, 1, [issueRecord('i', 1)])
+  saveIssueDetail(db, issueDetailRecord(1, 1))
+  recordCreatedIssue(
+    db,
+    issueRecord('i_new', 77, { repoFullName: 'zz/made', title: 'made', viewerIsAuthor: true }),
+    1
+  )
   replaceNotifications(db, [notificationRecord('n'), notificationRecord('done')])
   removeNotification(db, 'done')
   updateSyncState(db, 'notifications', { lastSyncedAt: 1, etag: 'W/"x"' })
   recordOrgRestrictions(db, [{ reason: 'saml_enforcement', orgLogin: 'acme', message: 'SAML' }])
+  replaceContributions(db, {
+    totalCommitContributions: 3,
+    days: [{ date: '2026-10-15', count: 3, level: 'FIRST_QUARTILE' }]
+  })
+  replaceRecentCommits(db, [
+    {
+      repoFullName: 'me/repo1',
+      sha: 'b'.repeat(40),
+      message: 'm',
+      authorAvatarUrl: null,
+      authorLogin: 'me',
+      authorDate: '2026-10-15T00:00:00Z',
+      url: 'u'
+    }
+  ])
 }
 
 describe('캐시 삭제 등록', () => {

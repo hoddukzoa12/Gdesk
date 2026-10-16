@@ -1,18 +1,26 @@
 import { OPERATIONS } from '../../../src/main/github/collectors/queries'
 import type {
   RawCommit,
+  RawContributionsViewer,
   RawIssue,
+  RawIssueComment,
+  RawIssueDetailRepository,
+  RawIssueTimelineItem,
+  RawLinkedPullRequest,
   RawPullRequest,
+  RawReactionGroup,
   RawRelease,
   RawRepository,
   RawRepositoryDetail,
   RawResponses
 } from '../../../src/main/github/collectors/raw'
-import { avatarUrl, fullName } from './data'
+import { REACTION_CONTENTS, avatarUrl, commentNodeId, fullName } from './data'
 import type {
   FixtureActor,
   FixtureCommit,
   FixtureItem,
+  FixtureLinkedPullRequest,
+  FixtureReactions,
   FixtureRelease,
   FixtureRepo,
   FixtureResponse,
@@ -27,6 +35,13 @@ import type {
 export interface GraphQLContext {
   state: FixtureState
   webBase: string
+  /** 지금 시각(ms). 기본 Date.now */
+  now?: () => number
+  /**
+   * 앱에서 만든 이슈가 검색에 나오기까지의 지연(ms). null 이면 `indexCreatedIssues()` 를 부를 때까지 나오지 않는다.
+   * 기본 null
+   */
+  searchIndexDelayMs?: number | null
 }
 
 export interface GraphQLBody {
@@ -73,9 +88,15 @@ function rawActor(state: FixtureState, login: string) {
   return { __typename: actor.type, login: actor.login, avatarUrl: avatarUrl(actor.login) }
 }
 
+/** 열린 항목인가(state 가 없으면 열림) */
+export function isOpen(item: FixtureItem): boolean {
+  return (item.state ?? 'OPEN') === 'OPEN'
+}
+
+/** 저장소의 열린 PR·이슈(갱신 최신순). 닫힌 이슈는 빠진다(열린 수·목록·상세 공통) */
 export function repoItems(state: FixtureState, repoId: number, kind: FixtureItem['kind']) {
   return state.items
-    .filter((i) => i.repoId === repoId && i.kind === kind)
+    .filter((i) => i.repoId === repoId && i.kind === kind && isOpen(i))
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
 }
 
@@ -104,7 +125,8 @@ export function renderRepository(ctx: GraphQLContext, repo: FixtureRepo): RawRep
     updatedAt: repo.updatedAt,
     repositoryTopics: { nodes: repo.topics.map((name) => ({ topic: { name } })) },
     viewerPermission: repo.viewerPermission,
-    viewerHasStarred: repo.viewerStarredAt !== null
+    viewerHasStarred: repo.viewerStarredAt !== null,
+    hasIssuesEnabled: repo.hasIssuesEnabled
   }
 }
 
@@ -173,6 +195,7 @@ export function renderIssue(
     author: rawActor(ctx.state, item.author),
     repository: { databaseId: repo.id, nameWithOwner: fullName(repo) },
     labels: { nodes: item.labels.slice(0, 10).map((l) => ({ ...l })) },
+    assignees: { nodes: item.assignees.slice(0, 10).map((a) => rawActor(ctx.state, a)) },
     comments: responses(item.comments, responseCount)
   }
 }
@@ -245,12 +268,27 @@ function viewerOf(ctx: GraphQLContext) {
   return { login: ctx.state.viewer.login }
 }
 
+/**
+ * 검색 반영 지연 흉내: 앱에서 POST 로 만든 이슈는 indexCreatedIssues() 를 부르거나
+ * searchIndexDelayMs 가 지나기 전까지 검색에 나오지 않는다(저장소 연결 목록에는 바로 나온다)
+ */
+function isSearchable(ctx: GraphQLContext, item: FixtureItem): boolean {
+  if (item.createdInAppAt === undefined || item.searchIndexed === true) return true
+  const delay = ctx.searchIndexDelayMs ?? null
+  return delay !== null && nowOf(ctx) - item.createdInAppAt >= delay
+}
+
+function nowOf(ctx: GraphQLContext): number {
+  return ctx.now ? ctx.now() : Date.now()
+}
+
 function searchItems(ctx: GraphQLContext, operationName: string): FixtureItem[] {
   const v = ctx.state.viewer.login
   const teams = ctx.state.viewerTeams
+  // 검색은 언제나 is:open
   const pick = (kind: FixtureItem['kind'], match: (i: FixtureItem) => boolean) =>
     ctx.state.items
-      .filter((i) => i.kind === kind && match(i))
+      .filter((i) => i.kind === kind && isOpen(i) && isSearchable(ctx, i) && match(i))
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
   switch (operationName) {
     case OPERATIONS.myPullRequests:
@@ -261,6 +299,8 @@ function searchItems(ctx: GraphQLContext, operationName: string): FixtureItem[] 
       return pick('Issue', (i) => i.assignees.includes(v))
     case OPERATIONS.myIssues:
       return pick('Issue', (i) => i.author === v)
+    case OPERATIONS.mentionedIssues:
+      return pick('Issue', (i) => (i.mentions ?? []).includes(v))
     default:
       return []
   }
@@ -270,7 +310,8 @@ const SEARCH_OPERATIONS: readonly string[] = [
   OPERATIONS.myPullRequests,
   OPERATIONS.reviewRequests,
   OPERATIONS.assignedIssues,
-  OPERATIONS.myIssues
+  OPERATIONS.myIssues,
+  OPERATIONS.mentionedIssues
 ]
 
 /** operationName 에 맞는 응답. 모르는 이름이면 null (서버가 오류로 답한다) */
@@ -390,5 +431,384 @@ export function handleGraphQL(
     return { data: { viewer: viewerOf(ctx), node } }
   }
 
+  if (operationName === OPERATIONS.contributions) {
+    const c = ctx.state.contributions
+    const viewer: RawContributionsViewer = {
+      login: ctx.state.viewer.login,
+      contributionsCollection: {
+        totalCommitContributions: c.totalCommitContributions,
+        contributionCalendar: {
+          weeks: c.weeks.map((w) => ({
+            contributionDays: w.contributionDays.map((d) => ({ ...d }))
+          }))
+        }
+      }
+    }
+    return { data: { viewer } }
+  }
+
+  if (operationName === OPERATIONS.issueDetail) return issueDetail(ctx, vars)
+
+  const mutation = MUTATIONS[operationName]
+  if (mutation) return mutation(ctx, vars)
+
   return null
 }
+
+// ───────────────────────── 이슈 상세 ─────────────────────────
+
+const WRITE_PERMISSIONS: readonly string[] = ['ADMIN', 'MAINTAIN', 'WRITE']
+
+/** HTML 특수 문자 이스케이프 */
+export function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+/**
+ * 아주 간단한 마크다운 → HTML: 이스케이프한 뒤 빈 줄로 문단을 나누고, 줄바꿈은 <br>, `**굵게**` 는 <strong>.
+ * 코멘트 bodyHTML 과 POST /markdown 이 쓴다.
+ */
+export function renderMarkdownLite(text: string): string {
+  return text
+    .replace(/\r\n/g, '\n')
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter((p) => p !== '')
+    .map(
+      (p) =>
+        `<p>${escapeHtml(p)
+          .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+          .replace(/\n/g, '<br>')}</p>`
+    )
+    .join('\n')
+}
+
+function findRepoByName(state: FixtureState, owner: unknown, name: unknown): FixtureRepo | null {
+  if (typeof owner !== 'string' || typeof name !== 'string') return null
+  const key = `${owner}/${name}`.toLowerCase()
+  return (
+    state.repos.find((r) => fullName(r).toLowerCase() === key) ??
+    state.repos.find((r) => r.previousNames.some((n) => n.toLowerCase() === key)) ??
+    null
+  )
+}
+
+function reactionGroups(
+  state: FixtureState,
+  reactions: FixtureReactions | undefined
+): RawReactionGroup[] {
+  const v = state.viewer.login
+  // GitHub 처럼 여덟 종류 모두(0 명 포함)
+  return REACTION_CONTENTS.map((content) => {
+    const users = reactions?.[content] ?? []
+    return { content, viewerHasReacted: users.includes(v), reactors: { totalCount: users.length } }
+  })
+}
+
+function linkedPullRequest(
+  ctx: GraphQLContext,
+  pr: FixtureLinkedPullRequest
+): RawLinkedPullRequest {
+  return {
+    __typename: 'PullRequest',
+    number: pr.number,
+    title: pr.title,
+    state: pr.state,
+    url: `${ctx.webBase}/${pr.repo}/pull/${pr.number}`,
+    repository: { nameWithOwner: pr.repo }
+  }
+}
+
+/** 내 권한으로 할 수 있는 일(응답 때 현재 상태로 계산) */
+function viewerAbilities(state: FixtureState, repo: FixtureRepo, item: FixtureItem) {
+  const canWrite = WRITE_PERMISSIONS.includes(repo.viewerPermission)
+  const canTriage = repo.viewerPermission !== 'READ'
+  const isAuthor = item.author === state.viewer.login
+  const open = isOpen(item)
+  const locked = item.locked === true
+  return {
+    canClose: open && (canTriage || isAuthor),
+    canReopen: !open && (canTriage || isAuthor),
+    // 잠긴 이슈는 쓰기 권한자만 반응·코멘트할 수 있다
+    canReact: !locked || canWrite,
+    canComment: !locked || canWrite
+  }
+}
+
+/** 새 코멘트·이슈의 내 authorAssociation */
+export function viewerAssociation(state: FixtureState, repo: FixtureRepo): string {
+  const v = state.viewer.login
+  if (repo.owner === v) return 'OWNER'
+  if (WRITE_PERMISSIONS.includes(repo.viewerPermission)) {
+    const owner = state.actors.find((a) => a.login === repo.owner)
+    return owner?.type === 'Organization' ? 'MEMBER' : 'COLLABORATOR'
+  }
+  return repo.contributors.some((c) => c.login === v) ? 'CONTRIBUTOR' : 'NONE'
+}
+
+function commentBody(c: FixtureResponse): string {
+  return c.bodyHTML ?? `<p>Comment from ${escapeHtml(c.login)}.</p>`
+}
+
+function renderComment(
+  ctx: GraphQLContext,
+  item: FixtureItem,
+  c: FixtureResponse
+): RawIssueComment {
+  return {
+    id: c.id ?? commentNodeId(item, item.comments.indexOf(c)),
+    createdAt: c.createdAt,
+    bodyHTML: commentBody(c),
+    author: rawActor(ctx.state, c.login),
+    reactionGroups: reactionGroups(ctx.state, c.reactions)
+  }
+}
+
+/** GraphQL 연결의 last: n. 끝에서부터 n 개를 원래 순서대로 */
+function lastItems<T>(items: readonly T[], count: number): T[] {
+  return count <= 0 ? [] : items.slice(Math.max(0, items.length - count))
+}
+
+function renderTimeline(ctx: GraphQLContext, item: FixtureItem): RawIssueTimelineItem[] {
+  return (item.timeline ?? []).map((e) => {
+    if (e.type === 'ReferencedEvent') {
+      const user = actorOf(ctx.state, e.author)
+      return {
+        __typename: 'ReferencedEvent',
+        commitRepository: { nameWithOwner: e.repo },
+        commit: {
+          oid: e.oid,
+          messageHeadline: e.message.split('\n', 1)[0] ?? '',
+          committedDate: e.committedDate,
+          url: `${ctx.webBase}/${e.repo}/commit/${e.oid}`,
+          author: { name: user.name ?? user.login, user: rawActor(ctx.state, e.author) }
+        }
+      }
+    }
+    const pr = linkedPullRequest(ctx, e.pr)
+    if (e.type === 'CrossReferencedEvent') return { __typename: e.type, source: pr }
+    // 연결·연결 해제: GitHub 는 source 나 subject 중 하나에 PR 을 준다
+    return { __typename: e.type, source: {}, subject: pr }
+  })
+}
+
+function issueDetail(ctx: GraphQLContext, vars: Vars): GraphQLBody {
+  const repo = findRepoByName(ctx.state, vars.owner, vars.name)
+  if (!repo) {
+    return {
+      data: { repository: null },
+      errors: [
+        {
+          type: 'NOT_FOUND',
+          path: ['repository'],
+          message: `Could not resolve to a Repository with the name '${String(vars.owner)}/${String(vars.name)}'.`
+        }
+      ]
+    }
+  }
+  const base = {
+    databaseId: repo.id,
+    nameWithOwner: fullName(repo),
+    viewerPermission: repo.viewerPermission
+  }
+  const item = ctx.state.items.find(
+    (i) => i.repoId === repo.id && i.kind === 'Issue' && i.number === vars.number
+  )
+  if (!item) {
+    return {
+      data: { repository: { ...base, issue: null } },
+      errors: [
+        {
+          type: 'NOT_FOUND',
+          path: ['repository', 'issue'],
+          message: `Could not resolve to an Issue with the number of ${String(vars.number)}.`
+        }
+      ]
+    }
+  }
+  const commentCount = num(vars.commentCount, 100)
+  const labelCount = num(vars.labelCount, 50)
+  const closingCount = num(vars.closingCount, 25)
+  const timelineCount = num(vars.timelineCount, 100)
+  const can = viewerAbilities(ctx.state, repo, item)
+  const comments = [...item.comments].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+  const repository: RawIssueDetailRepository = {
+    ...base,
+    issue: {
+      id: item.nodeId,
+      number: item.number,
+      url: itemUrl(ctx, repo, item),
+      title: item.title,
+      state: isOpen(item) ? 'OPEN' : 'CLOSED',
+      stateReason: item.stateReason ?? null,
+      locked: item.locked === true,
+      createdAt: item.createdAt,
+      bodyHTML: item.bodyHTML ?? `<p>${escapeHtml(item.title)}</p>`,
+      author: rawActor(ctx.state, item.author),
+      labels: { nodes: item.labels.slice(0, labelCount).map((l) => ({ ...l })) },
+      assignees: { nodes: item.assignees.slice(0, labelCount).map((a) => rawActor(ctx.state, a)) },
+      reactionGroups: reactionGroups(ctx.state, item.reactions),
+      viewerCanClose: can.canClose,
+      viewerCanReopen: can.canReopen,
+      viewerCanReact: can.canReact,
+      comments: {
+        totalCount: comments.length,
+        nodes: comments.slice(0, commentCount).map((c) => renderComment(ctx, item, c))
+      },
+      closedByPullRequestsReferences: {
+        nodes: (item.closingPullRequests ?? [])
+          .slice(0, closingCount)
+          .map((pr) => linkedPullRequest(ctx, pr))
+      },
+      // 앱은 last: $timelineCount 로 받는다: 끝(최근)에서부터 그 수만큼, 순서는 오래된 것 → 최근
+      timelineItems: { nodes: lastItems(renderTimeline(ctx, item), timelineCount) }
+    }
+  }
+  return { data: { repository } }
+}
+
+// ───────────────────────── 쓰기(mutation) ─────────────────────────
+
+/** mutation 실패: data 가 null 이어야 앱 클라이언트가 실패로 본다 */
+function mutationError(type: string, message: string, path: string): GraphQLBody {
+  return { data: null, errors: [{ type, message, path: [path] }] }
+}
+
+function issueByNodeId(state: FixtureState, id: unknown): FixtureItem | null {
+  return state.items.find((i) => i.kind === 'Issue' && i.nodeId === id) ?? null
+}
+
+/** 반응 대상: 이슈 또는 이슈 코멘트 */
+function reactionSubject(
+  state: FixtureState,
+  id: unknown
+): { item: FixtureItem; target: { reactions?: FixtureReactions } } | null {
+  const issue = issueByNodeId(state, id)
+  if (issue) return { item: issue, target: issue }
+  for (const item of state.items) {
+    if (item.kind !== 'Issue') continue
+    const index = item.comments.findIndex((c, i) => (c.id ?? commentNodeId(item, i)) === id)
+    const comment = item.comments[index]
+    if (comment) return { item, target: comment }
+  }
+  return null
+}
+
+function reactionMutation(field: 'addReaction' | 'removeReaction') {
+  return (ctx: GraphQLContext, vars: Vars): GraphQLBody => {
+    const subject = reactionSubject(ctx.state, vars.subjectId)
+    if (!subject) {
+      return mutationError(
+        'NOT_FOUND',
+        `Could not resolve to a node with the global id of '${String(vars.subjectId)}'.`,
+        field
+      )
+    }
+    const content = REACTION_CONTENTS.find((c) => c === vars.content)
+    if (!content) {
+      return mutationError('INVALID', `Invalid reaction content '${String(vars.content)}'.`, field)
+    }
+    const repo = repoById(ctx.state, subject.item.repoId)
+    if (!viewerAbilities(ctx.state, repo, subject.item).canReact) {
+      return mutationError('FORBIDDEN', 'Unable to react: the issue is locked.', field)
+    }
+    const v = ctx.state.viewer.login
+    const reactions: FixtureReactions = { ...subject.target.reactions }
+    const users = (reactions[content] ?? []).filter((u) => u !== v)
+    if (field === 'addReaction') users.push(v)
+    reactions[content] = users
+    subject.target.reactions = reactions
+    return {
+      data: { [field]: { reaction: { content }, subject: { id: vars.subjectId } } }
+    }
+  }
+}
+
+function addComment(ctx: GraphQLContext, vars: Vars): GraphQLBody {
+  const item = issueByNodeId(ctx.state, vars.subjectId)
+  if (!item) {
+    return mutationError(
+      'NOT_FOUND',
+      `Could not resolve to a node with the global id of '${String(vars.subjectId)}'.`,
+      'addComment'
+    )
+  }
+  const body = typeof vars.body === 'string' ? vars.body : ''
+  if (body.trim() === '') {
+    return mutationError('UNPROCESSABLE', 'Body cannot be blank', 'addComment')
+  }
+  const repo = repoById(ctx.state, item.repoId)
+  if (!viewerAbilities(ctx.state, repo, item).canComment) {
+    return mutationError(
+      'FORBIDDEN',
+      'Unable to create comment because issue is locked.',
+      'addComment'
+    )
+  }
+  const at = new Date(nowOf(ctx)).toISOString()
+  const comment: FixtureResponse = {
+    login: ctx.state.viewer.login,
+    authorAssociation: viewerAssociation(ctx.state, repo),
+    createdAt: at,
+    id: commentNodeId(item, item.comments.length),
+    bodyHTML: renderMarkdownLite(body),
+    reactions: {}
+  }
+  item.comments.push(comment)
+  item.updatedAt = at
+  return {
+    data: { addComment: { commentEdge: { node: renderComment(ctx, item, comment) } } }
+  }
+}
+
+function setIssueState(field: 'closeIssue' | 'reopenIssue') {
+  return (ctx: GraphQLContext, vars: Vars): GraphQLBody => {
+    const item = issueByNodeId(ctx.state, vars.issueId)
+    if (!item) {
+      return mutationError(
+        'NOT_FOUND',
+        `Could not resolve to a node with the global id of '${String(vars.issueId)}'.`,
+        field
+      )
+    }
+    const can = viewerAbilities(ctx.state, repoById(ctx.state, item.repoId), item)
+    if (field === 'closeIssue') {
+      if (!can.canClose && isOpen(item)) {
+        return mutationError('FORBIDDEN', 'You do not have permission to close this issue.', field)
+      }
+      const reason = vars.stateReason === 'NOT_PLANNED' ? 'NOT_PLANNED' : 'COMPLETED'
+      item.state = 'CLOSED'
+      item.stateReason = reason
+    } else {
+      if (!can.canReopen && !isOpen(item)) {
+        return mutationError('FORBIDDEN', 'You do not have permission to reopen this issue.', field)
+      }
+      item.state = 'OPEN'
+      item.stateReason = 'REOPENED'
+    }
+    item.updatedAt = new Date(nowOf(ctx)).toISOString()
+    return {
+      data: {
+        [field]: {
+          issue: { id: item.nodeId, state: item.state, stateReason: item.stateReason ?? null }
+        }
+      }
+    }
+  }
+}
+
+const MUTATIONS: Record<string, ((ctx: GraphQLContext, vars: Vars) => GraphQLBody) | undefined> = {
+  [OPERATIONS.addReaction]: reactionMutation('addReaction'),
+  [OPERATIONS.removeReaction]: reactionMutation('removeReaction'),
+  [OPERATIONS.addComment]: addComment,
+  [OPERATIONS.closeIssue]: setIssueState('closeIssue'),
+  [OPERATIONS.reopenIssue]: setIssueState('reopenIssue')
+}
+
+/** 쓰기로 셀 GraphQL 작업(failNextWrites 대상) */
+export const MUTATION_OPERATIONS: readonly string[] = Object.keys(MUTATIONS)

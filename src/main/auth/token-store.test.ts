@@ -19,7 +19,13 @@ const TOKEN = 'ghp_StoreSecretToken1234567890abcdefgh'
 const cred: StoredCredential = {
   token: TOKEN,
   tokenKind: 'classic',
-  user: { id: 1, login: 'octo', name: null, avatarUrl: 'https://avatars.example/u/1' },
+  user: {
+    id: 1,
+    login: 'octo',
+    name: null,
+    avatarUrl: 'https://avatars.example/u/1',
+    email: 'octo@example.com'
+  },
   scopes: ['repo']
 }
 
@@ -56,6 +62,16 @@ describe('TokenStore', () => {
 
       const again = new TokenStore({ dir, backend: fakeSecretBackend() })
       expect(again.load()).toEqual(cred)
+    })
+
+    it('이메일 필드가 없는 예전 기록은 email null 로 읽는다', () => {
+      const store = new TokenStore({ dir, backend: fakeSecretBackend() })
+      const { email: _email, ...oldUser } = cred.user
+      store.save({ ...cred, user: oldUser as typeof cred.user })
+      expect(new TokenStore({ dir, backend: fakeSecretBackend() }).load()?.user).toEqual({
+        ...oldUser,
+        email: null
+      })
     })
 
     it('clear 는 저장된 토큰을 지운다', () => {

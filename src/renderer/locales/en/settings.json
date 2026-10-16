@@ -53,7 +53,7 @@
   },
   "homeCards": {
     "title": "Home cards",
-    "hint": "Choose which cards appear on Home and in what order.",
+    "hint": "Choose which sections appear on Home and in what order. The greeting always stays at the top.",
     "show": "Show {{name}}",
     "moveUp": "Move {{name}} up",
     "moveDown": "Move {{name}} down"

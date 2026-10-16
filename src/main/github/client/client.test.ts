@@ -125,6 +125,54 @@ describe('요청 형식', () => {
     expect(del.data).toBeNull()
   })
 
+  it('POST 는 본문을 JSON 으로 보내고 JSON 응답을 읽는다(헤더·한도 기록은 다른 메서드와 같다)', async () => {
+    const { client, calls } = setup(() =>
+      json({ number: 7, node_id: 'I_7' }, 201, rl(4990, 5000, 'core'))
+    )
+    const res = await client.post<{ number: number; node_id: string }>('/repos/o/r/issues', {
+      title: 't'
+    })
+    expect(res.status).toBe(201)
+    expect(res.data).toEqual({ number: 7, node_id: 'I_7' })
+    const init = calls[0]!.init
+    expect(calls[0]?.url).toBe(`${BASE}/repos/o/r/issues`)
+    expect(init.method).toBe('POST')
+    expect(init.body).toBe('{"title":"t"}')
+    expect(header(init, 'content-type')).toBe('application/json')
+    expect(header(init, 'accept')).toBe('application/vnd.github+json')
+    expect(header(init, 'authorization')).toBe(`Bearer ${TOKEN}`)
+    expect(client.getRateLimit('core')).toMatchObject({ remaining: 4990, limit: 5000 })
+  })
+
+  it('POST text/html 응답은 문자열로 돌려준다(responseType text 는 JSON 처럼 보여도 문자열)', async () => {
+    const html = (body: string) =>
+      new Response(body, { status: 200, headers: { 'content-type': 'text/html;charset=utf-8' } })
+    const bodies = ['<p>Hello <strong>world</strong></p>\n', '42', '']
+    const { client } = setup(() => html(bodies.shift() ?? ''))
+    const first = await client.post<string>('/markdown', { text: 'Hello **world**', mode: 'gfm' })
+    expect(first.data).toBe('<p>Hello <strong>world</strong></p>\n')
+    const numeric = await client.post<string>('/markdown', { text: '42' }, { responseType: 'text' })
+    expect(numeric.data).toBe('42')
+    const empty = await client.post<string>('/markdown', { text: '' }, { responseType: 'text' })
+    expect(empty.data).toBe('')
+  })
+
+  it('POST 실패: 401 은 SessionExpiredError, 그 밖은 토큰을 지운 GitHubHttpError', async () => {
+    const { client } = setup((url) =>
+      url.endsWith('/a')
+        ? json({ message: `Validation Failed for ${TOKEN}` }, 422)
+        : json({ message: 'Bad credentials' }, 401)
+    )
+    const error = await client.post('/a', {}).catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(GitHubHttpError)
+    expect((error as GitHubHttpError).status).toBe(422)
+    expect((error as Error).message).not.toContain(TOKEN)
+    await expect(client.post('/b', {}, { responseType: 'text' })).rejects.toBeInstanceOf(
+      SessionExpiredError
+    )
+    expect(client.getStatus()).toBe('session_expired')
+  })
+
   it('GraphQL 은 POST /graphql 로 query·variables·operationName 을 보낸다', async () => {
     const { client, calls } = setup(() => json({ data: { viewer: { login: 'octo' } } }))
     const res = await client.graphql<{ viewer: { login: string } }>(

@@ -9,19 +9,22 @@ import {
   ListRow,
   MetricCard,
   RelativeTime,
-  SectionCard,
   openExternal
 } from '@renderer/components'
 import type { CountedList, HomeSummary } from '@shared/domain/home'
-import type { HomeCardId } from '@shared/domain/homeCards'
+import type { HomeTodoCardId } from '@shared/domain/homeCards'
 import type { NotificationRow } from '@shared/domain/notification'
 import type { PullRequestRow } from '@shared/domain/pr'
+import { HomeSection } from './HomeSection'
+
+/** 할 일 카드 줄: 활동 영역 줄과 같은 여백 */
+const ROW_CLASS = 'px-5'
 
 function open(url: string): void {
   void openExternal(url)
 }
 
-/** 카드 틀: SectionCard + 테스트 ID + "더 있음" 안내. */
+/** 할 일 카드 틀: Home 영역 틀 + "더 있음" 안내. */
 function HomeCard({
   id,
   title,
@@ -30,7 +33,7 @@ function HomeCard({
   more,
   children
 }: {
-  id: HomeCardId
+  id: HomeTodoCardId
   title: ReactNode
   count?: number
   subtitle?: ReactNode
@@ -38,12 +41,10 @@ function HomeCard({
   children: ReactNode
 }) {
   return (
-    <div data-testid={`home-card-${id}`} className="min-w-0">
-      <SectionCard title={title} count={count} subtitle={subtitle}>
-        {children}
-        {more}
-      </SectionCard>
-    </div>
+    <HomeSection id={id} title={title} count={count} subtitle={subtitle}>
+      {children}
+      {more}
+    </HomeSection>
   )
 }
 
@@ -52,7 +53,7 @@ function HomeCard({
  * - 목록이 완전하고 표시 상한(5개)에만 잘렸으면 중립적인 "+N more"
  * - 근거 목록이 불완전하면(`complete === false`) GitHub 에 더 있을 수 있다고 덧붙인다
  */
-function MoreHint({ id, list }: { id: HomeCardId; list: CountedList<unknown> }) {
+function MoreHint({ id, list }: { id: HomeTodoCardId; list: CountedList<unknown> }) {
   const { t } = useTranslation('home')
   const hidden = list.count - list.items.length
   if (hidden <= 0 && list.complete) return null
@@ -61,14 +62,14 @@ function MoreHint({ id, list }: { id: HomeCardId; list: CountedList<unknown> }) 
   else if (list.complete) text = t('more', { count: hidden })
   else text = t('moreOnGitHub', { count: hidden })
   return (
-    <div className="px-4 py-2 text-xs text-fg-muted" data-testid={`home-card-${id}-more`}>
+    <div className="px-5 py-2 text-xs text-fg-muted" data-testid={`home-card-${id}-more`}>
       {text}
     </div>
   )
 }
 
 function Empty({ children }: { children: ReactNode }) {
-  return <EmptyState compact title={children} />
+  return <EmptyState compact title={children} className="px-5" />
 }
 
 function repoRef(repoFullName: string, number: number): string {
@@ -79,6 +80,7 @@ function PullRequestListRow({ pr, testId }: { pr: PullRequestRow; testId: string
   return (
     <div data-testid={testId}>
       <ListRow
+        className={ROW_CLASS}
         icon={<Avatar src={pr.author.avatarUrl} name={pr.author.login} size={20} />}
         title={pr.title}
         meta={
@@ -139,6 +141,7 @@ function NotificationListRow({ n }: { n: NotificationRow }) {
   return (
     <div data-testid={`home-row-unreadNotifications-${n.threadId}`}>
       <ListRow
+        className={ROW_CLASS}
         icon={notificationIcon(n.subjectType)}
         title={n.subjectTitle}
         meta={
@@ -174,7 +177,9 @@ export function UnreadNotificationsCard({ data }: { data: HomeSummary['unreadNot
 
 function SubHeading({ children }: { children: ReactNode }) {
   return (
-    <div className="bg-bg-subtle px-4 py-1 text-[11px] font-medium text-fg-muted">{children}</div>
+    <div className="px-5 pt-2 pb-1 text-[11px] font-medium tracking-wide text-fg-subtle uppercase">
+      {children}
+    </div>
   )
 }
 
@@ -189,6 +194,7 @@ export function FailedCiCard({ data }: { data: HomeSummary['failedCi'] }) {
       {data.repos.map((repo) => (
         <div key={repo.repoId} data-testid={`home-row-failedCi-repo-${repo.repoId}`}>
           <ListRow
+            className={ROW_CLASS}
             icon={<CiStatusIcon status={repo.ciStatus} />}
             title={repo.repoFullName}
             meta={
@@ -207,6 +213,7 @@ export function FailedCiCard({ data }: { data: HomeSummary['failedCi'] }) {
       {data.pullRequests.map((pr) => (
         <div key={pr.id} data-testid={`home-row-failedCi-pr-${pr.repoId}-${pr.number}`}>
           <ListRow
+            className={ROW_CLASS}
             icon={<CiStatusIcon status={pr.ciStatus} />}
             title={pr.title}
             meta={repoRef(pr.repoFullName, pr.number)}
@@ -238,6 +245,7 @@ export function UnansweredCard({ data }: { data: HomeSummary['unansweredContribu
           return (
             <div key={item.id} data-testid={`home-row-unanswered-${item.repoId}-${item.number}`}>
               <ListRow
+                className={ROW_CLASS}
                 icon={
                   kind === 'pull_request' ? (
                     <GitPullRequest size={14} aria-label={kindLabel} />
@@ -281,10 +289,12 @@ export function StarChangesCard({ data }: { data: HomeSummary['starChanges'] }) 
           <MetricCard
             label={t('cards.starChanges.total', { count: data.windowDays })}
             value={`+${nf.format(total)}`}
+            className="bg-transparent px-5"
           />
           {data.items.map((item) => (
             <div key={item.repoId} data-testid={`home-row-starChanges-${item.repoId}`}>
               <ListRow
+                className={ROW_CLASS}
                 icon={<Star size={14} aria-hidden />}
                 title={item.repoFullName}
                 right={

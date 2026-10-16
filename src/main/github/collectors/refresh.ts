@@ -1,5 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 import { getDb } from '../../db/db'
+import { replaceContributions, replaceRecentCommits } from '../../cache/home-activity'
+import { lookupRepoFullName, saveIssueDetail } from '../../cache/issue-details'
 import { replaceIssues, replaceRepoIssues } from '../../cache/issues'
 import { mergeNotifications, replaceNotifications } from '../../cache/notifications'
 import {
@@ -24,8 +26,11 @@ import { withTransaction } from '../../db/transaction'
 import type { RepoAccessStatus } from '@shared/domain/repo'
 import { GitHubHttpError, OrgAccessRestrictedError } from '../client'
 import type { GitHubClient, OrgRestriction } from '../client'
-import { StaleRefreshError, resolveClient } from './common'
+import { StaleRefreshError, orgRestrictionsFrom, resolveClient } from './common'
 import type { CollectorOptions, ListResult } from './common'
+import { collectContributions, collectRecentCommits } from './home-activity'
+import { collectIssueDetail } from './issue-detail'
+import type { IssueDetailOptions, IssueDetailOutcome } from './issue-detail'
 import { collectRepoOpenItems } from './items'
 import type { RepoOpenItemsOptions, RepoOpenItemsTarget } from './items'
 import { collectNotifications } from './notifications'
@@ -35,6 +40,7 @@ import { collectMyRepositories, collectStarredRepositories } from './repositorie
 import type { PagedOptions } from './repositories'
 import {
   collectAssignedIssues,
+  collectMentionedIssues,
   collectMyIssues,
   collectMyPullRequests,
   collectReviewRequests
@@ -55,7 +61,10 @@ export const SYNC_SCOPES = {
   reviewRequests: 'review_requests',
   assignedIssues: 'assigned_issues',
   myIssues: 'my_issues',
-  notifications: 'notifications'
+  mentionedIssues: 'mentioned_issues',
+  notifications: 'notifications',
+  contributions: 'contributions',
+  recentCommits: 'recent_commits'
 } as const
 
 /** 저장소 상세의 동기화 범위 이름 */
@@ -245,7 +254,7 @@ export async function refreshPullRequestLists(
 
 /** 나에게 할당된 이슈와 내가 올린 이슈 목록을 받아 저장한다 */
 export async function refreshIssueLists(
-  options: RefreshContext & SearchOptions = {}
+  options: RefreshContext & SearchOptions & { createdIssueGraceMs?: number } = {}
 ): Promise<{ orgRestrictions: OrgRestriction[] }> {
   const { db, now } = ctx(options)
   const assigned = await collectAssignedIssues(options)
@@ -257,12 +266,90 @@ export async function refreshIssueLists(
       updateSyncState(db, SYNC_SCOPES.assignedIssues, { lastSyncedAt: now })
     }
     if (shouldReplace(mine)) {
-      replaceIssues(db, 'mine', mine.items, total(mine))
+      // 앱에서 만든 이슈는 검색에 나올 때까지(유예 시간 동안) 남긴다
+      replaceIssues(db, 'mine', mine.items, {
+        ...total(mine),
+        now,
+        createdIssueGraceMs: options.createdIssueGraceMs
+      })
       updateSyncState(db, SYNC_SCOPES.myIssues, { lastSyncedAt: now })
     }
     record(db, [...assigned.orgRestrictions, ...mine.orgRestrictions], now)
   })
   return { orgRestrictions: [...assigned.orgRestrictions, ...mine.orgRestrictions] }
+}
+
+/**
+ * 나를 언급한 이슈 목록(mentions:@me)을 받아 저장한다. 할당·내 이슈와 따로 부른다:
+ * 이 요청이 실패해도(가짜 서버가 모르는 요청 등) 다른 이슈 목록 갱신을 막지 않게 하려는 것이다.
+ */
+export async function refreshMentionedIssues(
+  options: RefreshContext & SearchOptions = {}
+): Promise<{ orgRestrictions: OrgRestriction[] }> {
+  const { db, now } = ctx(options)
+  const mentioned = await collectMentionedIssues(options)
+  assertCurrent(options)
+  withTransaction(db, () => {
+    if (shouldReplace(mentioned)) {
+      replaceIssues(db, 'mentioned', mentioned.items, total(mentioned))
+      updateSyncState(db, SYNC_SCOPES.mentionedIssues, { lastSyncedAt: now })
+    }
+    record(db, mentioned.orgRestrictions, now)
+  })
+  return { orgRestrictions: mentioned.orgRestrictions }
+}
+
+/**
+ * 저장소 ID → `owner/name`. 캐시(저장소 행, 없으면 이슈 행)에서 찾고, 없으면 GET /repositories/{id}(core) 로 묻는다.
+ * 접근할 수 없으면(404·403·410·451·조직 제한) null. 그 밖의 실패는 던진다.
+ */
+async function resolveRepoFullName(
+  db: DatabaseSync,
+  repoId: number,
+  options: RefreshContext
+): Promise<string | null> {
+  const cached = lookupRepoFullName(db, repoId)
+  if (cached) return cached
+  try {
+    const res = await resolveClient(options).get<{ full_name?: unknown } | null>(
+      `/repositories/${repoId}`,
+      { signal: options.signal }
+    )
+    const fullName = res.data?.full_name
+    return typeof fullName === 'string' && fullName.includes('/') ? fullName : null
+  } catch (error) {
+    if (isAccessLost(error)) return null
+    throw error
+  }
+}
+
+/**
+ * 이슈 상세를 받아 상세 캐시에 쓴다 (spec §6.2). 저장소 이름은 캐시에서 찾는다.
+ * 이슈·저장소를 찾을 수 없으면(not_found) 이전에 받은 상세를 그대로 둔다.
+ */
+export async function refreshIssueDetail(
+  options: RefreshContext & IssueDetailOptions & { repoId: number; number: number }
+): Promise<{ status: IssueDetailOutcome['status'] }> {
+  const { db, now } = ctx(options)
+  const fullName = await resolveRepoFullName(db, options.repoId, options)
+  if (fullName === null) return { status: 'not_found' }
+  let outcome: IssueDetailOutcome
+  try {
+    outcome = await collectIssueDetail(
+      { repoId: options.repoId, fullName, number: options.number },
+      options
+    )
+  } catch (error) {
+    const restrictions = orgRestrictionsFrom(error)
+    if (!restrictions) throw error
+    outcome = { status: 'not_found', orgRestrictions: restrictions }
+  }
+  assertCurrent(options)
+  withTransaction(db, () => {
+    if (outcome.status === 'ok') saveIssueDetail(db, outcome.detail, now)
+    record(db, outcome.orgRestrictions, now)
+  })
+  return { status: outcome.status }
 }
 
 /**
@@ -328,4 +415,36 @@ export async function refreshRepositoryDetails(
     record(db, result.orgRestrictions, now)
   })
   return result
+}
+
+/** 내 기여 달력(최근 12개월)과 커밋 기여 수를 받아 통째로 바꾼다 (Home 수치·기여 달력) */
+export async function refreshContributions(options: RefreshContext = {}): Promise<void> {
+  const { db, now } = ctx(options)
+  const result = await collectContributions(options)
+  assertCurrent(options)
+  withTransaction(db, () => {
+    replaceContributions(db, {
+      totalCommitContributions: result.totalCommitContributions,
+      days: result.days
+    })
+    updateSyncState(db, SYNC_SCOPES.contributions, { lastSyncedAt: now })
+  })
+}
+
+/**
+ * 내 최근 커밋(커밋 검색)을 받아 통째로 바꾼다. 로그인 이름을 모르면 요청하지 않는다.
+ * 검색 한도(search)를 쓰며, 실패(404·한도·오프라인)는 던져 엔진이 따로 기록하게 한다.
+ */
+export async function refreshRecentCommits(
+  options: RefreshContext & { login: string | null; limit?: number }
+): Promise<void> {
+  const login = options.login
+  if (login === null || login === '') return
+  const { db, now } = ctx(options)
+  const items = await collectRecentCommits({ ...options, login })
+  assertCurrent(options)
+  withTransaction(db, () => {
+    replaceRecentCommits(db, items)
+    updateSyncState(db, SYNC_SCOPES.recentCommits, { lastSyncedAt: now })
+  })
 }

@@ -9,7 +9,9 @@ import { useSlots } from './slots'
 
 /**
  * 앱 틀: 왼쪽 사이드바 + 오른쪽 본문.
- * 본문 = 상단 막대(창 끌기 영역, PageHeader 가 포털됨 + 전역 동작 슬롯) · 배너 슬롯 · 화면(스크롤).
+ * 본문 = 상단 막대 · 배너 슬롯 · 화면(스크롤).
+ * 상단 막대(창 끌기 영역): 왼쪽은 PageHeader 포털(제목·경로·탭, 화면별 동작은 그 오른쪽 끝),
+ * 오른쪽은 전역 슬롯(headerActions, order 순: 동기화 상태·새로고침 → 검색 입력).
  * 오버레이 슬롯은 라우터 안 루트에 한 번 그린다.
  */
 export function AppLayout() {
@@ -31,7 +33,7 @@ export function AppLayout() {
         >
           <div ref={setTopBarNode} className="flex min-w-0 flex-1 items-center" />
           {slots.headerActions.length > 0 && (
-            <div className="flex shrink-0 items-center gap-2" data-slot="header-actions">
+            <div className="flex shrink-0 items-center gap-3" data-slot="header-actions">
               {slots.headerActions.map((Action, i) => (
                 <Action key={i} />
               ))}

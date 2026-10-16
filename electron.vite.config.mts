@@ -3,10 +3,12 @@ import { defineConfig } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import type { Plugin } from 'vite'
+import { resolveClientId } from './build/client-id'
 
 // 빌드 시 주입되는 값. 비밀 키는 절대 넣지 않는다(공개 client ID와 저장소 주소만).
 const buildDefines = {
-  __GDESK_GITHUB_CLIENT_ID__: JSON.stringify(process.env.GDESK_GITHUB_CLIENT_ID ?? ''),
+  // 환경 변수가 없으면 기본 공개 client ID, 빈 문자열이면 브라우저 로그인 끔(build/client-id.ts).
+  __GDESK_GITHUB_CLIENT_ID__: JSON.stringify(resolveClientId(process.env)),
   __GDESK_REPO__: JSON.stringify(process.env.GDESK_REPO ?? ''),
   // 화면 테스트 전용 빌드에서만 true. 배포 빌드에서는 테스트 모드를 켤 수 없다.
   __GDESK_TEST_BUILD__: JSON.stringify(process.env.GDESK_TEST_BUILD === '1'),

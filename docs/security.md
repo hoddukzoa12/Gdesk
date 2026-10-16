@@ -28,7 +28,7 @@ Gdesk는 한 사람이 자기 컴퓨터에서 쓰는 앱이다. 앱 자체의 �
 
 ### 브라우저 코드 로그인(OAuth 기기 인증)
 
-1. 빌드에 공개 client ID가 없으면 `device_flow_unavailable`로 거부하고, 화면도 이 방식을 숨긴다.
+1. 빌드의 공개 client ID가 비어 있으면 `device_flow_unavailable`로 거부하고, 화면도 이 방식을 숨긴다. 환경 변수가 없으면 내장 기본값이 들어가므로 비어 있는 경우는 `GDESK_GITHUB_CLIENT_ID=`(빈 값)으로 빌드했을 때뿐이다.
 2. `POST /login/device/code`(client ID, 권한 `repo read:org notifications`)로 사용자 코드와 인증 주소를 받는다. client secret은 보내지 않는다.
    - 네트워크 실패 → `offline`. 응답이 오류면 오류 코드 이름만(소문자·밑줄 64자 이하) 남기고 본문은 버린다.
 3. 인증 주소는 `auth:openVerificationUri`로만 연다. http(s)가 아니면 열지 않는다.
@@ -45,13 +45,30 @@ Gdesk는 한 사람이 자기 컴퓨터에서 쓰는 앱이다. 앱 자체의 �
 
 앱 안의 역할은 없다. 아래는 프로세스·구성 요소별로 허용과 금지를 정리한 것이다.
 
-| 주체                      | 허용                                                                                                                                        | 금지                                                                                                                                                       |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 화면(렌더러)              | `window.gdesk.invoke`/`on`으로 등록된 채널 부르기, 캐시 값 표시, GitHub 아바타(`https://avatars.githubusercontent.com`)·`data:` 이미지 표시 | Node·Electron API, `fs`·`path`·`child_process`·`os`·`crypto` import, `src/main` import, 네트워크 요청(CSP `connect-src 'self'`), 다른 페이지로 이동, 새 창 |
-| 프리로드                  | `invoke`·`on` 두 함수 노출                                                                                                                  | 그 밖의 API 노출, 토큰 다루기                                                                                                                              |
-| 메인                      | GitHub API·웹, git 실행, DB·파일, 토큰                                                                                                      | GitHub 이외의 서버와 통신, 사용 통계·원격 로그 전송, 폴더 삭제(클론 정리 예외)                                                                             |
-| git 자식 프로세스         | HTTPS 클론 동안 환경 변수로 토큰 받기, 시스템 SSH 설정 쓰기                                                                                 | 토큰을 인자·원격 주소·`.git/config`·자격 증명 도우미에 남기기                                                                                              |
-| 테스트 빌드 + 테스트 모드 | 아래 "테스트 모드" 표의 덮어쓰기                                                                                                            | 배포 빌드에서 같은 동작                                                                                                                                    |
+| 주체                      | 허용                                                                                                                                                                                                                                                                         | 금지                                                                                                                                                                                        |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 화면(렌더러)              | `window.gdesk.invoke`/`on`으로 등록된 채널 부르기, 캐시 값 표시, 정리한 GitHub HTML(이슈 본문·코멘트·미리보기) 넣기, 앱 파일·`data:`·GitHub 이미지 호스트(`avatars.githubusercontent.com`, `*.githubusercontent.com`, `github.githubassets.com`, `github.com`)의 이미지 표시 | Node·Electron API, `fs`·`path`·`child_process`·`os`·`crypto` import, `src/main` import, 네트워크 요청(CSP `connect-src 'self'`), 정리하지 않은 HTML을 DOM에 넣기, 다른 페이지로 이동, 새 창 |
+| 프리로드                  | `invoke`·`on` 두 함수 노출                                                                                                                                                                                                                                                   | 그 밖의 API 노출, 토큰 다루기                                                                                                                                                               |
+| 메인                      | GitHub API·웹, git 실행, DB·파일, 토큰                                                                                                                                                                                                                                       | GitHub 이외의 서버와 통신, 사용 통계·원격 로그 전송, 폴더 삭제(클론 정리 예외)                                                                                                              |
+| git 자식 프로세스         | HTTPS 클론 동안 환경 변수로 토큰 받기, 시스템 SSH 설정 쓰기                                                                                                                                                                                                                  | 토큰을 인자·원격 주소·`.git/config`·자격 증명 도우미에 남기기                                                                                                                               |
+| 테스트 빌드 + 테스트 모드 | 아래 "테스트 모드" 표의 덮어쓰기                                                                                                                                                                                                                                             | 배포 빌드에서 같은 동작                                                                                                                                                                     |
+
+### 앱이 GitHub에 쓰는 것
+
+앱이 사용자의 토큰으로 GitHub에 바꾸는 것은 아래뿐이다. PR 리뷰·병합, 코멘트 고치기·지우기, 이슈 제목·라벨·담당자 고치기, 저장소 설정 변경은 하지 않는다.
+
+| 쓰기                | 허용 조건(모두 참)                                                                                                    |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| 스타·스타 취소      | `signed_in` + 연결 `online`, 캐시에 있는 저장소                                                                       |
+| 알림 읽음·완료      | `signed_in` + 연결 `online`                                                                                           |
+| 이슈 반응 추가·취소 | `signed_in` + `online`, 캐시된 이슈 상세가 있고 GitHub `viewerCanReact`가 참                                          |
+| 이슈 코멘트         | `signed_in` + `online`, 캐시된 상세가 있고, 잠긴 이슈면 그 저장소 권한이 `ADMIN`·`MAINTAIN`·`WRITE`, 공백이 아닌 본문 |
+| 이슈 닫기·다시 열기 | `signed_in` + `online`, 캐시된 상세가 있고 GitHub `viewerCanClose`(열린 이슈) / `viewerCanReopen`(닫힌 이슈)이 참     |
+| 새 이슈             | `signed_in` + `online`, 캐시의 내 저장소 집합(쓰기 권한)에 있고 포크·보관·이슈 꺼짐이 아닌 저장소, 공백이 아닌 제목   |
+
+- 막힘 판정 순서는 세션 만료 > 로그아웃 > 오프라인 > 한도 대기이고, 막히면 GitHub 요청도 캐시 변경도 하지 않는다. 대기열에 쌓아 두었다가 나중에 보내지 않는다.
+- 권한 판정은 앱이 먼저 거절하는 장치일 뿐이다. 최종 판단은 GitHub가 토큰 권한으로 한다.
+- 새 이슈 양식의 라벨·담당자 받기와 마크다운 미리보기(`POST /markdown`)는 쓰기가 아니지만 같은 막힘 조건을 따른다. 미리보기 글은 GitHub 말고 어디로도 보내지 않는다.
 
 ### 화면이 보낸 값은 믿지 않는다
 
@@ -61,6 +78,7 @@ Gdesk는 한 사람이 자기 컴퓨터에서 쓰는 앱이다. 앱 자체의 �
 - 새로고침 범위: 정해진 이름 또는 `repo:<양의 정수>`만(`parseRefreshScope`).
 - 설정 패치: 모르는 키·잘못된 값이 하나라도 있으면 전부 거부.
 - 클론: 클론 ID, 저장소 ID, 소유자·이름 형식, 절대 경로 검사.
+- 이슈 키(`{ repoId, number }`): 둘 다 양의 안전한 정수만(`assertIssueRef`). 이슈 쓰기 요청: 반응 종류는 GitHub 8종, 상태는 `open`·`closed`, 닫기 이유는 `completed`·`not_planned`, 제목·본문·미리보기 글은 문자열, 라벨은 100개·담당자는 10개 이하의 문자열 목록. 어긋나면 거부한다. GitHub 경로의 소유자·이름은 화면이 보낸 값이 아니라 캐시의 저장소 행에서 꺼내 인코딩한다.
 - 오류 보고: 화면이 보낸 메시지는 문자열인지 확인하고 길이를 자른 뒤 지운다. 이슈로 보내는 글은 화면이 보낸 글이 아니라 메인이 가진 지운 보고서다.
 - 외부 링크: http(s)만 연다.
 
@@ -85,7 +103,7 @@ Gdesk는 한 사람이 자기 컴퓨터에서 쓰는 앱이다. 앱 자체의 �
 - GitHub 요청 계층이 만드는 모든 오류 문구는 지금 토큰과 토큰 모양(`gh[pousr]_…`, `github_pat_…`)을 `[REDACTED]`로 바꾼다.
 - 클론 결과의 git 오류와 "이미 있음" 원격 주소는 토큰을 `***`로 바꾸고, 주소의 `사용자:비밀번호@`를 지운 뒤 화면에 보낸다.
 - 클론이 끝나면 `.git/config`에 토큰이 있는지 확인하고, 있으면 실패로 끝낸다. 대상 폴더를 이번 클론이 만들었으면 폴더째 지우고, 원래 있던 빈 폴더면 이번 클론이 만든 `<대상>/.git`만 지운다(내려받은 작업 파일은 남는다). 어느 쪽이든 토큰은 디스크에 남지 않는다.
-- 쓰기 동작 실패 문구는 요청 계층 오류(이미 지운 문구)만 그대로 쓰고, 그 밖은 일반 문구로 바꾼다.
+- 쓰기 동작(이슈 쓰기 포함) 실패 문구는 요청 계층 오류(이미 지운 문구)만 그대로 쓰고, 그 밖은 일반 문구로 바꾼다.
 - GitHub 저장소 검색 실패는 상태 값만 돌려주고 문구를 보내지 않는다.
 
 ## 테스트 모드
@@ -107,10 +125,22 @@ Gdesk는 한 사람이 자기 컴퓨터에서 쓰는 앱이다. 앱 자체의 �
 ## 창과 링크
 
 - 모든 창: `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`, `webSecurity: true`.
-- CSP(배포·화면 테스트 빌드의 `index.html` 그대로): `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://avatars.githubusercontent.com; font-src 'self' data:; connect-src 'self'`. 화면은 네트워크 요청을 할 수 없고, 이미지는 앱 파일, `data:`, GitHub 아바타 호스트에서만 띄운다. 개발 서버(`pnpm dev`)에서만 `electron.vite.config.mts`의 플러그인(`apply: 'serve'`)이 `connect-src`에 HMR용 `ws://localhost:*`를 더한다. 빌드 결과에는 `ws://`가 없다.
+- CSP(배포·화면 테스트 빌드의 `index.html` 그대로): `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://avatars.githubusercontent.com https://*.githubusercontent.com https://github.githubassets.com https://github.com; font-src 'self' data:; connect-src 'self'`. 화면은 네트워크 요청을 할 수 없고, 이미지는 앱 파일, `data:`, GitHub 이미지 호스트(아바타 `avatars.githubusercontent.com`, 이슈 본문 이미지용 `*.githubusercontent.com`·`github.githubassets.com`·`github.com`)에서만 띄운다. `connect-src`는 그대로라 화면이 이 호스트들로 요청을 보낼 수는 없다. 개발 서버(`pnpm dev`)에서만 `electron.vite.config.mts`의 플러그인(`apply: 'serve'`)이 `connect-src`에 HMR용 `ws://localhost:*`를 더한다. 빌드 결과에는 `ws://`가 없다.
 - 앱 창 안의 다른 페이지 이동은 모두 막는다. 예외는 포장되지 않은 개발 실행(`!app.isPackaged`)에서의 개발 서버 주소(`ELECTRON_RENDERER_URL`)뿐이다. 배포 앱은 이 환경 변수를 보지 않는다. 새 창 요청은 거부하고, http(s)면 기본 브라우저로 넘긴다.
 - 외부 링크(`app:openExternal`, 오류 보고 이슈, 다운로드 페이지, 기기 인증 주소)는 `https:`·`http:`만 연다. `file:`, `javascript:` 등은 열지 않고 `opened: false`.
 - 배포 빌드의 앱 메뉴에는 개발자 도구가 없다.
+
+## GitHub HTML 표시
+
+이슈 본문·코멘트(`bodyHTML`)와 마크다운 미리보기는 GitHub가 만든 HTML이고, 남이 쓴 글이 들어 있다. 화면은 이것을 정리한 뒤에만 DOM에 넣는다.
+
+- 정리는 이 용도 전용 DOMPurify 인스턴스로 한다. 공용 기본 인스턴스에 훅을 달지 않는다(다른 코드의 정리 결과가 바뀌지 않게).
+- HTML 프로필만 허용한다(SVG·MathML 제외).
+- 지우는 요소: `script`, `iframe`, `form`, `object`, `embed`, `style`(내용째), 체크박스가 아닌 `input`.
+- 지우는 속성: 모든 `style`, 모든 `on*` 이벤트 속성, `javascript:`·`vbscript:`·`data:`로 시작하는 링크 주소(글자는 남는다). `data:`는 이미지 주소에만 허용된다.
+- 남은 체크박스(작업 목록)는 `disabled`로 만들어 누를 수 없다.
+- 본문 안 링크는 어떤 것도 앱 창을 옮기지 않는다. 누르면 기본 동작을 막고, 절대 주소가 `http:`·`https:`일 때만 메인의 외부 링크 열기(기본 브라우저)로 넘긴다. 가운데 버튼 클릭도 막는다.
+- 이미지는 CSP가 허용한 GitHub 이미지 호스트에서만 뜬다. 불러오지 못한 이미지는 대체 문구로 바꾼다.
 
 ## 폴더
 
@@ -140,5 +170,5 @@ Gdesk는 한 사람이 자기 컴퓨터에서 쓰는 앱이다. 앱 자체의 �
 ## 배포 비밀값
 
 - 서명·공증 비밀값(`CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_*`, `WIN_CSC_*`)은 CI 비밀값으로만 두고, 값이 있는 것만 해당 OS 작업의 환경 변수로 넘긴다.
-- OAuth 공개 client ID와 Gdesk 저장소 이름은 비밀이 아니다. 빌드 결과에 그대로 들어간다.
+- OAuth 공개 client ID와 Gdesk 저장소 이름은 비밀이 아니다. 빌드 결과에 그대로 들어간다. 그래서 Gdesk OAuth App의 client ID는 기본값으로 코드(`build/client-id.ts`)에 두고, `GDESK_GITHUB_CLIENT_ID` 환경 변수가 있으면 그 값으로 덮어쓴다. 빈 값이면 브라우저 코드 로그인이 꺼진다. 릴리스 워크플로는 저장소 변수·비밀값에 값이 있을 때만 이 환경 변수를 설정한다(빈 값으로 덮어써 로그인이 꺼진 채 배포되는 일을 막는다).
 - client secret은 만들지 않고 어디에도 넣지 않는다. 공개 코드와 배포 파일에는 비밀을 숨길 수 없다.

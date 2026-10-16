@@ -13,27 +13,27 @@ GitHub API 호출, 토큰, 내장 git 실행, SQLite, 파일 시스템, 외부 �
 
 ## 폴더
 
-| 폴더                                               | 역할                                                                                           |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `index.ts`                                         | 시작 순서. 서비스 초기화를 더하는 유일한 공유 파일                                             |
-| `config.ts`                                        | 빌드 상수, `isTestMode()`, `githubApiBase()`, `githubWebBase()`                                |
-| `ipc/`                                             | `handle`, `emit`, `registerAllIpc`(glob), `notifyDataChanged`                                  |
-| `db/`                                              | 연결, 마이그레이션 수집, `withTransaction`, 로컬 연결 테이블, 계정 정보, 계정 단위 삭제        |
-| `pins/`, `settings/`                               | 고정, 설정 서비스와 IPC                                                                        |
-| `github/client/`                                   | 요청 계층(연결 상태의 유일한 출처), 한도 추적, 오류 분류, 토큰 지우기                          |
-| `github/collectors/`                               | GraphQL 문서·operationName, 응답 → 레코드, `refresh*`(받아서 캐시에 반영)                      |
-| `domain/`                                          | 순수 계산(CI, 리뷰, 응답 없는 새 기여, 실패한 CI, 스타 창, 작성자, 알림 주소)                  |
-| `cache/`                                           | `cache_*` 테이블, 마이그레이션, 정리 함수, Home·사이드바 집계, 로컬 검색                       |
-| `auth/`                                            | 로그인 서비스, 기기 인증, 토큰 확인, 토큰 저장소                                               |
-| `sync/`                                            | 동기화 엔진(순수), 앱 연결, 창 열림 추적                                                       |
-| `queries/`                                         | `query:*` 처리기(캐시만 읽음)                                                                  |
-| `actions/`                                         | 쓰기 동작 서비스                                                                               |
-| `git/`                                             | dugite 실행기, 클론, 원격 해석, askpass                                                        |
-| `local/`                                           | 클론·자동 찾기·연결·열기 서비스, 에디터 감지, 실행기                                           |
-| `search/`                                          | 로컬 검색, GitHub 저장소 검색                                                                  |
-| `crash/`                                           | 오류 수집, 지우기, 보고서, 이슈 주소                                                           |
-| `updater/`                                         | 업데이트 방식 결정, 상태 기계, electron-updater 연결                                           |
-| `app/`, `window.ts`, `menu.ts`, `menu-template.ts` | 앱 정보, 외부 링크, 폴더 대화상자, 창 보안, 메뉴(en·ko 메뉴 틀은 순수 함수 `menu-template.ts`) |
+| 폴더                                               | 역할                                                                                                                                                  |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `index.ts`                                         | 시작 순서. 서비스 초기화를 더하는 유일한 공유 파일                                                                                                    |
+| `config.ts`                                        | 빌드 상수, `isTestMode()`, `githubApiBase()`, `githubWebBase()`                                                                                       |
+| `ipc/`                                             | `handle`, `emit`, `registerAllIpc`(glob), `notifyDataChanged`                                                                                         |
+| `db/`                                              | 연결, 마이그레이션 수집, `withTransaction`, 로컬 연결 테이블, 계정 정보, 계정 단위 삭제                                                               |
+| `pins/`, `settings/`                               | 고정, 설정 서비스와 IPC                                                                                                                               |
+| `github/client/`                                   | 요청 계층(연결 상태의 유일한 출처), 한도 추적, 오류 분류, 토큰 지우기. REST `get`·`post`·`put`·`patch`·`delete`, 텍스트 응답은 `responseType: 'text'` |
+| `github/collectors/`                               | GraphQL 문서·operationName, 응답 → 레코드, `refresh*`(받아서 캐시에 반영)                                                                             |
+| `domain/`                                          | 순수 계산(CI, 리뷰, 응답 없는 새 기여, 실패한 CI, 스타 창, 작성자, 알림 주소, Home 수치·연속 기여)                                                    |
+| `cache/`                                           | `cache_*` 테이블, 마이그레이션, 정리 함수, Home·사이드바 집계, Home 활동(기여 달력·최근 커밋), 이슈 상세(200개 상한), 만든 이슈 유예 기록, 로컬 검색  |
+| `auth/`                                            | 로그인 서비스, 기기 인증, 토큰 확인, 토큰 저장소                                                                                                      |
+| `sync/`                                            | 동기화 엔진(순수), 앱 연결, 창 열림 추적, 보고 있는 저장소·이슈                                                                                       |
+| `queries/`                                         | `query:*` 처리기(캐시만 읽음)                                                                                                                         |
+| `actions/`                                         | 쓰기 동작 서비스(스타·알림), 이슈 쓰기 서비스(반응·코멘트·닫기·다시 열기·새 이슈·선택지·미리보기)                                                     |
+| `git/`                                             | dugite 실행기, 클론, 원격 해석, askpass                                                                                                               |
+| `local/`                                           | 클론·자동 찾기·연결·열기 서비스, 에디터 감지, 실행기                                                                                                  |
+| `search/`                                          | 로컬 검색, GitHub 저장소 검색                                                                                                                         |
+| `crash/`                                           | 오류 수집, 지우기, 보고서, 이슈 주소                                                                                                                  |
+| `updater/`                                         | 업데이트 방식 결정, 상태 기계, electron-updater 연결                                                                                                  |
+| `app/`, `window.ts`, `menu.ts`, `menu-template.ts` | 앱 정보, 외부 링크, 폴더 대화상자, 창 보안, 메뉴(en·ko 메뉴 틀은 순수 함수 `menu-template.ts`)                                                        |
 
 ## 반드시 지킬 것
 
@@ -47,11 +47,14 @@ GitHub API 호출, 토큰, 내장 git 실행, SQLite, 파일 시스템, 외부 �
 - 테스트용 덮어쓰기(주소, 토큰, 사용자 데이터 폴더, git 원본, 실행 기록, 일부러 오류 내기)는 모두 `isTestMode()`로 감싼다. `isTestMode()`는 빌드 상수 `__GDESK_TEST_BUILD__`와 `GDESK_TEST_MODE=1`이 모두 있어야 참이다.
 - `query:*` 처리기는 캐시만 읽고 GitHub에 요청하지 않는다.
 - 네트워크 응답을 캐시에 쓰는 코드는 요청 시작 때 `db/cleanup.ts`의 `currentDataGuard()`로 계정 데이터 세대를 잡고, 쓰기 트랜잭션 바로 앞에서 확인한다. 그사이 로그아웃(`clearFetchedData`)·계정 전환(`clearAccountData`)으로 세대가 바뀌었으면 아무것도 쓰지 않는다(`StaleRefreshError`, 오류로 기록하지 않음).
-- 쓰기 동작은 `online` + 로그인일 때만 하고, 실패하면 캐시를 이전 값으로 되돌린다. 대기열을 두지 않는다.
+- 쓰기 동작은 `online` + 로그인일 때만 하고, 실패하면 캐시를 이전 값으로 되돌린다. 대기열을 두지 않는다. 막힘 판단은 `actions.service.ts`의 `resolveActionBlockReason` 하나를 쓰고(이슈 쓰기도 같은 함수), 같은 대상 직렬화는 `createKeyedSerializer`로 한다. 이슈 쓰기의 키는 이슈 하나(`issue:<저장소 ID>#<번호>`, 반응 대상이 코멘트여도 같은 키), 새 이슈는 `create:<저장소 ID>`다.
+- 이슈 쓰기의 권한 판정은 캐시된 이슈 상세(`viewerCan*`, `viewerCanComment`)로만 한다. 상세가 없으면 요청하지 않고 `not_cached`다. 응답을 받은 뒤 캐시를 쓰는 코멘트·새 이슈는 요청 시작 때 `currentDataGuard()`를 잡는다. 캐시를 먼저 바꾸는 반응·닫기·다시 열기도 바꾸기 전에 세대를 잡고, 실패해서 되돌릴 때(`restoreIssueDetail`) 세대가 그대로일 때만 쓴다.
+- 로그아웃(세션 `signed_out`)과 계정 전환(`onAccountDataCleared`) 때 동기화 엔진은 보고 있던 저장소와 이슈를 잊는다. 보고 있는 대상을 새로 더하면 이 두 경로에서 함께 지운다.
+- "내 이슈" 검색 목록은 `replaceIssues`가 `cache_created_issues`의 유예 기록을 합쳐 쓴다. 검색 목록을 다른 함수로 직접 바꾸면 앱에서 만든 이슈가 검색 반영 전에 사라진다. 앱에서 이슈를 닫으면 `forgetCreatedIssue`를 부른다.
 
 ## 구현 방식
 
-- **로직과 Electron 분리.** 서비스는 바깥 의존(DB 가져오기, 클라이언트, 세션, 시계, 스케줄러, 실행기)을 생성자·옵션으로 받는다(`SyncEngine`, `LocalService`, `createActionsService`, `createCrashService`, `createUpdaterService`, `TokenStore`). Electron import는 `index.ts`·`electron.ts`·`*.ipc.ts`·`updater.ts`·`window.ts`에 둔다. 그래야 Vitest가 Node만으로 돈다.
+- **로직과 Electron 분리.** 서비스는 바깥 의존(DB 가져오기, 클라이언트, 세션, 시계, 스케줄러, 실행기)을 생성자·옵션으로 받는다(`SyncEngine`, `LocalService`, `createActionsService`, `createIssueActionsService`, `createCrashService`, `createUpdaterService`, `TokenStore`). Electron import는 `index.ts`·`electron.ts`·`*.ipc.ts`·`updater.ts`·`window.ts`에 둔다. 그래야 Vitest가 Node만으로 돈다.
 - **IPC 처리기.** `src/shared/ipc/<기능>.ts`를 side-effect import(`import '@shared/ipc/<기능>'`)해 채널 타입을 불러오고, `registerIpc()` 안에서 `handle(channel, fn)`으로 등록한다. DB·서비스는 처리기 안에서 호출 시점에 가져온다. 화면에서 온 값은 다시 검사한다(`assertRepoId`, `parseRefreshScope`, `validateSettingsPatch`). 이벤트는 `emit`, 캐시 변경은 `notifyDataChanged(keys)`.
 - **예상 가능한 실패는 결과 값으로.** 막힘·GitHub 실패·폴더 문제는 `{ ok: false, reason }` 등으로 돌려준다. 던지는 것은 잘못된 요청뿐이다.
 - **수집 → 캐시.** `collect*`는 받아서 레코드로 바꾸기만 하고, `refresh*`가 한 트랜잭션으로 캐시에 반영하고 `cache_sync_state`에 시각을 남긴다. 조직 접근 제한은 수집 전체를 실패시키지 않고 `recordOrgRestrictions`로 남긴다. 네트워크·한도·세션 오류는 다시 던져 요청 계층의 상태 관리에 맡긴다.
@@ -80,5 +83,9 @@ GitHub API 호출, 토큰, 내장 git 실행, SQLite, 파일 시스템, 외부 �
   - 요청 계층: 1·2차 한도 분류, 막힘 동안 요청 안 보냄, 회복 타이머, 401 → 다시 로그인 전까지 요청 안 보냄, API 주소 밖 링크 거부, 테스트가 아닐 때 주소 덮어쓰기 거부.
   - 클론: HTTPS 뒤 `.git/config`·원격에 토큰 없음, 실패·취소 시 이번에 만든 폴더만 지움, 원래 있던 빈 폴더는 남김(토큰이 남은 경우 그 안의 `.git`만 지움), 비어 있지 않은 대상 → `exists`.
   - 쓰기 동작: 막힘 우선순위, 실패 되돌림, 같은 대상 직렬화.
+  - 이슈 쓰기: 막힘·거절 이유별로 요청이 가지 않음, 반응·닫기 실패 시 상세 원문으로 되돌림, 코멘트가 일부만 받은 목록에는 붙지 않고 수만 늘어남, 같은 이슈 직렬화, 잘못된 요청 모양 거부.
+  - 만든 이슈 유예: 검색에 없어도 10분 동안 남음, 검색에 나오거나 시간이 지나면 기록 삭제, 닫으면 기록 삭제.
+  - Home 활동: 연속 기여(오늘 0이면 어제부터), 기여 달력 받기 실패(GraphQL 오류·빈 달력)면 캐시를 건드리지 않음, 받는 사이 로그아웃이면 쓰지 않음, 로그인 이름이 없으면 커밋 검색 안 함, search 한도가 적으면 최근 커밋만 미룸.
+  - 동기화 엔진: 같은 이슈를 다시 알리면 받지 않음, 로그아웃·계정 전환 때 보고 있던 저장소·이슈 잊기.
   - 알림 완료 기록: 같은 시각 재등장 숨김, 새 활동이면 다시 보임.
   - 오류 보고 지우기: 토큰 모양, 홈·사용자 폴더, GitHub 주소, 저장소·소유자·로그인 이름, 단어 경계.

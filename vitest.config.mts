@@ -21,6 +21,9 @@ export default defineConfig({
   test: {
     // 새 번역 파일(import.meta.glob)이 반영되지 않는 일을 막기 위해 변환 결과를 디스크에 캐시하지 않는다.
     fsModuleCache: false,
+    // git·Electron 프로세스를 띄우는 테스트가 있어 검사를 동시에 돌리면 5초를 넘기기도 한다.
+    testTimeout: 20_000,
+    hookTimeout: 20_000,
     include: ['src/**/*.test.{ts,tsx}', 'tests/unit/**/*.test.{ts,tsx}'],
     environment: 'node'
   }

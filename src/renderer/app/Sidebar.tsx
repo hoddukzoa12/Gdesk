@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { CountBadge, sidebarItemClass } from '../components'
+import { CountBadge, GdeskLogo, sidebarItemClass } from '../components'
 import { cn } from '../lib/cn'
 import { NAV_ITEMS } from './nav'
 import { useNavCounts, useSlots } from './slots'
@@ -10,7 +10,7 @@ interface SidebarProps {
   insetTitleBar: boolean
 }
 
-/** 왼쪽 사이드바 틀: 계정(슬롯) · 메뉴 · 섹션(슬롯) · 하단(슬롯). */
+/** 왼쪽 사이드바 틀: 로고 · (슬롯) · 메뉴 · 섹션(슬롯) · (슬롯) · 맨 아래 계정(슬롯). */
 export function Sidebar({ insetTitleBar }: SidebarProps) {
   const { t } = useTranslation('common')
   const slots = useSlots()
@@ -22,8 +22,17 @@ export function Sidebar({ insetTitleBar }: SidebarProps) {
       aria-label={t('sidebar.label')}
       data-testid="sidebar"
     >
-      {/* 창 끌기 띠(맥 신호등 버튼 자리) */}
-      <div className={cn('app-drag shrink-0', insetTitleBar ? 'h-11' : 'h-2')} aria-hidden />
+      {/* 창 끌기 영역: 맥 신호등 버튼 자리 + 로고 줄 */}
+      <div className="app-drag shrink-0">
+        <div className={insetTitleBar ? 'h-9' : 'h-2'} aria-hidden />
+        <div
+          className={cn('flex items-center gap-2 px-4 pb-3', insetTitleBar ? 'pt-0' : 'pt-1')}
+          data-testid="app-logo"
+        >
+          <GdeskLogo size={22} />
+          <span className="text-[15px] font-semibold tracking-tight text-fg">{t('appName')}</span>
+        </div>
+      </div>
 
       {slots.sidebarTop.length > 0 && (
         <div className="shrink-0 pb-2" data-slot="sidebar-top">
@@ -61,6 +70,14 @@ export function Sidebar({ insetTitleBar }: SidebarProps) {
         <div className="shrink-0 border-t border-border px-3 py-2" data-slot="sidebar-footer">
           {slots.sidebarFooter.map((Footer, i) => (
             <Footer key={i} />
+          ))}
+        </div>
+      )}
+
+      {slots.sidebarBottom.length > 0 && (
+        <div className="shrink-0 border-t border-border py-2" data-slot="sidebar-bottom">
+          {slots.sidebarBottom.map((Bottom, i) => (
+            <Bottom key={i} />
           ))}
         </div>
       )}

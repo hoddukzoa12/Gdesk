@@ -17,12 +17,13 @@ function useSidebarNavCounts(): NavCounts {
 }
 
 // 오프라인 배너는 세션 만료 배너(인증 작업)보다 아래, 업데이트 알림(100)보다 위에 둔다.
+// 동기화 상태·새로고침은 상단 막대 오른쪽, 검색 입력(빠른 검색 작업, 100)보다 왼쪽에 둔다.
 export const slots: FeatureSlots = {
   useNavCounts: useSidebarNavCounts,
   sidebarSections: [
     { order: 10, Component: PinnedSection },
     { order: 20, Component: YourRepositoriesSection }
   ],
-  sidebarFooter: SyncFooter,
+  headerActions: [{ order: 10, Component: SyncFooter }],
   banners: [{ order: 20, Component: OfflineBanner }]
 }

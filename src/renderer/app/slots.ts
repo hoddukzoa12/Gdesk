@@ -24,17 +24,22 @@ export interface PreferencesSource {
  * 모든 항목은 선택이다. 앱 틀은 등록된 것만 그리고, 비어 있어도 깨지지 않는다.
  */
 export interface FeatureSlots {
-  /** 사이드바 맨 위 계정 영역(인증 작업). 여러 개면 모두 차례로 그린다. */
+  /** 사이드바 로고 아래, 메뉴 위의 영역. 여러 개면 모두 차례로 그린다(지금은 쓰는 기능이 없다). */
   sidebarTop?: ComponentType
   /** 메뉴 아래 사이드바 섹션(Pinned, Your repositories 등). */
   sidebarSections?: OrderedSlot[]
-  /** 사이드바 하단(동기화 상태). 여러 개면 모두 차례로 그린다. */
+  /** 사이드바 섹션 아래, 맨 아래 영역 바로 위. 여러 개면 모두 차례로 그린다(지금은 쓰는 기능이 없다). */
   sidebarFooter?: ComponentType
+  /** 사이드바 맨 아래 계정 영역(인증 작업). 여러 개면 모두 차례로 그린다. */
+  sidebarBottom?: ComponentType
   /** 본문 맨 위 배너(오프라인, 세션 만료 등). */
   banners?: OrderedSlot[]
   /** 루트에 한 번 그리는 요소(빠른 검색창, 대화상자 등). 라우터 안에서 그려진다. */
   overlays?: ComponentType[]
-  /** 본문 상단 막대 오른쪽 끝의 전역 동작(검색 버튼 등). */
+  /**
+   * 본문 상단 막대 오른쪽의 전역 요소. 화면별 PageHeader 동작보다 오른쪽에 order 순으로 놓인다.
+   * 지금 쓰는 순서: 동기화 상태·새로고침 10, 검색 입력 100(맨 오른쪽).
+   */
   headerActions?: OrderedSlot[]
   /**
    * 메뉴 수치 훅. 컴포넌트 안에서 훅으로 불리므로 다른 훅(useIpcQuery 등)을 써도 된다.
@@ -54,6 +59,7 @@ export interface ResolvedSlots {
   sidebarTop: ComponentType[]
   sidebarSections: ComponentType[]
   sidebarFooter: ComponentType[]
+  sidebarBottom: ComponentType[]
   banners: ComponentType[]
   overlays: ComponentType[]
   headerActions: ComponentType[]
@@ -77,6 +83,7 @@ export function collectSlots(modules: Record<string, FeatureSlotsModule>): Resol
     sidebarTop: list.flatMap((s) => (s.sidebarTop ? [s.sidebarTop] : [])),
     sidebarSections: sortOrdered(list.flatMap((s) => s.sidebarSections ?? [])),
     sidebarFooter: list.flatMap((s) => (s.sidebarFooter ? [s.sidebarFooter] : [])),
+    sidebarBottom: list.flatMap((s) => (s.sidebarBottom ? [s.sidebarBottom] : [])),
     banners: sortOrdered(list.flatMap((s) => s.banners ?? [])),
     overlays: list.flatMap((s) => s.overlays ?? []),
     headerActions: sortOrdered(list.flatMap((s) => s.headerActions ?? [])),

@@ -4,7 +4,8 @@ import type {
   MissingScope,
   ScopeImpact,
   SessionSnapshot,
-  SessionState
+  SessionState,
+  SessionUser
 } from '@shared/domain/session'
 import type { OrgRestrictionKind, OrgRestrictionNotice } from '@shared/domain/org'
 
@@ -21,6 +22,18 @@ export const CONNECTIONS_URL = 'https://github.com/settings/connections/applicat
 
 export function profileUrl(login: string): string {
   return `https://github.com/${encodeURIComponent(login)}`
+}
+
+/**
+ * 사이드바 계정 영역의 두 줄(spec §4.1): 위는 이름(없으면 로그인), 아래는 GitHub 공개 이메일(없으면 로그인).
+ */
+export function accountLines(user: Pick<SessionUser, 'login' | 'name' | 'email'>): {
+  primary: string
+  secondary: string
+} {
+  const name = user.name?.trim()
+  const email = user.email?.trim()
+  return { primary: name || user.login, secondary: email || user.login }
 }
 
 /** 로그인 화면이 앱 전체를 덮어야 하는 상태 */

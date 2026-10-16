@@ -1,5 +1,9 @@
 import type { EditorInfo } from '@shared/domain/local'
-import { isHomeCardId, resolveHomeCards, type ResolvedHomeCard } from '@shared/domain/homeCards'
+import {
+  isHomeSectionId,
+  resolveHomeSections,
+  type ResolvedHomeSection
+} from '@shared/domain/homeCards'
 import type { HomeCardSetting, Settings, SettingsPatch } from '@shared/domain/settings'
 import type { Preferences } from '@renderer/app/preferences'
 
@@ -26,39 +30,39 @@ export function preferencesPatch(
 
 // ───────────── 홈 카드 ─────────────
 
-/** 카드 하나를 켜고 끈 새 목록. */
+/** 영역 하나를 켜고 끈 새 목록. */
 export function toggleHomeCard(
-  cards: readonly ResolvedHomeCard[],
+  cards: readonly ResolvedHomeSection[],
   id: string,
   enabled: boolean
-): ResolvedHomeCard[] {
+): ResolvedHomeSection[] {
   return cards.map((c) => (c.id === id ? { ...c, enabled } : c))
 }
 
-/** 카드 하나를 위(-1)·아래(+1)로 한 칸 옮긴 새 목록. 끝이면 그대로. */
+/** 영역 하나를 위(-1)·아래(+1)로 한 칸 옮긴 새 목록. 끝이면 그대로. */
 export function moveHomeCard(
-  cards: readonly ResolvedHomeCard[],
+  cards: readonly ResolvedHomeSection[],
   id: string,
   delta: -1 | 1
-): ResolvedHomeCard[] {
+): ResolvedHomeSection[] {
   const from = cards.findIndex((c) => c.id === id)
   const to = from + delta
   if (from < 0 || to < 0 || to >= cards.length) return [...cards]
   const next = [...cards]
   const [moved] = next.splice(from, 1)
-  next.splice(to, 0, moved as ResolvedHomeCard)
+  next.splice(to, 0, moved as ResolvedHomeSection)
   return next
 }
 
 /**
- * 저장할 홈 카드 패치. 아는 카드 다섯 개를 모두 순서대로 담는다
- * (모르는 ID·중복은 버리고, 빠진 카드는 켠 채로 끝에 붙인다).
+ * 저장할 홈 카드 패치. 아는 영역 열 개를 모두 순서대로 담는다
+ * (모르는 ID·중복은 버리고, 빠진 영역은 `resolveHomeSections` 규칙대로 켠 채로 채운다).
  */
 export function homeCardsPatch(cards: readonly HomeCardSetting[]): {
   homeCards: HomeCardSetting[]
 } {
-  const known = cards.filter((c) => isHomeCardId(c.id))
-  const resolved = resolveHomeCards(known)
+  const known = cards.filter((c) => isHomeSectionId(c.id))
+  const resolved = resolveHomeSections(known)
   return { homeCards: resolved.map(({ id, enabled }) => ({ id, enabled })) }
 }
 

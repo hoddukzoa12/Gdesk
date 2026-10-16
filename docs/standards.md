@@ -58,7 +58,7 @@
 
 ## DB 마이그레이션
 
-- 마이그레이션 ID는 전역에서 유일한 문자열이고 문자열 순서로 적용된다. 핵심 테이블은 `0001_core`, 캐시는 `0100_cache`·`0101_cache_list_meta`다. 새 마이그레이션은 기존 것보다 큰 접두사를 쓴다. 중복 ID는 시작 때 오류다.
+- 마이그레이션 ID는 전역에서 유일한 문자열이고 문자열 순서로 적용된다. 핵심 테이블은 `0001_core`, 캐시는 `0100_cache`·`0101_cache_list_meta`·`0102_home_activity`·`0103_issue_detail`·`0104_issue_actions`·`0105_recent_commit_author`다. 새 마이그레이션은 기존 것보다 큰 접두사를 쓴다. 중복 ID는 시작 때 오류다.
 - 이미 배포된 마이그레이션은 고치지 않는다. 바꿀 것이 있으면 새 ID로 더한다. 적용 여부는 `schema_migrations`의 ID로만 판단하므로 고친 내용은 이미 설치된 앱에 반영되지 않는다.
 - 받아온 정보를 담는 테이블은 이름을 `cache_`로 시작하고 `src/main/cache/cleaner.ts`의 `CACHE_TABLES`에 더한다. 빠지면 로그아웃·계정 전환 때 지워지지 않는다(단위 테스트가 빠진 테이블을 잡는다).
 - 계정과 무관한 데이터(설정)는 `cache_` 테이블에 넣지 않는다. 계정에 묶이지만 받아온 정보가 아닌 데이터(고정·로컬 연결 같은 것)를 새로 만들면 `src/main/db/cleanup.ts`의 `clearAccountData`에 지우기를 더한다.
@@ -76,8 +76,15 @@
 - 예상 가능한 실패는 던지지 않고 결과 값으로 돌려준다(`{ ok: false, reason }`, `{ kind: 'failed', code }`). 던지는 것은 잘못된 요청(검사 실패)뿐이다.
 - 화면으로 가는 값에는 토큰과 오류 객체 원문을 담지 않는다.
 - 네트워크 응답을 캐시에 쓰는 메인 코드는 계정 데이터 세대(`currentDataGuard()`)를 요청 시작 때 잡고 쓰기 직전에 확인한다. 확인 없이 쓰면 로그아웃·계정 전환 뒤에 이전 계정 데이터가 다시 들어온다.
-- 캐시를 바꾸는 메인 코드는 바꾼 뒤 `notifyDataChanged`로 영향받는 키(`home`, `inbox`, `pulls`, `reviews`, `issues`, `starred`, `repositories`, `sidebar`, `repo:<ID>`)를 알린다.
+- 캐시를 바꾸는 메인 코드는 바꾼 뒤 `notifyDataChanged`로 영향받는 키(`home`, `inbox`, `pulls`, `reviews`, `issues`, `starred`, `repositories`, `sidebar`, `repo:<ID>`, `issue:<저장소 ID>#<번호>`)를 알린다.
+- GraphQL mutation도 조회와 같이 고유한 `Gdesk*` operationName을 갖고 `OPERATIONS`에 등록한다. 가짜 서버는 `tests/fixtures/github/graphql.ts`의 `MUTATIONS`에 처리기가 있는 이름만 쓰기로 센다(`failNextWrites`의 대상). 새 mutation을 조회 처리기 쪽에 넣으면 쓰기 실패 화면 테스트를 만들 수 없다. 응답만 받는 POST(`POST /markdown` 같은)는 `tests/fixtures/github/server.ts`의 `READ_ONLY_POSTS`에 더해 쓰기로 세지 않게 한다.
 - GraphQL 문서는 고유한 `Gdesk*` operationName을 갖고 `src/main/github/collectors/queries.ts`의 `OPERATIONS`에 등록한다. 가짜 GitHub 서버가 이 이름으로 응답을 고르므로, 이름이 없거나 등록되지 않으면 화면 테스트에서 응답을 받지 못한다.
+
+## GitHub HTML 표시
+
+- GitHub가 만든 HTML(이슈 본문·코멘트의 `bodyHTML`, `POST /markdown` 결과)은 `src/renderer/features/issues/sanitize.ts`의 `sanitizeIssueHtml`을 거친 뒤에만 DOM에 넣는다. 화면 부품은 `SafeHtml`을 쓴다. 정리하지 않은 문자열을 `innerHTML`·`dangerouslySetInnerHTML`에 넣지 않는다.
+- DOMPurify 훅은 `sanitize.ts`가 만든 전용 인스턴스에만 단다. 공용 기본 인스턴스(`DOMPurify.sanitize`, `DOMPurify.addHook`)에 훅을 달지 않는다. 기본 인스턴스의 훅은 그것을 쓰는 모든 코드에 퍼진다(`sanitize.test.ts`가 기본 인스턴스가 영향받지 않는지 본다).
+- 본문 안 링크 클릭은 앱 창 이동을 막고 http(s)만 `app:openExternal`로 넘긴다. 새 화면이 GitHub HTML을 보여도 같은 부품을 쓴다.
 
 ## 빌드 상수와 환경 설정
 
@@ -90,7 +97,7 @@
 
 - 단위 테스트 파일은 `src/**/*.test.{ts,tsx}`와 `tests/unit/**`에 둔다. 기본 환경은 node이고, 화면 컴포넌트 테스트는 파일 첫 줄에 `// @vitest-environment jsdom`을 둔다.
 - 화면 테스트 파일은 `tests/e2e/*.e2e.ts`이고 `tests/e2e/support/fixtures.ts`의 `test`를 쓴다. Playwright 기본 `test`로 앱을 띄우면 테스트 모드 환경·임시 홈·가짜 서버가 붙지 않는다.
-- 다음 규칙을 바꾸면 해당 단위 테스트가 함께 있어야 한다: CI 상태 판정, 응답 없는 새 기여, 실패한 CI 카드, 스타 증가 창, 원격 주소 해석과 저장소 매칭, 세션 규칙(로그아웃·계정 전환 삭제 범위), 오류 보고 지우기, 요청 한도 보호, HTTPS 클론 뒤 토큰 미잔존, 클론 실패 시 정리 범위.
+- 다음 규칙을 바꾸면 해당 단위 테스트가 함께 있어야 한다: CI 상태 판정, 응답 없는 새 기여, 실패한 CI 카드, 스타 증가 창, 원격 주소 해석과 저장소 매칭, 세션 규칙(로그아웃·계정 전환 삭제 범위), 오류 보고 지우기, 요청 한도 보호, HTTPS 클론 뒤 토큰 미잔존, 클론 실패 시 정리 범위, Home 영역 목록 풀기, 연속 기여·Home 수치, PR 표시 상태, 이슈 코멘트 가능 판정, 이슈 쓰기 막힘·거절·되돌림, 만든 이슈의 유예, GitHub HTML 정리.
 
 ## 커밋
 

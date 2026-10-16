@@ -28,7 +28,10 @@ const dotClass = {
   session_expired: 'bg-danger'
 } as const
 
-/** 사이드바 하단: 동기화 상태 + 새로고침 버튼(⌘R / Ctrl+R, 지금 화면 범위). */
+/**
+ * 상단 막대 오른쪽(spec §4.2): 동기화 상태 문구 + 새로고침 버튼(⌘R / Ctrl+R, 지금 화면 범위).
+ * 예전 사이드바 하단에서 옮겨 왔다. 화면 테스트가 쓰는 data-testid(sync-footer·sync-footer-text·sync-refresh)는 그대로 둔다.
+ */
 export function SyncFooter() {
   const { t, i18n } = useTranslation('sidebar')
   const status = useSyncStatus()
@@ -62,7 +65,7 @@ export function SyncFooter() {
 
   return (
     <div
-      className="flex h-6 items-center gap-2 text-[11px] text-fg-muted"
+      className="flex min-w-0 items-center gap-1.5 text-xs text-fg-muted"
       data-testid="sync-footer"
       data-connection={connection}
       data-syncing={busy || undefined}
@@ -72,12 +75,17 @@ export function SyncFooter() {
       ) : (
         <span aria-hidden className={cn('size-1.5 shrink-0 rounded-full', dotClass[connection])} />
       )}
-      <span className="min-w-0 flex-1 truncate" data-testid="sync-footer-text" title={text}>
+      <span
+        className="max-w-[240px] min-w-0 truncate whitespace-nowrap"
+        data-testid="sync-footer-text"
+        title={text}
+      >
         {text}
       </span>
       <Button
-        size="icon-sm"
+        size="icon"
         variant="ghost"
+        className="ml-0.5"
         onClick={refresh}
         disabled={refreshing}
         aria-label={t('footer.refresh', { shortcut })}

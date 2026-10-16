@@ -24,6 +24,7 @@
     "vitest.config.mts",
     "playwright.config.ts",
     "eslint.config.mjs",
+    "build/**/*.ts",
     "src/main/**/*",
     "src/preload/**/*",
     "src/shared/**/*",

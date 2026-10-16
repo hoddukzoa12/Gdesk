@@ -14,7 +14,8 @@ import { SlotsProvider, collectSlots, type FeatureSlotsModule, type ResolvedSlot
 // 예시 슬롯 모듈(실제 기능이 아님). 기능은 `features/<이름>/slots.tsx` 에서 같은 모양을 내보낸다.
 const exampleModule: FeatureSlotsModule = {
   slots: {
-    sidebarTop: () => <div data-testid="account">octocat</div>,
+    sidebarTop: () => <div data-testid="top">top</div>,
+    sidebarBottom: () => <div data-testid="account">octocat</div>,
     sidebarSections: [
       { order: 20, Component: () => <section data-testid="section">Your repositories</section> },
       { order: 10, Component: () => <section data-testid="section">Pinned</section> }
@@ -22,7 +23,10 @@ const exampleModule: FeatureSlotsModule = {
     sidebarFooter: () => <div data-testid="footer">Synced 27s ago</div>,
     banners: [{ order: 1, Component: () => <div data-testid="banner">Offline</div> }],
     overlays: [() => <div data-testid="overlay">Palette</div>],
-    headerActions: [{ order: 1, Component: () => <button type="button">Search</button> }],
+    headerActions: [
+      { order: 100, Component: () => <button type="button">Search</button> },
+      { order: 10, Component: () => <button type="button">Refresh</button> }
+    ],
     useNavCounts: () => {
       const [counts] = useState({ inbox: 3, pulls: 11, issues: 0 })
       return counts
@@ -83,6 +87,7 @@ describe('collectSlots', () => {
       '../features/a/slots.tsx': exampleModule
     })
     expect(r.sidebarTop).toHaveLength(1)
+    expect(r.sidebarBottom).toHaveLength(1)
     expect(r.sidebarSections).toEqual([
       exampleModule.slots!.sidebarSections![1]!.Component,
       exampleModule.slots!.sidebarSections![0]!.Component
@@ -98,6 +103,7 @@ describe('collectSlots', () => {
   it('slots 를 내보내지 않는 모듈은 무시한다', () => {
     const r = collectSlots({ '../features/x/slots.tsx': {} })
     expect(r.sidebarTop).toEqual([])
+    expect(r.sidebarBottom).toEqual([])
     expect(r.navCountHooks).toEqual([])
   })
 })
@@ -111,7 +117,14 @@ describe('앱 틀 슬롯 렌더링', () => {
       })
     )
     const sidebar = await screen.findByTestId('sidebar')
-    expect(within(sidebar).getByTestId('account').textContent).toBe('octocat')
+    // 로고 줄 → 위 슬롯 → … → 하단 슬롯 → 맨 아래 계정
+    expect(within(sidebar).getByTestId('app-logo').textContent).toBe('Gdesk')
+    expect(
+      within(sidebar).getByTestId('top').closest('[data-slot]')?.getAttribute('data-slot')
+    ).toBe('sidebar-top')
+    const bottom = sidebar.querySelector('[data-slot="sidebar-bottom"]') as HTMLElement
+    expect(within(bottom).getByTestId('account').textContent).toBe('octocat')
+    expect(sidebar.lastElementChild).toBe(bottom)
     expect(
       within(sidebar)
         .getAllByTestId('section')
@@ -120,9 +133,13 @@ describe('앱 틀 슬롯 렌더링', () => {
     expect(within(sidebar).getByTestId('footer').textContent).toBe('Synced 27s ago')
     expect(screen.getByTestId('banner').textContent).toBe('Offline')
     expect(screen.getByTestId('overlay')).toBeTruthy()
+    // 상단 막대 오른쪽: order 순(새로고침 10 → 검색 100)
+    const actions = screen.getByTestId('top-bar').querySelector('[data-slot="header-actions"]')
     expect(
-      within(screen.getByTestId('top-bar')).getByRole('button', { name: 'Search' })
-    ).toBeTruthy()
+      within(actions as HTMLElement)
+        .getAllByRole('button')
+        .map((b) => b.textContent)
+    ).toEqual(['Refresh', 'Search'])
 
     // 메뉴 수치: 합쳐지고(뒤가 덮어씀), 0 과 없는 항목은 배지 없음
     const link = (id: string) => sidebar.querySelector(`[data-nav="${id}"]`) as HTMLElement
@@ -137,14 +154,20 @@ describe('앱 틀 슬롯 렌더링', () => {
     expect(link('inbox').getAttribute('aria-current')).toBeNull()
 
     // PageHeader 는 상단 막대로 포털된다
+    // 화면별 동작은 PageHeader 안(포털 자리)에 있어 전역 요소보다 왼쪽이다
     const topBar = screen.getByTestId('top-bar')
     expect(within(topBar).getByText('remocn-studio')).toBeTruthy()
+    const pageHeader = topBar.querySelector('[data-page-header]') as HTMLElement
+    expect(
+      pageHeader.compareDocumentPosition(actions as HTMLElement) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
   })
 
   it('슬롯이 비어 있어도 틀과 메뉴가 그려진다', async () => {
     renderShell(collectSlots({}))
     const sidebar = await screen.findByTestId('sidebar')
     expect(within(sidebar).getAllByRole('link')).toHaveLength(7)
+    expect(within(sidebar).getByTestId('app-logo')).toBeTruthy()
     expect(document.querySelector('[data-slot]')).toBeNull()
     expect(screen.getByTestId('home')).toBeTruthy()
   })

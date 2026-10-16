@@ -1,10 +1,12 @@
 {
   "title": "Issues",
+  "subtitle": "Track and manage issues across your repositories.",
   "tabs": {
     "label": "Issue lists",
     "incoming": "Incoming",
-    "assigned": "Assigned to me",
-    "mine": "Mine"
+    "assigned": "Assigned to you",
+    "mentioned": "Mentioned",
+    "mine": "Created"
   },
   "empty": {
     "incoming": {
@@ -15,14 +17,36 @@
       "title": "Nothing assigned to you",
       "description": "Open issues assigned to you appear here."
     },
+    "mentioned": {
+      "title": "No mentions",
+      "description": "Open issues that mention you appear here."
+    },
     "mine": {
       "title": "No open issues from you",
       "description": "Open issues you filed in any repository appear here."
     }
   },
+  "filters": {
+    "label": "Filters",
+    "byRepo": "Repository",
+    "byLabel": "Label",
+    "byAssignee": "Assignee",
+    "allRepos": "All repositories",
+    "allLabels": "All labels",
+    "allAssignees": "All assignees",
+    "clear": "Clear filters",
+    "noMatch": "No issues match these filters"
+  },
+  "sort": {
+    "label": "Sort",
+    "newest": "Newest first",
+    "updated": "Recently updated",
+    "comments": "Most commented"
+  },
   "row": {
     "label": "{{repo}}#{{number}} {{title}}",
     "labels": "Labels",
+    "opened": "opened {{time}}",
     "comments_one": "{{count}} comment",
     "comments_other": "{{count}} comments"
   },
@@ -30,5 +54,132 @@
     "text": "Showing {{shown}} of {{total}}.",
     "link": "More on GitHub"
   },
-  "error": "Couldn’t load issues."
+  "error": "Couldn’t load issues.",
+  "state": {
+    "open": "Open",
+    "closed": "Closed",
+    "closedWithReason": "Closed · {{reason}}",
+    "reason": {
+      "completed": "completed",
+      "not_planned": "not planned",
+      "duplicate": "duplicate"
+    }
+  },
+  "detail": {
+    "label": "Issue details",
+    "selectTitle": "Select an issue",
+    "selectDescription": "Pick an issue from the list to read it here.",
+    "offlineTitle": "Can’t load while offline",
+    "unavailableTitle": "Can’t load this issue right now",
+    "unavailableDescription": "It hasn’t been downloaded yet. It will load once Gdesk can reach GitHub.",
+    "opened": "#{{number}} · opened {{time}} by {{author}}",
+    "menu": "More actions",
+    "openOnGitHub": "Open on GitHub",
+    "copyLink": "Copy link",
+    "linkCopied": "Link copied.",
+    "copyFailed": "Couldn’t copy the link.",
+    "close": "Close panel",
+    "assignees": "Assignees",
+    "noDescription": "No description provided.",
+    "brokenImage": "[image]",
+    "comments": "Comments",
+    "commentsHeading_one": "{{count}} comment",
+    "commentsHeading_other": "{{count}} comments",
+    "moreComments_one": "See {{count}} more comment on GitHub",
+    "moreComments_other": "See the remaining {{count}} comments on GitHub",
+    "loadFailedTitle": "Couldn’t load this issue",
+    "loadFailedDescription": "GitHub didn’t return this issue. Try again, or open it on GitHub.",
+    "retry": "Retry"
+  },
+  "linked": {
+    "title": "Linked pull requests and commits",
+    "pullRequests": "Pull requests",
+    "commits": "Commits",
+    "empty": "No linked pull requests or commits.",
+    "noPullRequests": "No linked pull requests.",
+    "noCommits": "No referencing commits.",
+    "unknownAuthor": "Unknown author",
+    "prState": {
+      "open": "Open",
+      "merged": "Merged",
+      "closed": "Closed"
+    }
+  },
+  "reactions": {
+    "add": "Add reaction",
+    "chip_one": "{{reaction}}: {{count}} person",
+    "chip_other": "{{reaction}}: {{count}} people",
+    "names": {
+      "THUMBS_UP": "Thumbs up",
+      "THUMBS_DOWN": "Thumbs down",
+      "LAUGH": "Laugh",
+      "HOORAY": "Hooray",
+      "CONFUSED": "Confused",
+      "HEART": "Heart",
+      "ROCKET": "Rocket",
+      "EYES": "Eyes"
+    }
+  },
+  "editor": {
+    "tabs": "Editor mode",
+    "write": "Write",
+    "preview": "Preview",
+    "nothingToPreview": "Nothing to preview."
+  },
+  "composer": {
+    "label": "Comment",
+    "placeholder": "Leave a comment (Markdown supported)",
+    "submit": "Comment",
+    "sending": "Commenting…",
+    "cannotComment": "This issue is locked. Only collaborators with write access can comment."
+  },
+  "actions": {
+    "close": "Close issue",
+    "closeReasonLabel": "Close as",
+    "closeCompleted": "Close as completed",
+    "closeNotPlanned": "Close as not planned",
+    "reopen": "Reopen issue"
+  },
+  "newIssue": {
+    "button": "New issue",
+    "title": "New issue",
+    "description": "Create an issue in one of your repositories.",
+    "repo": "Repository",
+    "repoSearch": "Search repositories",
+    "noRepos": "No repositories found.",
+    "issuesDisabled": "Issues are turned off",
+    "selectedRepo": "Creating in {{repo}}",
+    "titleLabel": "Title",
+    "titlePlaceholder": "Title (required)",
+    "bodyLabel": "Description",
+    "bodyPlaceholder": "Describe the issue (Markdown supported)",
+    "labels": "Labels",
+    "assignees": "Assignees",
+    "noLabels": "This repository has no labels.",
+    "noAssignees": "No one can be assigned in this repository.",
+    "cancel": "Cancel",
+    "create": "Create issue",
+    "creating": "Creating…"
+  },
+  "blocked": {
+    "offline": "You’re offline. Writing is turned off until Gdesk reconnects.",
+    "session_expired": "Your session expired. Sign in again to write.",
+    "rate_limited": "GitHub’s request limit was reached. Writing resumes when it resets.",
+    "signed_out": "Sign in to write."
+  },
+  "failure": {
+    "offline": "You’re offline. Try again when you’re back online.",
+    "session_expired": "Your session expired. Sign in again and retry.",
+    "rate_limited": "GitHub’s request limit was reached. Try again later.",
+    "signed_out": "You’re signed out. Sign in and retry.",
+    "not_allowed": "GitHub doesn’t allow this action on this issue.",
+    "not_cached": "This issue hasn’t been downloaded yet. Wait a moment and try again.",
+    "empty_body": "The comment is empty.",
+    "empty_title": "Enter a title.",
+    "repo_not_mine": "You can only create issues in your own repositories.",
+    "repo_fork": "Issues can’t be created in a fork.",
+    "repo_archived": "This repository is archived.",
+    "repo_issues_disabled": "Issues are turned off for this repository.",
+    "failed": "Something went wrong."
+  }
 }

@@ -63,9 +63,8 @@ jobs:
             target: --linux
     runs-on: ${{ matrix.os }}
     env:
-      # 앱이 업데이트를 확인할 저장소와 OAuth App 공개 client ID(비밀값 아님)
+      # 앱이 업데이트를 확인할 저장소
       GDESK_REPO: ${{ github.repository }}
-      GDESK_GITHUB_CLIENT_ID: ${{ vars.GDESK_GITHUB_CLIENT_ID || secrets.GDESK_GITHUB_CLIENT_ID }}
     steps:
       - uses: actions/checkout@v5
 
@@ -134,6 +133,20 @@ jobs:
               echo "Linux: no code signing"
               ;;
           esac
+
+      # OAuth App 공개 client ID(비밀값 아님). 변수나 비밀값이 있을 때만 넘겨 기본값을 덮어쓴다.
+      # 빈 값을 넘기면 브라우저 로그인이 꺼진 채로 배포되므로, 둘 다 없으면 아예 설정하지 않는다.
+      - name: Configure OAuth client ID
+        shell: bash
+        env:
+          CLIENT_ID_OVERRIDE: ${{ vars.GDESK_GITHUB_CLIENT_ID || secrets.GDESK_GITHUB_CLIENT_ID }}
+        run: |
+          if [ -n "$CLIENT_ID_OVERRIDE" ]; then
+            echo "GDESK_GITHUB_CLIENT_ID=$CLIENT_ID_OVERRIDE" >> "$GITHUB_ENV"
+            echo "OAuth client ID: repository override"
+          else
+            echo "OAuth client ID: built-in default"
+          fi
 
       - name: Build app
         run: pnpm build

@@ -32,6 +32,7 @@ export interface RawRepository {
   } | null
   viewerPermission?: string | null
   viewerHasStarred?: boolean | null
+  hasIssuesEnabled?: boolean | null
 }
 
 export interface RawResponses {
@@ -72,6 +73,7 @@ export interface RawIssue {
   author?: RawActor | null
   repository?: { databaseId?: number | null; nameWithOwner?: string | null } | null
   labels?: { nodes?: ({ name?: string | null; color?: string | null } | null)[] | null } | null
+  assignees?: { nodes?: (RawActor | null)[] | null } | null
   comments?: RawResponses | null
 }
 
@@ -153,4 +155,107 @@ export interface RawRestRepository {
   id?: number | null
   node_id?: string | null
   full_name?: string | null
+}
+
+/** GraphQL GdeskContributions 의 viewer */
+export interface RawContributionsViewer {
+  login?: string | null
+  contributionsCollection?: {
+    totalCommitContributions?: number | null
+    contributionCalendar?: {
+      weeks?:
+        | ({
+            contributionDays?:
+              | ({
+                  date?: string | null
+                  contributionCount?: number | null
+                  contributionLevel?: string | null
+                } | null)[]
+              | null
+          } | null)[]
+        | null
+    } | null
+  } | null
+}
+
+/** REST GET /search/commits 항목 */
+export interface RawCommitSearchItem {
+  sha?: string | null
+  html_url?: string | null
+  commit?: {
+    message?: string | null
+    author?: { name?: string | null; date?: string | null } | null
+  } | null
+  author?: { login?: string | null; avatar_url?: string | null } | null
+  repository?: { full_name?: string | null } | null
+}
+
+/** GraphQL ReactionGroup */
+export interface RawReactionGroup {
+  content?: string | null
+  viewerHasReacted?: boolean | null
+  reactors?: { totalCount?: number | null } | null
+}
+
+/** 이슈 상세의 연결된 PR 후보(ReferencedSubject 중 PullRequest 만 필드가 온다) */
+export interface RawLinkedPullRequest {
+  __typename?: string
+  number?: number | null
+  title?: string | null
+  state?: string | null
+  url?: string | null
+  repository?: { nameWithOwner?: string | null } | null
+}
+
+/** 이슈 상세 타임라인 항목(CrossReferenced·Connected·Disconnected·Referenced) */
+export interface RawIssueTimelineItem {
+  __typename?: string
+  source?: RawLinkedPullRequest | null
+  subject?: RawLinkedPullRequest | null
+  commitRepository?: { nameWithOwner?: string | null } | null
+  commit?: {
+    oid?: string | null
+    messageHeadline?: string | null
+    committedDate?: string | null
+    url?: string | null
+    author?: { name?: string | null; user?: RawActor | null } | null
+  } | null
+}
+
+export interface RawIssueComment {
+  id?: string | null
+  createdAt?: string | null
+  bodyHTML?: string | null
+  author?: RawActor | null
+  reactionGroups?: (RawReactionGroup | null)[] | null
+}
+
+export interface RawIssueDetail {
+  id?: string | null
+  number?: number | null
+  url?: string | null
+  title?: string | null
+  state?: string | null
+  stateReason?: string | null
+  locked?: boolean | null
+  createdAt?: string | null
+  bodyHTML?: string | null
+  author?: RawActor | null
+  labels?: { nodes?: ({ name?: string | null; color?: string | null } | null)[] | null } | null
+  assignees?: { nodes?: (RawActor | null)[] | null } | null
+  reactionGroups?: (RawReactionGroup | null)[] | null
+  viewerCanClose?: boolean | null
+  viewerCanReopen?: boolean | null
+  viewerCanReact?: boolean | null
+  comments?: RawConnection<RawIssueComment> | null
+  closedByPullRequestsReferences?: { nodes?: (RawLinkedPullRequest | null)[] | null } | null
+  timelineItems?: { nodes?: (RawIssueTimelineItem | null)[] | null } | null
+}
+
+/** GraphQL GdeskIssueDetail 의 repository */
+export interface RawIssueDetailRepository {
+  databaseId?: number | null
+  nameWithOwner?: string | null
+  viewerPermission?: string | null
+  issue?: RawIssueDetail | null
 }

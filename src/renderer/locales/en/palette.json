@@ -1,7 +1,9 @@
 {
   "title": "Quick search",
-  "button": "Search",
   "open": "Open quick search ({{shortcut}})",
+  "trigger": {
+    "placeholder": "Search repositories, issues, pull requests…"
+  },
   "placeholder": "Search repositories, pull requests, issues, or type a command…",
   "results": "Results",
   "noResults": "No matching commands",

@@ -12,8 +12,9 @@ pnpm install
 pnpm dev
 ```
 
-`GDESK_GITHUB_CLIENT_ID` 없이 실행하면 브라우저 로그인 대신 개인 토큰 입력만 보입니다.
-OAuth App 이 필요하면 [docs/oauth-app.md](docs/oauth-app.md) 를 봅니다.
+기본 OAuth client ID 가 코드에 들어 있어 따로 설정하지 않아도 브라우저 로그인과 개인 토큰 입력을 모두 쓸 수 있습니다.
+다른 OAuth App 을 쓰려면 `GDESK_GITHUB_CLIENT_ID=<client ID> pnpm dev`, 토큰 입력만 보려면 `GDESK_GITHUB_CLIENT_ID= pnpm dev`(빈 값)로 실행합니다.
+자기 OAuth App 을 등록하는 방법은 [docs/oauth-app.md](docs/oauth-app.md) 를 봅니다.
 
 ## PR 전에 확인할 명령
 

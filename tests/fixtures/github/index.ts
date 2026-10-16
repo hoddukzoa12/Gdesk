@@ -6,15 +6,31 @@
  *   server.failNextWrites(1); server.goOffline(); server.setUnauthorized(true) ...
  *   await server.close()
  */
-export { FIXTURE, avatarUrl, buildFixtures, fullName } from './data'
+export {
+  FIXTURE,
+  MALICIOUS_BODY_MARKERS,
+  REACTION_CONTENTS,
+  avatarUrl,
+  buildContributions,
+  buildFixtures,
+  commentNodeId,
+  fullName
+} from './data'
 export type {
   FixtureActor,
   FixtureCommit,
+  FixtureContributions,
   FixtureItem,
+  FixtureLabel,
+  FixtureLinkedPullRequest,
   FixtureNotification,
+  FixtureReactions,
   FixtureRelease,
   FixtureRepo,
+  FixtureSearchCommit,
   FixtureState,
+  FixtureTimelineEvent,
+  ReactionContent,
   RollupState
 } from './data'
 export { FakeGitHub, isWriteRequest, startFakeGitHub } from './server'

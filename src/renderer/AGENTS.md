@@ -2,11 +2,11 @@
 
 ## 맡는 것
 
-React 화면 전체: 앱 틀(사이드바, 상단 막대, 본문), 기능별 화면(`features/*`), 공용 부품(`components/`), 테마(`theme/`), 번역(`locales/`), 메인 호출 도우미(`lib/ipc.ts`), 여러 기능이 함께 쓰는 훅(`lib/hooks/`).
+React 화면 전체: 앱 틀(사이드바: 로고·메뉴·섹션·맨 아래 계정, 상단 막대: PageHeader 포털·동기화 상태·검색 입력, 본문), 기능별 화면(`features/*`), 공용 부품(`components/`), 테마(`theme/`), 번역(`locales/`), 메인 호출 도우미(`lib/ipc.ts`), 여러 기능이 함께 쓰는 훅(`lib/hooks/`).
 
 ## 맡지 않는 것
 
-- GitHub 호출, 토큰, git, DB, 파일 시스템, 외부 프로그램 실행. 화면은 격리되어 있다(`contextIsolation`, `sandbox`, Node 없음). 빌드된 화면의 CSP는 `index.html`의 `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://avatars.githubusercontent.com; font-src 'self' data:; connect-src 'self'`다. 이미지는 앱 자체(`'self'`), `data:`, GitHub 아바타 호스트만 표시한다. 개발 서버에서만 `connect-src`에 `ws://localhost:*`가 더해진다(`electron.vite.config.mts`).
+- GitHub 호출, 토큰, git, DB, 파일 시스템, 외부 프로그램 실행. 화면은 격리되어 있다(`contextIsolation`, `sandbox`, Node 없음). 빌드된 화면의 CSP는 `index.html`의 `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://avatars.githubusercontent.com https://*.githubusercontent.com https://github.githubassets.com https://github.com; font-src 'self' data:; connect-src 'self'`다. 이미지는 앱 자체(`'self'`), `data:`, GitHub 이미지 호스트(아바타, 이슈 본문 이미지용 `*.githubusercontent.com`·`github.githubassets.com`·`github.com`)만 표시한다. `connect-src`는 `'self'` 그대로다. 개발 서버에서만 `connect-src`에 `ws://localhost:*`가 더해진다(`electron.vite.config.mts`).
 - 업무 계산(CI 판정, 응답 없는 새 기여, 스타 증가, 들어온 항목 수). 메인이 계산한 값을 그대로 보여 준다.
 - 메인·프리로드 코드 import. `electron`, `fs`, `path`, `child_process`, `os`, `crypto`, `node:*`, `**/main/**`는 ESLint가 막는다.
 - 앱 틀 파일(`app/router.tsx`, `app/routes.tsx`, `app/slots.ts`, `app/i18n.ts`, `app/AppLayout.tsx`, `app/Sidebar.tsx`)은 기능 변경에서 고치지 않는다. 기능은 자기 폴더 파일로 끼운다.
@@ -16,9 +16,10 @@ React 화면 전체: 앱 틀(사이드바, 상단 막대, 본문), 기능별 화
 - 메인과의 통신은 `lib/ipc.ts`의 `invoke`, `useIpcQuery`, `useIpcEvent`로만 한다. `window.gdesk`를 직접 부르는 곳은 `lib/ipc.ts`뿐이다.
 - 화면 코드는 토큰을 보관하지 않는다. 로그인 입력란의 토큰은 React 상태에 두지 않고, `auth:loginWithToken`으로 보내기 전에 입력란을 비운다. 세션 정보는 `SessionSnapshot`(사용자, 토큰 종류, 빠진 권한)만 쓴다.
 - 사용자에게 보이는 문구는 모두 `locales/en/<ns>.json`과 `locales/ko/<ns>.json`에 함께 둔다. 코드에 문장을 쓰지 않는다. 메인이 준 `reason`·`code`는 번역 키로 바꾸고, 모르는 값은 기본 문구로 떨어뜨린다(`clone-logic.ts`의 `cloneFailureKey` 등).
-- 쓰기 버튼(스타, 읽음, 완료, 클론)은 `actions:getAvailability`/`actions:availability`가 `available: false`면 끈다. 쓰기 결과는 메인이 캐시를 바꾸고 `data:changed`로 알리므로, 화면은 결과를 직접 캐시에 써 넣지 않고 다시 읽은 값을 보여 준다. 실패(`reason: 'failed'`)면 오류를 알린다.
+- 쓰기 버튼(스타, 읽음, 완료, 클론, 이슈 반응·코멘트·닫기·다시 열기·새 이슈)은 `actions:getAvailability`/`actions:availability`가 `available: false`면 끈다(이슈 화면은 `useActionAvailability`로 같은 값을 읽는다). 쓰기 결과는 메인이 캐시를 바꾸고 `data:changed`로 알리므로, 화면은 결과를 직접 캐시에 써 넣지 않고 다시 읽은 값을 보여 준다. 실패(`reason: 'failed'`)면 오류를 알린다.
 - 외부 링크는 `app:openExternal`로 연다. `<a target="_blank">`나 `window.open`은 메인이 막는다.
-- 색은 테마 변수(`theme/theme.css`)로만 쓴다. CI 상태 색: `passing` 초록, `failing` 빨강, `pending` 노랑, `none` 회색.
+- 색은 테마 변수(`theme/theme.css`)로만 쓴다. CI 상태 색: `passing` 초록, `failing` 빨강, `pending` 노랑, `none` 회색. 기여 달력은 `heat-0`~`heat-4`(파랑 5단계), 병합·리뷰 필요는 `merged`(보라), 내가 누른 반응은 `reaction-active`를 쓴다. 새 색이 필요하면 어두운·밝은 테마 두 블록과 `@theme` 연결 세 곳에 함께 더한다. 유일한 예외는 `components/GdeskLogo.tsx`다. 앱 아이콘(`build/icon.svg`)과 똑같아 보여야 해서 테마와 관계없이 아이콘의 고정 색을 쓴다.
+- GitHub가 만든 HTML(이슈 본문·코멘트·마크다운 미리보기)은 `features/issues/SafeHtml.tsx`로만 그린다. `SafeHtml`은 `sanitize.ts`의 `sanitizeIssueHtml`(전용 DOMPurify 인스턴스)로 정리한 뒤 넣고, 본문 링크 클릭을 막고 http(s)만 `openExternal`로 연다. 정리하지 않은 문자열을 `innerHTML`·`dangerouslySetInnerHTML`에 넣지 않고, 기본 `DOMPurify`에 훅을 달지 않는다.
 - 화면 자동 테스트가 찾는 `data-testid`를 바꾸면 `tests/e2e`도 함께 바꾼다.
 
 ## 구현 방식
@@ -27,14 +28,14 @@ React 화면 전체: 앱 틀(사이드바, 상단 막대, 본문), 기능별 화
 
 `features/<기능>/`에 둔다. 앱 틀은 다음을 자동으로 모은다.
 
-| 파일        | 내보내는 것                          | 용도                                                                                                                                                  |
-| ----------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `route.tsx` | `export const routes: RouteObject[]` | 해시 라우터의 자식 경로. `path`는 `/` 없이(`'inbox'`, `'repos/:repoId'`)                                                                              |
-| `slots.tsx` | `export const slots: FeatureSlots`   | `sidebarTop`, `sidebarSections`(order), `sidebarFooter`, `banners`(order), `overlays`, `headerActions`(order), `useNavCounts`, `usePreferencesSource` |
+| 파일        | 내보내는 것                          | 용도                                                                                                                                                                   |
+| ----------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `route.tsx` | `export const routes: RouteObject[]` | 해시 라우터의 자식 경로. `path`는 `/` 없이(`'inbox'`, `'repos/:repoId'`)                                                                                               |
+| `slots.tsx` | `export const slots: FeatureSlots`   | `sidebarTop`, `sidebarSections`(order), `sidebarFooter`, `sidebarBottom`, `banners`(order), `overlays`, `headerActions`(order), `useNavCounts`, `usePreferencesSource` |
 
 - `slots.tsx`·`route.tsx`는 앱 시작 때 eager로 읽힌다. 모듈 최상위에서 `window.gdesk`를 부르거나 무거운 일을 하지 않는다.
-- 다른 기능의 화면을 열 때는 그 기능이 내보낸 함수를 쓴다(예: 클론 대화상자는 `features/clone/store.ts`의 `requestClone`).
-- 지금 쓰는 배너 순서: 세션 만료 10, 오프라인 20, 토큰 경고 40, 조직 제한 45, 업데이트 100. 사이드바 섹션: Pinned 10, Your repositories 20.
+- 다른 기능의 화면을 열 때는 그 기능이 내보낸 함수를 쓴다(예: 클론 대화상자는 `features/clone/store.ts`의 `requestClone`). 다른 기능의 작은 부품·함수를 가져다 쓰는 것도 같은 방식이다(지금 `reviews`·`issues` → `pulls/ListView`의 `MoreHint`·`githubListUrl`, `issues` → `clone/clipboard`의 `writeClipboardText`, `settings` → `updater`). 앱 틀 파일을 통하지 않는다.
+- 지금 쓰는 배너 순서: 세션 만료 10, 오프라인 20, 토큰 경고 40, 조직 제한 45, 업데이트 100. 사이드바 섹션: Pinned 10, Your repositories 20. 상단 막대 오른쪽(`headerActions`): 동기화 상태·새로고침 10, 검색 입력 100(맨 오른쪽). 화면별 동작(PageHeader `actions`)은 이들보다 왼쪽이다. 계정 영역은 `sidebarBottom`(인증). `sidebarTop`·`sidebarFooter`는 지금 쓰는 기능이 없다.
 
 ### 데이터 읽기
 
@@ -59,9 +60,13 @@ React 화면 전체: 앱 틀(사이드바, 상단 막대, 본문), 기능별 화
 
 저장소 상세 화면은 마운트 때 `sync:setViewedRepo { repoId }`, 언마운트 때 `{ repoId: null }`을 보낸다. 이것을 빼면 상세가 고정 저장소만 받아져 남의 저장소 화면이 머리글만 보인다.
 
+이슈 상세 패널(`features/issues/IssueDetailPanel.tsx`)은 연 이슈가 바뀔 때마다 `sync:setViewedIssue { repoId, number }`(감싸지 않은 이슈 키), 닫거나 언마운트할 때 `null`을 보낸다. 상세는 `query:issueDetail`로 읽으므로 `data:changed` 때 자동으로 다시 읽힌다. 메인은 같은 이슈를 다시 알리면 받지 않으므로, 다시 시도는 `null`을 보낸 뒤 이슈를 다시 보낸다. `online`인데 `DETAIL_LOAD_TIMEOUT_MS`(15초) 안에 상세가 오지 않으면 실패 안내로 바꾼다.
+
+Issues 화면의 탭·필터·정렬·연 이슈는 React 상태가 아니라 주소 검색 값(`issues-logic.ts`의 `parseUrlState`·`serializeUrlState`)에 둔다. 기본값은 주소에서 뺀다. 새 화면 상태를 더하면 이 두 함수와 `updateUrlState`(탭을 바꾸면 필터를 푸는 규칙)를 함께 고친다.
+
 ### 새로고침 단축키
 
-⌘R(맥) / Ctrl+R(그 외)은 `features/sidebar/SyncFooter.tsx`가 `keydown`으로 잡아 `sync:refresh`에 지금 주소의 범위(`refreshScope.ts`)를 보낸다. 앱 메뉴에는 화면 다시 불러오기가 없다. 다른 곳에서 이 단축키를 쓰지 않는다.
+⌘R(맥) / Ctrl+R(그 외)은 상단 막대의 `features/sidebar/SyncFooter.tsx`가 `keydown`으로 잡아 `sync:refresh`에 지금 주소의 범위(`refreshScope.ts`)를 보낸다. 앱 메뉴에는 화면 다시 불러오기가 없다. 다른 곳에서 이 단축키를 쓰지 않는다.
 
 ### 언어·테마
 
@@ -74,7 +79,7 @@ React 화면 전체: 앱 틀(사이드바, 상단 막대, 본문), 기능별 화
 
 ## 테스트
 
-- 순수 로직(`*-logic.ts`, `footerText.ts`, `refreshScope.ts`, `reorder.ts` 등)은 `*.test.ts`로 node 환경에서 테스트한다.
+- 순수 로직(`*-logic.ts`, `footerText.ts`, `refreshScope.ts`, `reorder.ts` 등)은 `*.test.ts`로 node 환경에서 테스트한다. Home의 달력 배치·한마디 고르기는 `home-logic.test.ts`, Issues의 주소 상태·필터·정렬은 `issues-logic.test.ts`, HTML 정리 규칙과 기본 인스턴스 비오염은 `sanitize.test.ts`(jsdom)가 맡는다.
 - 컴포넌트 테스트는 파일 첫 줄에 `// @vitest-environment jsdom`을 두고 `@testing-library/react`로 그린다. `window.gdesk`는 가짜로 넣는다.
 - 번역 키 집합은 `pnpm test`가 en·ko를 비교한다. 새 키를 한쪽에만 넣으면 실패한다.
 - 화면 흐름(클릭 → 메인 → 다시 읽기)은 `tests/e2e`의 화면 테스트로 확인한다. 쓰기 실패 되돌림, 오프라인 비활성화, `query:`가 아닌 채널의 갱신은 단위 테스트로 잡히지 않는다.

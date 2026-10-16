@@ -26,6 +26,16 @@
   --color-neutral: #6e7681;
   --color-info: #58a6ff;
   --color-ring: #f0883e;
+  /* 기여 활동(잔디) 파랑 5단계: 0 = 빈 칸 */
+  --color-heat-0: #1c2129;
+  --color-heat-1: #0f3a73;
+  --color-heat-2: #1a5bbf;
+  --color-heat-3: #2f80ed;
+  --color-heat-4: #62a8ff;
+  /* PR 병합(Merged) 표시 */
+  --color-merged: #a371f7;
+  /* 내가 누른 반응 강조 */
+  --color-reaction-active: #58a6ff;
   color-scheme: dark;
 }
 
@@ -48,6 +58,13 @@
   --color-neutral: #6e7781;
   --color-info: #0969da;
   --color-ring: #d4651c;
+  --color-heat-0: #ebeef2;
+  --color-heat-1: #c3dafc;
+  --color-heat-2: #7fb0f5;
+  --color-heat-3: #3b82f6;
+  --color-heat-4: #1d4ed8;
+  --color-merged: #8250df;
+  --color-reaction-active: #0969da;
   color-scheme: light;
 }
 
@@ -70,6 +87,13 @@
   --color-neutral: var(--color-neutral);
   --color-info: var(--color-info);
   --color-ring: var(--color-ring);
+  --color-heat-0: var(--color-heat-0);
+  --color-heat-1: var(--color-heat-1);
+  --color-heat-2: var(--color-heat-2);
+  --color-heat-3: var(--color-heat-3);
+  --color-heat-4: var(--color-heat-4);
+  --color-merged: var(--color-merged);
+  --color-reaction-active: var(--color-reaction-active);
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 }

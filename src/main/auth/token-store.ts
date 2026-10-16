@@ -71,7 +71,9 @@ function parseCredential(text: string): StoredCredential | null {
       id: user.id,
       login: user.login,
       name: typeof user.name === 'string' ? user.name : null,
-      avatarUrl: typeof user.avatarUrl === 'string' ? user.avatarUrl : ''
+      avatarUrl: typeof user.avatarUrl === 'string' ? user.avatarUrl : '',
+      // 이메일 필드가 생기기 전에 저장한 기록은 null(다음 재확인이 채운다)
+      email: typeof user.email === 'string' && user.email !== '' ? user.email : null
     },
     scopes: scopes as string[] | null
   }
