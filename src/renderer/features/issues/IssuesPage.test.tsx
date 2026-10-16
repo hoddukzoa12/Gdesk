@@ -6,6 +6,7 @@ import { I18nextProvider } from 'react-i18next'
 import { RouterProvider, createMemoryRouter } from 'react-router'
 import type { GdeskApi } from '@shared/ipc/contract'
 import type { ActionAvailability } from '@shared/domain/actions'
+import { MAX_ISSUE_LABELS } from '@shared/domain/issue-actions'
 import type { IssueRow } from '@shared/domain/issue'
 import type { IssueDetail, IssueRepoOption } from '@shared/domain/issue-detail'
 import type { ListPage } from '@shared/domain/list'
@@ -474,6 +475,39 @@ describe('새 이슈 대화상자', () => {
     fireEvent.click(screen.getByTestId('new-issue-repo-101'))
     expect(screen.getByTestId('new-issue-repo-101').getAttribute('aria-selected')).toBe('true')
     await waitFor(() => expect(calls('issueActions:repoMeta')).toEqual([{ repoId: 101 }]))
+  })
+
+  it(`라벨은 담당자처럼 ${MAX_ISSUE_LABELS}개까지만 고를 수 있다`, async () => {
+    const names = Array.from({ length: MAX_ISSUE_LABELS + 1 }, (_, i) => `l${i}`)
+    responses['issueActions:repoMeta'] = () => ({
+      ok: true,
+      labels: names.map((name) => ({ name, color: '0075ca', description: null })),
+      assignees: []
+    })
+    responses['issueActions:create'] = () => ({ ok: false, reason: 'failed', message: 'nope' })
+    setup('/issues')
+    const button = await screen.findByTestId('new-issue-button')
+    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false))
+    fireEvent.click(button)
+    fireEvent.click(await screen.findByTestId('new-issue-repo-101'))
+    await screen.findByTestId(`new-issue-label-${names[0]}`)
+    for (const name of names) fireEvent.click(screen.getByTestId(`new-issue-label-${name}`))
+    const last = screen.getByTestId(`new-issue-label-${names[MAX_ISSUE_LABELS]}`)
+    expect(last.getAttribute('aria-pressed')).toBe('false')
+    // 고른 것을 풀면 다시 고를 수 있다
+    fireEvent.click(screen.getByTestId(`new-issue-label-${names[0]}`))
+    fireEvent.click(last)
+    expect(last.getAttribute('aria-pressed')).toBe('true')
+
+    fireEvent.change(screen.getByTestId('new-issue-title'), { target: { value: 'Many labels' } })
+    const submit = screen.getByTestId('new-issue-submit') as HTMLButtonElement
+    await waitFor(() => expect(submit.disabled).toBe(false))
+    await act(async () => {
+      fireEvent.click(submit)
+    })
+    const sent = calls('issueActions:create').at(-1) as { labels?: string[] }
+    expect(sent.labels).toHaveLength(MAX_ISSUE_LABELS)
+    expect(sent.labels).not.toContain(names[0])
   })
 
   it('만들기 실패는 양식을 두고, 성공하면 내가 올린 이슈 탭에서 연다', async () => {

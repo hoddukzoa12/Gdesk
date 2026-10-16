@@ -5,7 +5,11 @@ import { Dialog } from 'radix-ui'
 import { useTranslation } from 'react-i18next'
 import '@shared/ipc/issue-actions'
 import '@shared/ipc/queries'
-import { MAX_ISSUE_ASSIGNEES, type CreatedIssue } from '@shared/domain/issue-actions'
+import {
+  MAX_ISSUE_ASSIGNEES,
+  MAX_ISSUE_LABELS,
+  type CreatedIssue
+} from '@shared/domain/issue-actions'
 import type { IssueRepoOption } from '@shared/domain/issue-detail'
 import { Avatar, Button, Spinner, focusRing } from '@renderer/components'
 import { useActionAvailability } from '@renderer/lib/hooks/useActionAvailability'
@@ -295,7 +299,9 @@ function NewIssueForm({
                           type="button"
                           aria-pressed={on}
                           title={label.description ?? undefined}
-                          onClick={() => setLabels((prev) => toggle(prev, label.name))}
+                          onClick={() =>
+                            setLabels((prev) => toggle(prev, label.name, MAX_ISSUE_LABELS))
+                          }
                           data-testid={`new-issue-label-${label.name}`}
                           className={cn(
                             'inline-flex items-center gap-1 rounded-full border px-1 py-0.5',
