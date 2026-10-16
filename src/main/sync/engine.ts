@@ -1,4 +1,6 @@
 import type { ConnectionStatus } from '@shared/domain/connection'
+import { assertIssueRef } from '@shared/domain/issue-detail'
+import type { IssueRef } from '@shared/domain/issue-detail'
 import type { OrgRestrictionNotice } from '@shared/domain/org'
 import type { SessionState } from '@shared/domain/session'
 import { parseRefreshScope } from '@shared/domain/sync'
@@ -49,7 +51,11 @@ export interface SyncRefreshers {
   repoOpenItems(): Promise<{ repoIds: readonly number[] } | void>
   pullRequestLists(): Promise<unknown>
   issueLists(): Promise<unknown>
+  /** 나를 언급한 이슈(검색). 할당·내 이슈와 따로 돌아 실패가 서로를 막지 않는다 */
+  mentionedIssues(): Promise<unknown>
   repositoryDetail(repoId: number): Promise<unknown>
+  /** 보고 있는 이슈 상세. 열 때 바로, 보는 동안 목록 주기로 */
+  issueDetail(repoId: number, number: number): Promise<unknown>
   /** Home 기여 달력·커밋 기여 수(GraphQL). 목록 주기·home 범위 */
   contributions(): Promise<unknown>
   /** Home 최근 커밋(REST 커밋 검색, search 한도). 목록 주기·home 범위 */
@@ -83,6 +89,8 @@ export interface SyncEngineOptions {
   /** 저장된 마지막 동기화 시각(재시작 직후 "N분 전 정보" 용) */
   readLastSyncedAt(): number | null
   readOrgRestrictions(): OrgRestrictionNotice[]
+  /** 계정 전환(clearAccountData)으로 계정 데이터가 지워질 때 알림. 보고 있던 저장소·이슈를 잊는다 */
+  onAccountDataCleared?(listener: () => void): () => void
   notifyDataChanged(keys: string[]): void
   onStatus?(status: SyncStatus): void
   onError?(unit: string, error: unknown): void
@@ -125,6 +133,7 @@ const KEYS = {
   repoOpenItems: ['pulls', 'issues', 'home', 'sidebar'],
   pullRequestLists: ['pulls', 'reviews', 'home', 'sidebar'],
   issueLists: ['issues', 'home'],
+  mentionedIssues: ['issues'],
   contributions: ['home'],
   recentCommits: ['home']
 } as const
@@ -135,6 +144,7 @@ type ListUnit =
   | 'repoOpenItems'
   | 'pullRequestLists'
   | 'issueLists'
+  | 'mentionedIssues'
   | 'contributions'
   | 'recentCommits'
 
@@ -142,6 +152,10 @@ function assertRepoId(repoId: unknown): asserts repoId is number {
   if (typeof repoId !== 'number' || !Number.isSafeInteger(repoId) || repoId <= 0) {
     throw new Error(`Invalid repository id: ${String(repoId)}`)
   }
+}
+
+function issueKey(ref: IssueRef): string {
+  return `issue:${ref.repoId}#${ref.number}`
 }
 
 export class SyncEngine {
@@ -158,6 +172,7 @@ export class SyncEngine {
   private session: SyncSession
   private pinned: number[]
   private viewedRepoId: number | null = null
+  private viewedIssue: IssueRef | null = null
   private lastSyncedAt: number | null
   /** 마지막 알림 요청 시각과 그때 받은 최소 간격(ms). 다시 켜질 때 GitHub 최소 간격을 지킨다 */
   private lastNotificationsAttempt = Number.NEGATIVE_INFINITY
@@ -203,6 +218,10 @@ export class SyncEngine {
       options.session.onChange((session) => this.handleSession(session)),
       options.pins.onChange((repoIds) => this.handlePins(repoIds))
     )
+    if (options.onAccountDataCleared) {
+      // 이전 계정이 보던 저장소·이슈를 다음 계정으로 받지 않게 한다
+      this.unsubscribers.push(options.onAccountDataCleared(() => this.forgetViewed()))
+    }
     // 처음 상태는 sync:getStatus 로 읽는다. 바뀔 때만 알린다
     this.lastEmitted = JSON.stringify(this.getStatus())
   }
@@ -227,6 +246,25 @@ export class SyncEngine {
     this.viewedRepoId = repoId
     if (repoId === null || repoId === previous || !this.canFetch()) return
     await this.runDetail(repoId)
+  }
+
+  /**
+   * 이슈 상세 패널 열림(이슈)·닫힘(null). 열면 그 이슈를 바로 받고(한도가 적어도, 사용자가 연 패널),
+   * 보는 동안 목록 주기마다 다시 받는다. 같은 이슈를 다시 알리면 받지 않는다. 받기가 끝나면 끝나는 Promise.
+   */
+  async setViewedIssue(ref: IssueRef | null): Promise<void> {
+    if (ref !== null) assertIssueRef(ref)
+    const previous = this.viewedIssue
+    this.viewedIssue = ref === null ? null : { repoId: ref.repoId, number: ref.number }
+    if (ref === null || !this.canFetch()) return
+    if (previous && previous.repoId === ref.repoId && previous.number === ref.number) return
+    await this.runIssueDetail(ref)
+  }
+
+  /** 로그아웃·계정 전환: 보고 있던 저장소·이슈를 잊는다. 화면이 다시 알리면 다시 받는다 */
+  private forgetViewed(): void {
+    this.viewedRepoId = null
+    this.viewedIssue = null
   }
 
   /** 상세 추적 집합 = 고정 + 보고 있는 저장소(중복 없음, 고정 순서 뒤에 보고 있는 저장소) */
@@ -272,7 +310,9 @@ export class SyncEngine {
         return
       case 'issues':
         await this.runUnit('issueLists')
+        await this.runUnit('mentionedIssues')
         await this.runUnit('repoOpenItems')
+        if (this.viewedIssue) await this.runIssueDetail(this.viewedIssue)
         return
       case 'starred':
         await this.runUnit('starred')
@@ -359,6 +399,8 @@ export class SyncEngine {
     const previous = this.session
     this.session = { ...session }
     if (previous.state !== session.state) {
+      // 로그아웃하면 보고 있던 저장소·이슈를 잊는다(다음 계정이 이전 계정의 것을 받지 않게)
+      if (session.state === 'signed_out') this.forgetViewed()
       // 로그아웃하면 캐시가 지워진다. 로그인하면 저장된 값을 다시 읽는다
       this.lastSyncedAt = session.state === 'signed_out' ? null : this.safeLastSyncedAt()
       this.reconcile()
@@ -451,6 +493,9 @@ export class SyncEngine {
     await this.runUnit('repoOpenItems')
     await this.runUnit('pullRequestLists')
     await this.runUnit('issueLists')
+    await this.runUnit('mentionedIssues')
+    // 보고 있는 이슈 상세는 목록 주기로 다시 받는다
+    if (this.viewedIssue) await this.runIssueDetail(this.viewedIssue)
     await this.runUnit('starred')
     // Home 활동 영역. 실패(가짜 서버가 모르는 요청 등)는 execute 가 따로 삼킨다
     await this.runUnit('contributions')
@@ -537,6 +582,11 @@ export class SyncEngine {
           await refresh.issueLists()
           return [...KEYS.issueLists]
         })
+      case 'mentionedIssues':
+        return this.execute(unit, async () => {
+          await refresh.mentionedIssues()
+          return [...KEYS.mentionedIssues]
+        })
       case 'contributions':
         return this.execute(unit, async () => {
           await refresh.contributions()
@@ -554,6 +604,14 @@ export class SyncEngine {
     return this.execute(`detail:${repoId}`, async () => {
       await this.options.refresh.repositoryDetail(repoId)
       return [`repo:${repoId}`, 'home', 'sidebar']
+    })
+  }
+
+  private runIssueDetail(ref: IssueRef): Promise<boolean> {
+    const { repoId, number } = ref
+    return this.execute(issueKey(ref), async () => {
+      await this.options.refresh.issueDetail(repoId, number)
+      return ['issues', issueKey(ref)]
     })
   }
 

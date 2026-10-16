@@ -111,6 +111,7 @@ export function rawRepo(id: number, patch: Record<string, unknown> = {}): Record
     repositoryTopics: { nodes: [] },
     viewerPermission: 'ADMIN',
     viewerHasStarred: false,
+    hasIssuesEnabled: true,
     ...patch
   }
 }
@@ -157,6 +158,7 @@ export function rawIssue(
     author: { __typename: 'User', login: 'someone', avatarUrl: null },
     repository: { databaseId: repoId, nameWithOwner: `me/repo${repoId}` },
     labels: { nodes: [] },
+    assignees: { nodes: [] },
     comments: { totalCount: 0, nodes: [] },
     ...patch
   }

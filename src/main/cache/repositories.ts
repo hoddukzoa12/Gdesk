@@ -6,6 +6,7 @@ import type {
   RepositorySummary,
   ViewerPermission
 } from '@shared/domain/repo'
+import type { IssueRepoOption } from '@shared/domain/issue-detail'
 import { withTransaction } from '../db/transaction'
 import { bool, jsonValue, likePattern, num, placeholders, str, strOrNull, sqlBool } from './rows'
 import type { Row } from './rows'
@@ -74,8 +75,8 @@ export function upsertRepositories(
        url, private, fork, archived, description, homepage_url, primary_language,
        primary_language_color, default_branch, license, stargazer_count, fork_count, open_pr_count,
        open_issue_count, pushed_at, updated_at, topics, viewer_permission, viewer_has_starred,
-       access_status, synced_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'available', ?)
+       has_issues_enabled, access_status, synced_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'available', ?)
      ON CONFLICT (id) DO UPDATE SET
        node_id = COALESCE(excluded.node_id, node_id),
        owner = excluded.owner,
@@ -102,6 +103,7 @@ export function upsertRepositories(
        topics = excluded.topics,
        viewer_permission = excluded.viewer_permission,
        viewer_has_starred = excluded.viewer_has_starred,
+       has_issues_enabled = excluded.has_issues_enabled,
        access_status = 'available',
        synced_at = excluded.synced_at`
   )
@@ -134,6 +136,7 @@ export function upsertRepositories(
         JSON.stringify(r.topics),
         r.viewerPermission,
         sqlBool(r.viewerHasStarred),
+        sqlBool(r.hasIssuesEnabled),
         now
       )
     }
@@ -352,6 +355,34 @@ export function listMyRepositories(
     .prepare(`${SELECT} WHERE ${where.join(' AND ')} ORDER BY ${order}${limit}`)
     .all(...params)
     .map(toRepositorySummary)
+}
+
+/**
+ * 새 이슈 만들기의 저장소 선택 (spec §6): 내 저장소 집합에서 포크·보관을 뺀 것, 최근 푸시 순.
+ * 이슈를 끈 저장소도 넣는다(화면이 보여 주되 고를 수 없게 한다).
+ */
+export function listIssueRepoOptions(db: DatabaseSync): IssueRepoOption[] {
+  return db
+    .prepare(
+      `SELECT id, owner, name, full_name, owner_avatar_url, private, has_issues_enabled,
+         viewer_permission
+       FROM cache_repositories WHERE is_mine = 1 AND fork = 0 AND archived = 0
+       ORDER BY ${SORTS.pushed}`
+    )
+    .all()
+    .map((row) => {
+      const permission = strOrNull(row, 'viewer_permission')
+      return {
+        repoId: num(row, 'id'),
+        owner: str(row, 'owner'),
+        name: str(row, 'name'),
+        fullName: str(row, 'full_name'),
+        ownerAvatarUrl: strOrNull(row, 'owner_avatar_url'),
+        private: bool(row, 'private'),
+        hasIssuesEnabled: bool(row, 'has_issues_enabled'),
+        viewerPermission: PERMISSIONS.find((p) => p === permission) ?? null
+      }
+    })
 }
 
 export interface RepoOwnerSummary {

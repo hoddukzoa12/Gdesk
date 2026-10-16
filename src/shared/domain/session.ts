@@ -29,6 +29,8 @@ export interface SessionUser {
   login: string
   name: string | null
   avatarUrl: string
+  /** GitHub 프로필의 공개 이메일(GET /user 의 email). 공개하지 않았거나 모르면 null. email 권한은 요청하지 않는다 */
+  email: string | null
 }
 
 /**

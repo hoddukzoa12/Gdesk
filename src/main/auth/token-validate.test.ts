@@ -5,6 +5,7 @@ import {
   detectTokenKind,
   isInboxAvailable,
   parseScopes,
+  parseUser,
   validateToken
 } from './token-validate'
 import { createFakeFetch, userResponse } from './test-helpers'
@@ -77,6 +78,28 @@ describe('isInboxAvailable', () => {
   })
 })
 
+describe('parseUser 의 공개 이메일', () => {
+  const base = { id: 7, login: 'octo', name: null, avatar_url: 'a' }
+  it('공개 이메일이 있으면 담고, 없거나(null·빈 문자열·필드 없음·다른 형) null', () => {
+    expect(parseUser({ ...base, email: 'octo@example.com' })?.email).toBe('octo@example.com')
+    expect(parseUser({ ...base, email: null })?.email).toBeNull()
+    expect(parseUser({ ...base, email: '' })?.email).toBeNull()
+    expect(parseUser({ ...base, email: 3 })?.email).toBeNull()
+    expect(parseUser(base)?.email).toBeNull()
+  })
+
+  it('로그인 확인(GET /user)도 이메일을 담는다', async () => {
+    const fake = createFakeFetch(() =>
+      userResponse({ id: 7, login: 'octo', email: 'octo@example.com' }, 'repo')
+    )
+    const result = await validateToken('ghp_' + 'x'.repeat(36), {
+      fetch: fake.fetch,
+      apiBase: API
+    })
+    expect(result.user.email).toBe('octo@example.com')
+  })
+})
+
 describe('validateToken', () => {
   const TOKEN = 'ghp_ValidateTokenSecret1234567890abcd'
 
@@ -89,7 +112,13 @@ describe('validateToken', () => {
     expect(req.method).toBe('GET')
     expect(req.headers.get('authorization')).toBe(`Bearer ${TOKEN}`)
     expect(result).toEqual({
-      user: { id: 7, login: 'octo', name: 'Octo', avatarUrl: 'https://avatars.example/u/7' },
+      user: {
+        id: 7,
+        login: 'octo',
+        name: 'Octo',
+        avatarUrl: 'https://avatars.example/u/7',
+        email: null
+      },
       tokenKind: 'classic',
       scopes: ['repo']
     })

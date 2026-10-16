@@ -6,6 +6,7 @@ import { replaceNotifications } from '../cache/notifications'
 import { recordOrgRestrictions } from '../cache/org-restrictions'
 import { replacePullRequests, replaceRepoPullRequests } from '../cache/pull-requests'
 import { saveRepositoryDetail } from '../cache/repo-detail'
+import { saveIssueDetail } from '../cache/issue-details'
 import {
   markRepositoryUnavailable,
   replaceMyRepositories,
@@ -14,6 +15,7 @@ import {
 } from '../cache/repositories'
 import {
   detailRecord,
+  issueDetailRecord,
   issueRecord,
   notificationRecord,
   prRecord,
@@ -26,6 +28,8 @@ import { pinRepo } from '../pins/pins.service'
 import {
   queryHome,
   queryInbox,
+  queryIssueDetail,
+  queryIssueRepoOptions,
   queryIssues,
   queryOrgRestrictions,
   queryPulls,
@@ -275,11 +279,55 @@ describe('화면 조회', () => {
     expect(queryPulls(db, { tab: 'incoming' }).items.map((p) => p.id)).toEqual(['in1'])
     expect(queryPulls(db, { tab: 'mine' }).items.map((p) => p.id)).toEqual(['my1'])
     expect(queryReviews(db)).toMatchObject({ totalCount: 3, complete: false })
-    expect(queryIssues(db, { tab: 'incoming' }).items.map((i) => i.id)).toEqual(['iin'])
-    expect(queryIssues(db, { tab: 'assigned' }).items.map((i) => i.id)).toEqual(['ias'])
-    expect(queryIssues(db, { tab: 'mine' }).items.map((i) => i.id)).toEqual(['imy'])
+    expect(queryIssues(db, { tab: 'incoming' }).page.items.map((i) => i.id)).toEqual(['iin'])
+    expect(queryIssues(db, { tab: 'assigned' }).page.items.map((i) => i.id)).toEqual(['ias'])
+    expect(queryIssues(db, { tab: 'mine' }).page.items.map((i) => i.id)).toEqual(['imy'])
+    expect(queryIssues(db, { tab: 'mentioned' }).page.items).toEqual([])
     expect(() => queryPulls(db, { tab: 'nope' as never })).toThrow()
     expect(() => queryIssues(db, { tab: 'nope' as never })).toThrow()
+  })
+
+  it('query:issues 는 요청한 탭 목록과 네 탭의 전체 수를 함께 준다', () => {
+    replaceRepoIssues(db, 1, [issueRecord('iin', 1)])
+    replaceIssues(db, 'assigned', [issueRecord('ias', 9)], { totalCount: 4 })
+    replaceIssues(db, 'mentioned', [issueRecord('imen', 9), issueRecord('imen2', 8)], {
+      totalCount: 60
+    })
+    const result = queryIssues(db, { tab: 'mentioned' })
+    expect(result.page).toMatchObject({ totalCount: 60, complete: false })
+    expect(result.page.items.map((i) => i.id).sort()).toEqual(['imen', 'imen2'])
+    expect(result.counts).toEqual({ incoming: 1, assigned: 4, mentioned: 60, mine: 0 })
+    expect(queryIssues(db, { tab: 'incoming' }).counts).toEqual(result.counts)
+  })
+
+  it('query:issueDetail 은 받은 상세 또는 null, 잘못된 키는 거절', () => {
+    expect(queryIssueDetail(db, { repoId: 1, number: 5 })).toBeNull()
+    saveIssueDetail(db, issueDetailRecord(1, 5, { locked: true, viewerPermission: 'WRITE' }), NOW)
+    expect(queryIssueDetail(db, { repoId: 1, number: 5 })).toMatchObject({
+      number: 5,
+      viewerCanComment: true,
+      fetchedAt: NOW
+    })
+    expect(() => queryIssueDetail(db, { repoId: 0, number: 5 })).toThrow()
+    expect(() => queryIssueDetail(db, { repoId: 1, number: 0 })).toThrow()
+    expect(() => queryIssueDetail(db, { repoId: 1, number: 1.5 })).toThrow()
+    expect(() => queryIssueDetail(db, undefined)).toThrow()
+  })
+
+  it('query:issueRepoOptions 는 포크·보관을 뺀 내 저장소, 최근 푸시 순', () => {
+    upsertRepositories(db, [
+      repoRecord(2, {
+        owner: 'acme',
+        pushedAt: '2026-10-12T00:00:00Z',
+        hasIssuesEnabled: false
+      })
+    ])
+    expect(
+      queryIssueRepoOptions(db).map((r) => [r.repoId, r.fullName, r.hasIssuesEnabled])
+    ).toEqual([
+      [2, 'acme/repo2', false],
+      [1, 'me/repo1', true]
+    ])
   })
 
   it('query:starred 는 스타한 시각 순, 검색', () => {

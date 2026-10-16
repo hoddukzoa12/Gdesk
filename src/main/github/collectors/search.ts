@@ -5,6 +5,7 @@ import type { ListResult } from './common'
 import { compact, mapIssue, mapPullRequest } from './map'
 import {
   ASSIGNED_ISSUES_QUERY,
+  MENTIONED_ISSUES_QUERY,
   MY_ISSUES_QUERY,
   MY_PULL_REQUESTS_QUERY,
   LIST_LIMITS,
@@ -135,4 +136,18 @@ export async function collectMyIssues(
     issueOnly
   )
   return { ...result, items: result.items.map((i) => ({ ...i, viewerIsAuthor: true })) }
+}
+
+/** 나를 언급한 열린 이슈 (spec §6.1, mentions:@me, PR 제외), 저장소 무관 */
+export async function collectMentionedIssues(
+  options: SearchOptions = {}
+): Promise<ListResult<IssueRecord>> {
+  return search(
+    resolveClient(options),
+    options,
+    MENTIONED_ISSUES_QUERY,
+    OPERATIONS.mentionedIssues,
+    SEARCH_QUERIES.mentionedIssues,
+    issueOnly
+  )
 }

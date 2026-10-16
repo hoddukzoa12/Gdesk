@@ -9,7 +9,9 @@ import type { GitHubClient } from '../github/client'
 import {
   StaleRefreshError,
   refreshContributions,
+  refreshIssueDetail,
   refreshIssueLists,
+  refreshMentionedIssues,
   refreshMyRepositories,
   refreshNotifications,
   refreshPullRequestLists,
@@ -116,8 +118,11 @@ export function initSync(options: InitSyncOptions = {}): SyncEngine {
       repoOpenItems: () => refreshRepoOpenItems({ client, isCurrent: currentDataGuard() }),
       pullRequestLists: () => refreshPullRequestLists({ client, isCurrent: currentDataGuard() }),
       issueLists: () => refreshIssueLists({ client, isCurrent: currentDataGuard() }),
+      mentionedIssues: () => refreshMentionedIssues({ client, isCurrent: currentDataGuard() }),
       repositoryDetail: (repoId) =>
         refreshRepositoryDetails({ client, repoIds: [repoId], isCurrent: currentDataGuard() }),
+      issueDetail: (repoId, number) =>
+        refreshIssueDetail({ client, repoId, number, isCurrent: currentDataGuard() }),
       contributions: () => refreshContributions({ client, isCurrent: currentDataGuard() }),
       recentCommits: () =>
         refreshRecentCommits({ client, login: viewerLogin(), isCurrent: currentDataGuard() })
@@ -142,6 +147,7 @@ export function initSync(options: InitSyncOptions = {}): SyncEngine {
     },
     readLastSyncedAt,
     readOrgRestrictions: () => listOrgRestrictions(getDb()),
+    onAccountDataCleared,
     notifyDataChanged,
     onStatus: (status) => {
       for (const listener of [...statusListeners]) listener(status)

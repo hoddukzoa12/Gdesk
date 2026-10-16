@@ -16,7 +16,7 @@ import en from '../../locales/en/auth.json'
 
 const signedIn: SessionSnapshot = {
   state: 'signed_in',
-  user: { id: 1, login: 'octo', name: null, avatarUrl: '' },
+  user: { id: 1, login: 'octo', name: null, avatarUrl: '', email: null },
   tokenKind: 'classic',
   missingScopes: [],
   inboxAvailable: true,

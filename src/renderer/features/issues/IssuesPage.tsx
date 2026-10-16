@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import '@shared/ipc/queries'
 import { ISSUES_TABS, type IssuesTab } from '@shared/domain/queries'
@@ -9,7 +10,7 @@ import {
   TabsList,
   TabsTrigger
 } from '@renderer/components'
-import { useIpcQuery } from '@renderer/lib/ipc'
+import { invoke, useIpcQuery } from '@renderer/lib/ipc'
 import { ListView, MoreHint, githubListUrl } from '../pulls/ListView'
 import { useTabParam } from '../pulls/useTabParam'
 import { IssueRow, issueRowTestId } from './IssueRow'
@@ -18,12 +19,21 @@ import { IssueRow, issueRowTestId } from './IssueRow'
 const MORE_PATH: Record<IssuesTab, string> = {
   incoming: '/issues?q=is%3Aopen+is%3Aissue+-author%3A%40me',
   assigned: '/issues/assigned',
+  mentioned: '/issues/mentioned',
   mine: '/issues'
 }
 
+// 'mentioned' 탭은 다음 작업(이슈 화면 재작성)에서 문구와 함께 보인다. 지금은 기존 세 탭만 그린다
+const VISIBLE_TABS: readonly IssuesTab[] = ISSUES_TABS.filter((id) => id !== 'mentioned')
+
 function IssuesList({ tab }: { tab: IssuesTab }) {
   const { t } = useTranslation('issues')
-  const query = useIpcQuery('query:issues', { tab })
+  // query:issues 는 { page, counts } 를 준다. useIpcQuery 와 같은 키로 목록(page)만 고른다
+  const query = useQuery({
+    queryKey: ['query:issues', { tab }],
+    queryFn: () => invoke('query:issues', { tab }),
+    select: (result) => result.page
+  })
   return (
     <ListView
       query={query}
@@ -48,20 +58,20 @@ function IssuesList({ tab }: { tab: IssuesTab }) {
 /** 탭 옆 수치. 캐시만 읽으므로 모든 탭을 미리 읽어도 싸다 */
 function TabCount({ tab }: { tab: IssuesTab }) {
   const query = useIpcQuery('query:issues', { tab })
-  return <CountBadge count={query.data?.totalCount} />
+  return <CountBadge count={query.data?.page.totalCount} />
 }
 
 /** Issues (spec §4.6): 들어온 이슈 · 나에게 할당 · 내가 올린 이슈. PR 은 섞지 않는다 */
 export function IssuesPage() {
   const { t } = useTranslation('issues')
-  const [tab, setTab] = useTabParam(ISSUES_TABS)
+  const [tab, setTab] = useTabParam(VISIBLE_TABS)
   return (
     <Tabs value={tab} onValueChange={setTab} data-testid="issues-page">
       <PageHeader
         breadcrumb={[{ label: t('title') }]}
         tabs={
           <TabsList aria-label={t('tabs.label')} className="app-no-drag">
-            {ISSUES_TABS.map((id) => (
+            {VISIBLE_TABS.map((id) => (
               <TabsTrigger key={id} value={id} data-tab={id}>
                 {t(`tabs.${id}`)}
                 <TabCount tab={id} />
@@ -70,7 +80,7 @@ export function IssuesPage() {
           </TabsList>
         }
       />
-      {ISSUES_TABS.map((id) => (
+      {VISIBLE_TABS.map((id) => (
         <TabsContent key={id} value={id}>
           <IssuesList tab={id} />
         </TabsContent>

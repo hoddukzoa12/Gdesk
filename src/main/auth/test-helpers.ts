@@ -44,6 +44,8 @@ export interface FakeUser {
   id: number
   login: string
   name?: string | null
+  /** 공개 이메일. 주지 않으면 응답에서 뺀다(email 필드 없음) */
+  email?: string | null
 }
 
 /** GET /user 응답. scopes 가 null 이면 X-OAuth-Scopes 헤더를 빼서 세분화 토큰처럼 보이게 한다. */
@@ -55,7 +57,8 @@ export function userResponse(user: FakeUser, scopes: string | null): Response {
       id: user.id,
       login: user.login,
       name: user.name ?? null,
-      avatar_url: `https://avatars.example/u/${user.id}`
+      avatar_url: `https://avatars.example/u/${user.id}`,
+      ...(user.email === undefined ? {} : { email: user.email })
     },
     { status: 200, headers }
   )
