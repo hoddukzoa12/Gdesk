@@ -320,6 +320,8 @@ function mapLinkedPullRequest(
 /**
  * 연결된 PR: 닫는 PR(closedByPullRequestsReferences) → 타임라인 순서. 같은 PR 은 한 번만(처음 자리).
  * 사이드바 연결(ConnectedEvent)은 뒤의 DisconnectedEvent 로 풀리면 뺀다. 교차 참조·닫는 PR 은 남는다.
+ * 타임라인은 최근 항목만(last) 오지만 그 안에서는 시간 순서라 연결 → 해제 판단이 그대로 맞는다.
+ * 받은 범위 밖의 연결에 대한 해제는 아무것도 빼지 않는다.
  */
 function mapLinkedPullRequests(
   closing: readonly (RawLinkedPullRequest | null)[] | null | undefined,

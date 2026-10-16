@@ -337,6 +337,7 @@ const LINKED_PULL_REQUEST_FIELDS = '__typename number title state url repository
  * - 코멘트: 오래된 것부터 $commentCount 개 + 전체 수
  * - 연결된 PR: 닫는 PR(closedByPullRequestsReferences) + 타임라인의 교차 참조·연결·연결 해제
  * - 참조한 커밋: 타임라인 REFERENCED_EVENT 의 commit
+ * - 타임라인은 최근 $timelineCount 개(last)다. 긴 이슈에서도 최근 교차 참조·커밋이 남는다. 순서는 오래된 것 → 최근
  * - 코멘트 가능 여부 계산용으로 저장소의 viewerPermission 을 함께 받는다
  * stateReason 에 enableDuplicate 인자를 넘기지 않는다(DUPLICATE 는 기본으로 오고, 그 인자는 없어진다).
  */
@@ -385,7 +386,7 @@ query GdeskIssueDetail(
         nodes { ${LINKED_PULL_REQUEST_FIELDS} }
       }
       timelineItems(
-        first: $timelineCount
+        last: $timelineCount
         itemTypes: [CROSS_REFERENCED_EVENT, CONNECTED_EVENT, DISCONNECTED_EVENT, REFERENCED_EVENT]
       ) {
         nodes {

@@ -29,7 +29,7 @@ import {
   refreshIssueDetail,
   refreshMyRepositories
 } from '../../src/main/github/collectors'
-import { ADD_COMMENT_MUTATION } from '../../src/main/github/collectors/queries'
+import { ADD_COMMENT_MUTATION, ISSUE_DETAIL_QUERY } from '../../src/main/github/collectors/queries'
 import { FIXTURE, MALICIOUS_BODY_MARKERS, startFakeGitHub } from '../fixtures/github'
 import type { FakeGitHub } from '../fixtures/github'
 
@@ -202,6 +202,31 @@ describe('이슈 읽기', () => {
     expect(d.referencingCommits[0]?.repoFullName).toBe(R.demo.fullName)
     const vars = server.findRequests(`GRAPHQL ${OPERATIONS.issueDetail}`)[0]?.variables
     expect(vars).toMatchObject({ owner: 'octo-maintainer', name: 'gdesk-demo', number: 45 })
+  })
+
+  it('타임라인은 last 처럼 끝에서부터 timelineCount 개를 준다(시간 순서는 그대로)', async () => {
+    const res = await api('/graphql', {
+      method: 'POST',
+      body: JSON.stringify({
+        query: ISSUE_DETAIL_QUERY,
+        operationName: OPERATIONS.issueDetail,
+        variables: {
+          owner: 'octo-maintainer',
+          name: 'gdesk-demo',
+          number: 45,
+          commentCount: 100,
+          labelCount: 50,
+          closingCount: 25,
+          timelineCount: 2
+        }
+      })
+    })
+    const body = (await res.json()) as {
+      data: { repository: { issue: { timelineItems: { nodes: { commit?: { oid: string } }[] } } } }
+    }
+    expect(
+      body.data.repository.issue.timelineItems.nodes.map((n) => n.commit?.oid.slice(0, 4))
+    ).toEqual(['f45a', 'f45b'])
   })
 
   it('201#7: 연결 후 연결 해제한 PR 은 빠진다. 다른 이슈도 기본 상세가 나온다', async () => {

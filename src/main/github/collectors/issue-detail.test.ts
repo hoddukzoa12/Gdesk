@@ -167,6 +167,8 @@ describe('collectIssueDetail', () => {
       number: 7,
       commentCount: 100
     })
+    // 긴 이슈에서도 최근 교차 참조·커밋이 남도록 타임라인은 끝에서부터 받는다
+    expect(calls[0]?.graphql?.query).toMatch(/timelineItems\(\s*last: \$timelineCount/)
     expect(d).toMatchObject({
       id: 'I_7',
       repoId: 1,
