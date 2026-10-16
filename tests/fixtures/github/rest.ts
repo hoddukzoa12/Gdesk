@@ -5,8 +5,8 @@ import type {
   RawStargazer
 } from '../../../src/main/github/collectors/raw'
 import { avatarUrl, fullName } from './data'
-import type { FixtureNotification, FixtureRepo, FixtureState } from './data'
-import { repoItems } from './graphql'
+import type { FixtureItem, FixtureNotification, FixtureRepo, FixtureState } from './data'
+import { escapeHtml, renderMarkdownLite, repoItems, viewerAssociation } from './graphql'
 
 /**
  * REST 응답 만들기. 경로는 API 주소 기준(`/api` 를 뗀 것). 쓰기는 상태를 바꾼다.
@@ -36,6 +36,8 @@ export interface RestRequest {
   path: string
   query: URLSearchParams
   headers: Record<string, string>
+  /** 요청 본문(JSON 이면 파싱한 값) */
+  body?: unknown
 }
 
 export interface FakeResponse {
@@ -138,6 +140,7 @@ export function restRepository(ctx: RestContext, repo: FixtureRepo) {
     open_issues_count: openItems,
     pushed_at: repo.pushedAt,
     updated_at: repo.updatedAt,
+    has_issues: repo.hasIssuesEnabled,
     permissions: {
       admin: p === 'ADMIN',
       maintain: p === 'ADMIN' || p === 'MAINTAIN',
@@ -265,13 +268,246 @@ function searchRepositories(ctx: RestContext, req: RestRequest): FakeResponse {
   return json({ total_count: list.length, incomplete_results: false, items }, 200, headers)
 }
 
+function validationFailed(field: string, code: string, doc: string): FakeResponse {
+  return json(
+    {
+      message: 'Validation Failed',
+      errors: [{ resource: 'Issue', field, code }],
+      documentation_url: `https://docs.github.com/rest/${doc}`
+    },
+    422
+  )
+}
+
+/**
+ * `GET /search/commits?q=author:<login>`: `author:` 와 `repo:` 한정자만 보고, 나머지 낱말은 메시지에 모두 들어 있어야
+ * 한다. 작성 시각 최신순(order=asc 면 오래된 순). 검색 한도(search)를 쓴다.
+ */
+function searchCommits(ctx: RestContext, req: RestRequest): FakeResponse {
+  const q = (req.query.get('q') ?? '').trim()
+  if (q === '') return validationFailed('q', 'missing', 'search/search#search-commits')
+  let author: string | null = null
+  let repoName: string | null = null
+  const words: string[] = []
+  for (const token of q.split(/\s+/)) {
+    const m = /^([a-z-]+):(.*)$/i.exec(token)
+    if (m?.[1]?.toLowerCase() === 'author') author = (m[2] ?? '').toLowerCase()
+    else if (m?.[1]?.toLowerCase() === 'repo') repoName = (m[2] ?? '').toLowerCase()
+    else if (!m && token !== '') words.push(token.toLowerCase())
+  }
+  const asc = req.query.get('order') === 'asc'
+  const list = ctx.state.searchCommits
+    .filter((c) => author === null || c.author.toLowerCase() === author)
+    .filter((c) => {
+      const repo = ctx.state.repos.find((r) => r.id === c.repoId)
+      if (!repo) return false
+      if (repoName !== null && fullName(repo).toLowerCase() !== repoName) return false
+      return words.every((w) => c.message.toLowerCase().includes(w))
+    })
+    .sort((a, b) =>
+      asc ? a.authoredAt.localeCompare(b.authoredAt) : b.authoredAt.localeCompare(a.authoredAt)
+    )
+    .map((c) => {
+      const repo = ctx.state.repos.find((r) => r.id === c.repoId) as FixtureRepo
+      const name = fullName(repo)
+      const actor = ctx.state.actors.find((a) => a.login === c.author)
+      const person = {
+        name: actor?.name ?? c.author,
+        email: `${c.author}@users.noreply.test`,
+        date: c.authoredAt
+      }
+      return {
+        url: `${ctx.apiBase}/repos/${name}/commits/${c.oid}`,
+        sha: c.oid,
+        node_id: `C_kwDO${repo.id}_${c.oid.slice(0, 7)}`,
+        html_url: `${ctx.webBase}/${name}/commit/${c.oid}`,
+        commit: { author: person, committer: person, message: c.message, comment_count: 0 },
+        author: restOwner(ctx, c.author),
+        committer: restOwner(ctx, c.author),
+        parents: [],
+        repository: {
+          id: repo.id,
+          node_id: repo.nodeId,
+          name: repo.name,
+          full_name: name,
+          private: repo.isPrivate,
+          owner: restOwner(ctx, repo.owner),
+          html_url: `${ctx.webBase}/${name}`
+        },
+        score: 1
+      }
+    })
+  const { items, headers } = paginate(ctx, req, list, 30)
+  return json({ total_count: list.length, incomplete_results: false, items }, 200, headers)
+}
+
+function restLabel(repo: FixtureRepo, name: string, color: string, description: string | null) {
+  return {
+    id: repo.id * 1000 + [...name].reduce((n, ch) => (n * 31 + ch.charCodeAt(0)) % 997, 7),
+    node_id: `LA_kwDO${repo.id}_${encodeURIComponent(name)}`,
+    name,
+    color,
+    description,
+    default: false
+  }
+}
+
+/** 저장소의 다음 이슈·PR 번호(항목과 연결 PR 번호 중 가장 큰 것 + 1) */
+function nextNumber(state: FixtureState, repo: FixtureRepo): number {
+  const name = fullName(repo)
+  let max = 0
+  for (const item of state.items) {
+    if (item.repoId === repo.id) max = Math.max(max, item.number)
+    for (const pr of item.closingPullRequests ?? []) {
+      if (pr.repo === name) max = Math.max(max, pr.number)
+    }
+    for (const e of item.timeline ?? []) {
+      if (e.type !== 'ReferencedEvent' && e.pr.repo === name) max = Math.max(max, e.pr.number)
+    }
+  }
+  return max + 1
+}
+
+function stringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : []
+}
+
+/**
+ * `POST /repos/{o}/{r}/issues`: 이슈를 상태에 더하고 201. 이슈 기능이 꺼졌으면 410, 보관됐으면 403.
+ * 라벨은 이름으로 저장소 라벨에서 찾고(없으면 새로 만든다), 담당자는 지정 가능한 사용자만 남긴다.
+ * 분류 권한(TRIAGE) 이상이 아니면 라벨·담당자는 조용히 버린다(GitHub 와 같음).
+ * 만든 이슈는 검색 반영이 늦는다: indexCreatedIssues() 전에는 GraphQL 검색에 나오지 않는다.
+ */
+function createIssue(ctx: RestContext, req: RestRequest, repo: FixtureRepo): FakeResponse {
+  if (repo.isArchived) {
+    return json({ message: 'Repository was archived so is read-only.' }, 403)
+  }
+  if (!repo.hasIssuesEnabled) {
+    return json(
+      {
+        message: 'Issues are disabled for this repo',
+        documentation_url: 'https://docs.github.com/rest/issues/issues#create-an-issue'
+      },
+      410
+    )
+  }
+  const body = (typeof req.body === 'object' && req.body !== null ? req.body : {}) as Record<
+    string,
+    unknown
+  >
+  const title = typeof body.title === 'string' ? body.title.trim() : ''
+  if (title === '')
+    return validationFailed('title', 'missing_field', 'issues/issues#create-an-issue')
+  const text = typeof body.body === 'string' ? body.body : ''
+  const canTriage = repo.viewerPermission !== 'READ'
+  const labels = canTriage
+    ? [...new Set(stringList(body.labels))].map((name) => {
+        const found = repo.labels.find((l) => l.name.toLowerCase() === name.toLowerCase())
+        if (found) return found
+        const created = { name, color: 'ededed', description: null }
+        repo.labels.push(created)
+        return created
+      })
+    : []
+  const assignees = canTriage
+    ? [...new Set(stringList(body.assignees))].filter((a) => repo.assignableUsers.includes(a))
+    : []
+  const nowMs = ctx.now()
+  const at = new Date(nowMs).toISOString()
+  const number = nextNumber(ctx.state, repo)
+  const item: FixtureItem = {
+    kind: 'Issue',
+    nodeId: `I_kwDO${repo.id}_${number}`,
+    repoId: repo.id,
+    number,
+    title,
+    author: ctx.state.viewer.login,
+    authorAssociation: viewerAssociation(ctx.state, repo),
+    createdAt: at,
+    updatedAt: at,
+    comments: [],
+    reviews: [],
+    isDraft: false,
+    reviewDecision: null,
+    ciState: null,
+    labels: labels.map((l) => ({ name: l.name, color: l.color })),
+    assignees,
+    reviewRequests: [],
+    bodyHTML: text.trim() === '' ? '' : renderMarkdownLite(text),
+    createdInAppAt: nowMs,
+    searchIndexed: false
+  }
+  ctx.state.items.push(item)
+  const name = fullName(repo)
+  return json(
+    {
+      id: repo.id * 100_000 + number,
+      node_id: item.nodeId,
+      url: `${ctx.apiBase}/repos/${name}/issues/${number}`,
+      html_url: `${ctx.webBase}/${name}/issues/${number}`,
+      number,
+      state: 'open',
+      state_reason: null,
+      title,
+      body: text === '' ? null : text,
+      user: restOwner(ctx, item.author),
+      labels: labels.map((l) => restLabel(repo, l.name, l.color, l.description)),
+      assignee: assignees[0] ? restOwner(ctx, assignees[0]) : null,
+      assignees: assignees.map((a) => restOwner(ctx, a)),
+      locked: false,
+      comments: 0,
+      author_association: item.authorAssociation,
+      created_at: at,
+      updated_at: at,
+      closed_at: null
+    },
+    201,
+    { location: `${ctx.apiBase}/repos/${name}/issues/${number}` }
+  )
+}
+
+/**
+ * `POST /markdown`: 간단한 변환(이스케이프 + 문단 + `**굵게**`)을 표식 요소로 감싸 text/html 로 준다.
+ * 표식: `<div data-fake-markdown="{mode}" data-context="{context}">` — 서버가 그렸다는 것을 테스트가 확인할 수 있다.
+ */
+function renderMarkdown(req: RestRequest): FakeResponse {
+  const body = (typeof req.body === 'object' && req.body !== null ? req.body : {}) as Record<
+    string,
+    unknown
+  >
+  if (typeof body.text !== 'string') {
+    return json(
+      {
+        message: 'Invalid request.\n\n"text" wasn\'t supplied.',
+        documentation_url:
+          'https://docs.github.com/rest/markdown/markdown#render-a-markdown-document'
+      },
+      422
+    )
+  }
+  const mode = typeof body.mode === 'string' ? body.mode : 'markdown'
+  const context = typeof body.context === 'string' ? body.context : ''
+  const html = `<div data-fake-markdown="${escapeHtml(mode)}" data-context="${escapeHtml(context)}">${renderMarkdownLite(body.text)}</div>`
+  return { status: 200, body: html, headers: { 'content-type': 'text/html;charset=utf-8' } }
+}
+
 const RE = {
   thread: /^\/notifications\/threads\/([^/]+)$/,
   repositoryById: /^\/repositories\/(\d+)$/,
   repo: /^\/repos\/([^/]+)\/([^/]+)$/,
   contributors: /^\/repos\/([^/]+)\/([^/]+)\/contributors$/,
   stargazers: /^\/repos\/([^/]+)\/([^/]+)\/stargazers$/,
-  starred: /^\/user\/starred\/([^/]+)\/([^/]+)$/
+  starred: /^\/user\/starred\/([^/]+)\/([^/]+)$/,
+  issues: /^\/repos\/([^/]+)\/([^/]+)\/issues$/,
+  labels: /^\/repos\/([^/]+)\/([^/]+)\/labels$/,
+  assignees: /^\/repos\/([^/]+)\/([^/]+)\/assignees$/
+}
+
+function repoFromMatch(ctx: RestContext, m: RegExpExecArray): FixtureRepo | null {
+  return (
+    findRepo(ctx, decodeURIComponent(m[1] as string), decodeURIComponent(m[2] as string))?.repo ??
+    null
+  )
 }
 
 /** 경로가 맞는 것이 없으면 null (서버가 404) */
@@ -295,6 +531,7 @@ export function handleRest(ctx: RestContext, req: RestRequest): FakeResponse | n
         html_url: `${ctx.webBase}/${v.login}`,
         type: 'User',
         name: v.name,
+        email: ctx.state.viewerEmail,
         public_repos: ctx.state.repos.filter((r) => r.owner === v.login && !r.isPrivate).length
       },
       200,
@@ -331,6 +568,29 @@ export function handleRest(ctx: RestContext, req: RestRequest): FakeResponse | n
   }
 
   if (path === '/search/repositories' && method === 'GET') return searchRepositories(ctx, req)
+  if (path === '/search/commits' && method === 'GET') return searchCommits(ctx, req)
+  if (path === '/markdown' && method === 'POST') return renderMarkdown(req)
+
+  if ((m = RE.issues.exec(path)) && method === 'POST') {
+    const repo = repoFromMatch(ctx, m)
+    return repo ? createIssue(ctx, req, repo) : notFound()
+  }
+
+  if ((m = RE.labels.exec(path)) && method === 'GET') {
+    const repo = repoFromMatch(ctx, m)
+    if (!repo) return notFound()
+    const list = repo.labels.map((l) => restLabel(repo, l.name, l.color, l.description))
+    const { items, headers } = paginate(ctx, req, list, 30)
+    return json(items, 200, headers)
+  }
+
+  if ((m = RE.assignees.exec(path)) && method === 'GET') {
+    const repo = repoFromMatch(ctx, m)
+    if (!repo) return notFound()
+    const list = repo.assignableUsers.map((login) => restOwner(ctx, login))
+    const { items, headers } = paginate(ctx, req, list, 30)
+    return json(items, 200, headers)
+  }
 
   if ((m = RE.repositoryById.exec(path)) && method === 'GET') {
     const repo = ctx.state.repos.find((r) => r.id === Number(m?.[1]))

@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { FIXTURE, buildFixtures } from './data'
 import type { FixtureState } from './data'
 import { createBareRepos, readGitFile } from './git'
-import { handleGraphQL } from './graphql'
+import { MUTATION_OPERATIONS, handleGraphQL } from './graphql'
 import type { GraphQLBody } from './graphql'
 import { handleRest } from './rest'
 import type { FakeResponse, RestContext } from './rest'
@@ -90,13 +90,18 @@ interface Fault {
 
 const DEFAULT_RATE_LIMIT = 5000
 
+/** 쓰기로 보지 않는 POST(읽기 전용 변환): 마크다운 미리보기 */
+const READ_ONLY_POSTS: readonly string[] = ['POST /markdown']
+
+/**
+ * 쓰기 요청: GET·HEAD 가 아닌 REST /api 요청(`POST /markdown` 미리보기 제외)과 GraphQL mutation
+ * (GdeskAddReaction·GdeskRemoveReaction·GdeskAddComment·GdeskCloseIssue·GdeskReopenIssue).
+ * GraphQL 조회(query)는 쓰기가 아니다.
+ */
 export function isWriteRequest(r: RecordedRequest): boolean {
-  return (
-    r.area === 'api' &&
-    r.method !== 'GET' &&
-    r.method !== 'HEAD' &&
-    r.key.startsWith('GRAPHQL') === false
-  )
+  if (r.area !== 'api') return false
+  if (r.key.startsWith('GRAPHQL')) return MUTATION_OPERATIONS.includes(r.operationName ?? '')
+  return r.method !== 'GET' && r.method !== 'HEAD' && !READ_ONLY_POSTS.includes(r.key)
 }
 
 function toMatcher(match: RequestMatcher): (r: RecordedRequest) => boolean {
@@ -135,6 +140,8 @@ export class FakeGitHub {
   private rateLimit = { limit: DEFAULT_RATE_LIMIT, remaining: null as number | null }
   /** 1차 한도 초과 흉내. 켜져 있으면 /api 요청이 403 + remaining 0, 이 시각(epoch 초)에 풀린다 */
   private rateLimitedUntil: number | null = null
+  /** 앱에서 만든 이슈가 검색에 나오기까지의 지연(ms). null 이면 indexCreatedIssues() 까지 나오지 않는다 */
+  private searchIndexDelayMs: number | null = null
   private readonly used = new Map<string, number>()
 
   /** startFakeGitHub() 로 만든다 */
@@ -223,7 +230,10 @@ export class FakeGitHub {
 
   // ───────────────────────── 조종 ─────────────────────────
 
-  /** 다음 n 개의 쓰기 요청(GET·GraphQL 이 아닌 /api 요청)을 실패시킨다. 상태는 바뀌지 않는다 */
+  /**
+   * 다음 n 개의 쓰기 요청을 실패시킨다. 상태는 바뀌지 않는다. 쓰기 = GET·HEAD 가 아닌 REST(`POST /markdown`
+   * 미리보기 제외) + GraphQL mutation(반응·코멘트·닫기·다시 열기). GraphQL 조회는 세지 않는다
+   */
   failNextWrites(count = 1, options: Omit<FaultOptions, 'match'> = {}): void {
     this.failNext(count, { ...options, match: isWriteRequest })
   }
@@ -306,6 +316,30 @@ export class FakeGitHub {
     this.state.notifications = this.state.notifications.filter((n) => n.repoId !== repoId)
   }
 
+  /**
+   * GET /user 의 email(프로필 공개 이메일). 기본 FIXTURE.viewer.email, null 이면 공개하지 않음.
+   * 앱은 로그인할 때 읽으므로 앱을 띄우기 전에(또는 serverOptions.customize 의 state.viewerEmail 로) 정한다.
+   * reset() 은 기본값으로 돌린다.
+   */
+  setUserEmail(email: string | null): void {
+    this.state.viewerEmail = email
+  }
+
+  /**
+   * 앱에서 POST 로 만든 이슈를 검색(GraphQL search: 내 이슈·할당·언급)에 반영한다. 반영 전에는 저장소 연결
+   * 목록(GdeskRepoOpenItems·상세)에는 나오지만 검색에는 나오지 않는다(GitHub 검색 지연 흉내)
+   */
+  indexCreatedIssues(): void {
+    for (const item of this.state.items) {
+      if (item.createdInAppAt !== undefined) item.searchIndexed = true
+    }
+  }
+
+  /** 만든 이슈가 검색에 나오기까지의 지연(ms). null(기본)이면 indexCreatedIssues() 를 부를 때까지 */
+  setSearchIndexDelay(ms: number | null): void {
+    this.searchIndexDelayMs = ms === null ? null : Math.max(0, ms)
+  }
+
   /** 기기 인증 폴링 결과. 기본 'pending'(사용자가 아직 승인하지 않음) */
   setDeviceFlowOutcome(outcome: DeviceFlowOutcome): void {
     this.deviceOutcome = outcome
@@ -330,6 +364,7 @@ export class FakeGitHub {
     this.deviceOutcome = 'pending'
     this.rateLimit = { limit: DEFAULT_RATE_LIMIT, remaining: null }
     this.rateLimitedUntil = null
+    this.searchIndexDelayMs = null
     this.used.clear()
   }
 
@@ -494,7 +529,12 @@ export class FakeGitHub {
         return withRate({ status: 400, body: { message: 'Problems parsing JSON' } })
       }
       const result: GraphQLBody | null = handleGraphQL(
-        { state: this.state, webBase: this.webBase },
+        {
+          state: this.state,
+          webBase: this.webBase,
+          now: () => Date.now(),
+          searchIndexDelayMs: this.searchIndexDelayMs
+        },
         record.operationName ?? '',
         record.variables ?? {}
       )
@@ -510,7 +550,8 @@ export class FakeGitHub {
       method: record.method,
       path: record.path,
       query: new URLSearchParams(record.query),
-      headers: record.headers
+      headers: record.headers,
+      body
     })
     return withRate(rest ?? { status: 404, body: { message: 'Not Found' } })
   }

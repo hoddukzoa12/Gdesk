@@ -19,12 +19,61 @@ export interface FixtureActor {
   type: ActorType
 }
 
+/** GitHub ReactionContent */
+export type ReactionContent =
+  'THUMBS_UP' | 'THUMBS_DOWN' | 'LAUGH' | 'HOORAY' | 'CONFUSED' | 'HEART' | 'ROCKET' | 'EYES'
+
+/** GitHub 가 reactionGroups 로 주는 순서(0 명인 그룹도 온다) */
+export const REACTION_CONTENTS: readonly ReactionContent[] = [
+  'THUMBS_UP',
+  'THUMBS_DOWN',
+  'LAUGH',
+  'HOORAY',
+  'CONFUSED',
+  'HEART',
+  'ROCKET',
+  'EYES'
+]
+
+/** 반응: 종류별로 반응한 사람들. 수 = users 길이, viewerHasReacted = viewer 가 들어 있는가 */
+export type FixtureReactions = Partial<Record<ReactionContent, string[]>>
+
 export interface FixtureResponse {
   login: string
   /** OWNER·MEMBER·COLLABORATOR 는 쓰기 권한자 */
   authorAssociation: string
   createdAt: string
+  /** 코멘트 노드 ID(이슈 코멘트만 쓴다). buildFixtures 가 채운다: IC_kwDO{repoId}_{number}_{순번} */
+  id?: string
+  /** 이슈 상세의 코멘트 본문 HTML. 없으면 간단한 문단 */
+  bodyHTML?: string
+  reactions?: FixtureReactions
 }
+
+/** 이슈 상세의 연결된 PR(items 에 없어도 된다: 병합·닫힌 PR) */
+export interface FixtureLinkedPullRequest {
+  /** owner/name */
+  repo: string
+  number: number
+  title: string
+  state: 'OPEN' | 'MERGED' | 'CLOSED'
+}
+
+/** 이슈 상세 타임라인(연결·참조) */
+export type FixtureTimelineEvent =
+  | {
+      type: 'CrossReferencedEvent' | 'ConnectedEvent' | 'DisconnectedEvent'
+      pr: FixtureLinkedPullRequest
+    }
+  | {
+      type: 'ReferencedEvent'
+      /** 커밋이 있는 저장소(owner/name) */
+      repo: string
+      oid: string
+      message: string
+      committedDate: string
+      author: string
+    }
 
 export interface FixtureItem {
   kind: 'PullRequest' | 'Issue'
@@ -47,6 +96,29 @@ export interface FixtureItem {
   assignees: string[]
   /** 리뷰 요청: 사용자 login 또는 팀 '@org/slug' */
   reviewRequests: string[]
+  /** 이슈 본문에서 언급한 사용자(mentions:@me 검색) */
+  mentions?: string[]
+  /** 기본 OPEN. 닫힌 이슈는 열린 목록·검색·열린 수에서 빠진다 */
+  state?: 'OPEN' | 'CLOSED'
+  /** 닫힌 이유(COMPLETED·NOT_PLANNED·DUPLICATE) 또는 다시 열면 REOPENED. 기본 null */
+  stateReason?: string | null
+  /** 잠긴 이슈: 쓰기 권한이 없으면 코멘트·반응 불가 */
+  locked?: boolean
+  /** 이슈 상세 본문 HTML. 없으면 제목으로 만든 문단 */
+  bodyHTML?: string
+  /** 이슈 반응 */
+  reactions?: FixtureReactions
+  /** 이 이슈를 닫는 PR(closedByPullRequestsReferences) */
+  closingPullRequests?: FixtureLinkedPullRequest[]
+  /** 타임라인 연결·참조(오래된 → 최신) */
+  timeline?: FixtureTimelineEvent[]
+  /**
+   * 앱에서 POST 로 만든 이슈의 만든 시각(ms). 검색 반영 지연 흉내: 이 값이 있으면 `indexCreatedIssues()`
+   * 나 `setSearchIndexDelay(ms)` 로 정한 시간이 지나기 전까지 검색(GraphQL search)에 나오지 않는다.
+   */
+  createdInAppAt?: number
+  /** 검색에 반영됐는가(createdInAppAt 이 있을 때만 본다) */
+  searchIndexed?: boolean
 }
 
 export interface FixtureCommit {
@@ -98,6 +170,41 @@ export interface FixtureRepo {
   releases: FixtureRelease[]
   /** 이름이 바뀌기 전 이름들(owner/name). GET /repos/{old} 는 301 */
   previousNames: string[]
+  /** 이슈 기능이 켜져 있는가(hasIssuesEnabled·has_issues). 꺼져 있으면 새 이슈 POST 가 410 */
+  hasIssuesEnabled: boolean
+  /** GET /repos/{o}/{r}/labels */
+  labels: FixtureLabel[]
+  /** GET /repos/{o}/{r}/assignees (담당자로 지정할 수 있는 사용자) */
+  assignableUsers: string[]
+}
+
+export interface FixtureLabel {
+  name: string
+  color: string
+  description: string | null
+}
+
+/** 커밋 검색(GET /search/commits) 대상. 메시지는 여러 줄일 수 있다(앱은 첫 줄만 쓴다) */
+export interface FixtureSearchCommit {
+  repoId: number
+  oid: string
+  message: string
+  authoredAt: string
+  author: string
+}
+
+export interface FixtureContributionDay {
+  /** YYYY-MM-DD (UTC 날짜) */
+  date: string
+  contributionCount: number
+  contributionLevel:
+    'NONE' | 'FIRST_QUARTILE' | 'SECOND_QUARTILE' | 'THIRD_QUARTILE' | 'FOURTH_QUARTILE'
+}
+
+export interface FixtureContributions {
+  totalCommitContributions: number
+  /** 일요일에 시작하는 주들. 마지막 주는 오늘에서 끝난다 */
+  weeks: { contributionDays: FixtureContributionDay[] }[]
 }
 
 export interface FixtureNotification {
@@ -121,6 +228,12 @@ export interface FixtureState {
   repos: FixtureRepo[]
   items: FixtureItem[]
   notifications: FixtureNotification[]
+  /** GET /user 의 email(공개 이메일). null 이면 공개하지 않음 */
+  viewerEmail: string | null
+  /** GdeskContributions */
+  contributions: FixtureContributions
+  /** GET /search/commits 대상 */
+  searchCommits: FixtureSearchCommit[]
 }
 
 const HOUR = 3_600_000
@@ -128,7 +241,13 @@ const DAY = 24 * HOUR
 
 /** 화면 테스트가 기대값으로 쓰는 고정 값 */
 export const FIXTURE = {
-  viewer: { id: 1001, login: 'octo-maintainer', name: 'Octo Maintainer' },
+  viewer: {
+    id: 1001,
+    login: 'octo-maintainer',
+    name: 'Octo Maintainer',
+    /** GET /user 의 공개 이메일 기본값(setUserEmail 로 바꾼다) */
+    email: 'octo@maintainer.dev'
+  },
   org: { id: 2001, login: 'gdesk-org', team: '@gdesk-org/core' },
   upstreamOrg: { id: 2002, login: 'upstream-org' },
   users: {
@@ -166,8 +285,74 @@ export const FIXTURE = {
   /** 기기 인증 성공 시 주는 토큰(oauth) */
   deviceToken: 'gho_gdesk_e2e_device_token',
   deviceUserCode: 'GDSK-1234',
-  scopes: 'repo, read:org, notifications'
+  scopes: 'repo, read:org, notifications',
+  /** Home 수치: 커밋 기여 수(달력 합과 무관한 고정 값), 연속 기여 일수(오늘 0, 어제부터 5일 1 이상) */
+  contributions: { totalCommits: 842, streak: 5 },
+  /** mentions:@me 로 나오는 열린 이슈(갱신 최신순) */
+  mentionedIssues: [
+    'octo-maintainer/gdesk-demo#45',
+    'gdesk-org/gdesk-core#7',
+    'upstream-org/awesome-lib#91'
+  ],
+  /** 잠긴 이슈. 저장소 권한 READ 라 코멘트·반응·닫기 불가 */
+  lockedIssue: { repoId: 301, fullName: 'upstream-org/awesome-lib', number: 91 },
+  /** 이슈 기능이 꺼진 내 저장소(dotfiles) */
+  issuesDisabledRepo: { id: 102, fullName: 'octo-maintainer/dotfiles' },
+  /** 내 최근 커밋(커밋 검색 author:octo-maintainer, 최신순 5개 첫 줄)과 전체 수 */
+  recentCommitMessages: [
+    'Merge pull request #38 from alice-dev/quick-search',
+    'Add retry with backoff to the sync engine',
+    'Fix memory leak in streaming parser',
+    'Bump electron to 44.7.2',
+    'docs: update README'
+  ],
+  recentCommitTotal: 7
 } as const
+
+/** 새 저장소 기본 라벨(GitHub 기본 라벨 세트) */
+const DEFAULT_LABELS: FixtureLabel[] = [
+  { name: 'bug', color: 'd73a4a', description: "Something isn't working" },
+  {
+    name: 'documentation',
+    color: '0075ca',
+    description: 'Improvements or additions to documentation'
+  },
+  { name: 'duplicate', color: 'cfd3d7', description: 'This issue or pull request already exists' },
+  { name: 'enhancement', color: 'a2eeef', description: 'New feature or request' },
+  { name: 'good first issue', color: '7057ff', description: 'Good for newcomers' },
+  { name: 'help wanted', color: '008672', description: 'Extra attention is needed' },
+  { name: 'invalid', color: 'e4e669', description: "This doesn't seem right" },
+  { name: 'question', color: 'd876e3', description: 'Further information is requested' },
+  { name: 'wontfix', color: 'ffffff', description: 'This will not be worked on' }
+]
+
+/** 1×1 PNG(data: URI). 이슈 본문 이미지용 */
+const PIXEL_PNG =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+
+/**
+ * 101#45 본문. 이미지(data:), 작업 목록 체크박스, 링크, 코드 블록과 함께 **악성 예시**가 들어 있다:
+ * `<script>`, `<img onerror>`, `<a href="javascript:">`. 화면은 이것들을 무력화해야 한다.
+ */
+export const MALICIOUS_BODY_MARKERS = {
+  script: 'window.__gdeskXss',
+  onerror: 'window.__gdeskXssImg',
+  javascriptHref: 'javascript:window.__gdeskXssLink=1'
+} as const
+
+const ISSUE_45_BODY = [
+  '<p>The app freezes for several seconds when the notification list has more than 500 entries.</p>',
+  `<p><img src="${PIXEL_PNG}" alt="freeze screenshot" width="1" height="1"></p>`,
+  '<ul class="contains-task-list">',
+  '<li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox" disabled> Reproduce on macOS</li>',
+  '<li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox" checked disabled> Reproduce on Linux</li>',
+  '</ul>',
+  '<p>See <a href="https://docs.github.com/rest/activity/notifications">the notifications API</a> for paging. cc <a class="user-mention" href="https://github.com/octo-maintainer">@octo-maintainer</a></p>',
+  '<pre><code class="language-ts">const rows = notifications.slice(0, 500)\nrender(rows)</code></pre>',
+  `<script>${MALICIOUS_BODY_MARKERS.script} = 1</script>`,
+  `<p><img src="x" onerror="${MALICIOUS_BODY_MARKERS.onerror} = 1" alt="broken"></p>`,
+  `<p><a href="${MALICIOUS_BODY_MARKERS.javascriptHref}">click me</a></p>`
+].join('\n')
 
 let commitSeq = 0
 function sha(seed: number): string {
@@ -249,7 +434,14 @@ export function buildFixtures(now: number = Date.now()): FixtureState {
       stargazers: [],
       commits: commits(patch.id, ['SUCCESS', 'SUCCESS', 'SUCCESS'], []),
       releases: [],
-      previousNames: []
+      previousNames: [],
+      hasIssuesEnabled: true,
+      labels: DEFAULT_LABELS.map((l) => ({ ...l })),
+      assignableUsers: [
+        patch.owner === FIXTURE.org.login || patch.owner === FIXTURE.upstreamOrg.login
+          ? V
+          : patch.owner
+      ]
     }
     return { ...base, ...patch }
   }
@@ -346,7 +538,17 @@ export function buildFixtures(now: number = Date.now()): FixtureState {
           isDraft: false
         }
       ],
-      previousNames: [FIXTURE.renamedFrom]
+      previousNames: [FIXTURE.renamedFrom],
+      labels: [
+        ...DEFAULT_LABELS.map((l) => ({ ...l })),
+        {
+          name: 'dependencies',
+          color: '0366d6',
+          description: 'Pull requests that update a dependency file'
+        },
+        { name: 'meta', color: 'fbca04', description: null }
+      ],
+      assignableUsers: [V, U.alice, U.bob]
     }),
     repo({
       id: 102,
@@ -359,7 +561,9 @@ export function buildFixtures(now: number = Date.now()): FixtureState {
       license: null,
       pushedAt: ago(3 * DAY),
       updatedAt: ago(3 * DAY),
-      stargazers: []
+      stargazers: [],
+      // 이슈 기능이 꺼진 내 저장소(새 이슈 불가)
+      hasIssuesEnabled: false
     }),
     repo({
       id: 103,
@@ -404,7 +608,8 @@ export function buildFixtures(now: number = Date.now()): FixtureState {
         { login: V, contributions: 95, type: 'User' },
         { login: U.alice, contributions: 9, type: 'User' }
       ],
-      stargazers: stars([1, 6, 15], 20, 32)
+      stargazers: stars([1, 6, 15], 20, 32),
+      assignableUsers: [V, U.dave, U.alice]
     }),
     repo({
       id: 202,
@@ -416,7 +621,8 @@ export function buildFixtures(now: number = Date.now()): FixtureState {
       languages: [{ name: 'HTML', color: '#e34c26', size: 5_000 }],
       pushedAt: ago(30 * DAY),
       updatedAt: ago(30 * DAY),
-      stargazers: stars([], 2, 50)
+      stargazers: stars([], 2, 50),
+      assignableUsers: [U.dave, V]
     }),
     repo({
       id: 301,
@@ -435,7 +641,12 @@ export function buildFixtures(now: number = Date.now()): FixtureState {
         { login: U.erin, contributions: 900, type: 'User' },
         { login: V, contributions: 14, type: 'User' }
       ],
-      stargazers: stars([0.3, 2, 9, 21], 250, 32)
+      stargazers: stars([0.3, 2, 9, 21], 250, 32),
+      labels: [
+        ...DEFAULT_LABELS.map((l) => ({ ...l })),
+        { name: 'docs', color: '0075ca', description: null }
+      ],
+      assignableUsers: [U.erin]
     }),
     repo({
       id: 302,
@@ -553,7 +764,75 @@ export function buildFixtures(now: number = Date.now()): FixtureState {
         author: U.bob,
         authorAssociation: 'NONE',
         labels: [{ name: 'bug', color: 'd73a4a' }],
-        comments: [resp(U.carol, 'NONE', 3)]
+        // 상세용 코멘트 셋 모두 쓰기 권한 없는 사람 → 여전히 응답 없는 기여
+        comments: [
+          {
+            ...resp(U.alice, 'CONTRIBUTOR', 10),
+            bodyHTML:
+              '<p>I can reproduce this with 800 notifications. Profiling shows the list re-renders on every poll.</p>',
+            reactions: { THUMBS_UP: [U.bob, V], HEART: [U.carol] }
+          },
+          {
+            ...resp(U.bob, 'NONE', 6),
+            bodyHTML:
+              '<p>Workaround: mark all as done.</p><pre><code>gdesk --clear-notifications</code></pre>',
+            reactions: { LAUGH: [U.alice] }
+          },
+          {
+            ...resp(U.carol, 'NONE', 3),
+            bodyHTML:
+              '<p>Same here on Linux. <img src="x" onerror="window.__gdeskXssComment = 1" alt="oops"></p>',
+            reactions: {}
+          }
+        ],
+        assignees: [U.alice],
+        mentions: [V],
+        bodyHTML: ISSUE_45_BODY,
+        reactions: { THUMBS_UP: [U.alice, U.carol, U.dave], EYES: [V], HEART: [U.bob] },
+        closingPullRequests: [
+          {
+            repo: FIXTURE.repos.demo.fullName,
+            number: 42,
+            title: 'Add keyboard shortcuts for quick search',
+            state: 'OPEN'
+          }
+        ],
+        timeline: [
+          {
+            type: 'CrossReferencedEvent',
+            pr: {
+              repo: FIXTURE.repos.demo.fullName,
+              number: 38,
+              title: 'Virtualize the notification list',
+              state: 'MERGED'
+            }
+          },
+          {
+            type: 'CrossReferencedEvent',
+            pr: {
+              repo: FIXTURE.repos.demo.fullName,
+              number: 37,
+              title: 'Batch notification rendering (abandoned)',
+              state: 'CLOSED'
+            }
+          },
+          {
+            type: 'ReferencedEvent',
+            repo: FIXTURE.repos.demo.fullName,
+            oid: 'f45a1e0c0ffee45a1e0c0ffee45a1e0c0ffee45a',
+            message: 'Throttle notification list updates (refs #45)',
+            committedDate: ago(8 * HOUR),
+            author: U.alice
+          },
+          {
+            type: 'ReferencedEvent',
+            repo: FIXTURE.repos.demo.fullName,
+            oid: 'f45b2e0c0ffee45b2e0c0ffee45b2e0c0ffee45b',
+            message: 'Add a benchmark for 1000 notifications\n\nRefs #45',
+            committedDate: ago(5 * HOUR),
+            author: V
+          }
+        ]
       },
       12,
       3
@@ -568,7 +847,7 @@ export function buildFixtures(now: number = Date.now()): FixtureState {
         authorAssociation: 'CONTRIBUTOR',
         labels: [{ name: 'enhancement', color: 'a2eeef' }],
         comments: [resp(V, 'OWNER', 40)],
-        assignees: [V]
+        assignees: [V, U.alice]
       },
       100,
       40
@@ -637,7 +916,7 @@ export function buildFixtures(now: number = Date.now()): FixtureState {
         author: U.alice,
         authorAssociation: 'CONTRIBUTOR',
         comments: [resp(U.dave, 'MEMBER', 70)],
-        assignees: [V],
+        assignees: [V, U.dave],
         labels: [{ name: 'documentation', color: '0075ca' }]
       },
       90,
@@ -651,7 +930,44 @@ export function buildFixtures(now: number = Date.now()): FixtureState {
         title: 'Crash on Linux without a keyring',
         author: U.bob,
         authorAssociation: 'NONE',
-        labels: [{ name: 'bug', color: 'd73a4a' }]
+        labels: [{ name: 'bug', color: 'd73a4a' }],
+        assignees: [U.alice, U.dave],
+        mentions: [V],
+        bodyHTML: [
+          '<p>Starting the app on a Linux machine without a Secret Service provider crashes immediately.</p>',
+          '<pre><code>Error: Cannot autolaunch D-Bus without X11 $DISPLAY</code></pre>',
+          '<p>Steps: <code>docker run --rm -it ubuntu:24.04</code>, install, launch. /cc @octo-maintainer</p>'
+        ].join('\n'),
+        reactions: { THUMBS_UP: [U.alice], CONFUSED: [U.carol] },
+        timeline: [
+          {
+            type: 'ConnectedEvent',
+            pr: {
+              repo: FIXTURE.repos.orgWrite.fullName,
+              number: 14,
+              title: 'Fall back to an encrypted file when no keyring',
+              state: 'OPEN'
+            }
+          },
+          {
+            type: 'ConnectedEvent',
+            pr: {
+              repo: FIXTURE.repos.orgWrite.fullName,
+              number: 9,
+              title: 'Detect keyring at startup',
+              state: 'CLOSED'
+            }
+          },
+          {
+            type: 'DisconnectedEvent',
+            pr: {
+              repo: FIXTURE.repos.orgWrite.fullName,
+              number: 9,
+              title: 'Detect keyring at startup',
+              state: 'CLOSED'
+            }
+          }
+        ]
       },
       14,
       14
@@ -724,7 +1040,8 @@ export function buildFixtures(now: number = Date.now()): FixtureState {
         author: V,
         authorAssociation: 'CONTRIBUTOR',
         comments: [resp(U.erin, 'MEMBER', 30)],
-        labels: [{ name: 'docs', color: '0075ca' }]
+        labels: [{ name: 'docs', color: '0075ca' }],
+        assignees: [U.erin]
       },
       120,
       30
@@ -736,7 +1053,17 @@ export function buildFixtures(now: number = Date.now()): FixtureState {
         number: 91,
         title: 'Support async iterators',
         author: U.alice,
-        authorAssociation: 'NONE'
+        authorAssociation: 'NONE',
+        // 잠긴 이슈(내 권한 READ → 코멘트·반응 불가)
+        locked: true,
+        mentions: [V],
+        comments: [
+          {
+            ...resp(U.alice, 'NONE', 60),
+            bodyHTML: '<p>@octo-maintainer would you review a PR for this?</p>'
+          }
+        ],
+        reactions: { THUMBS_UP: [U.alice, U.bob] }
       },
       60,
       60
@@ -846,14 +1173,98 @@ export function buildFixtures(now: number = Date.now()): FixtureState {
     )
   ]
 
+  // 이슈 코멘트 노드 ID 를 미리 정해 둔다(반응·코멘트 mutation 이 이 ID 로 찾는다)
+  for (const it of items) {
+    if (it.kind !== 'Issue') continue
+    it.comments.forEach((c, i) => {
+      c.id ??= commentNodeId(it, i)
+    })
+  }
+
+  // 커밋 검색: gdesk-demo 커밋 전부 + 다른 저장소의 내 커밋 둘(작성 시각이 겹치지 않게)
+  const demo = repos[0] as FixtureRepo
+  const searchCommits: FixtureSearchCommit[] = [
+    ...demo.commits.map((c) => ({
+      repoId: demo.id,
+      oid: c.oid,
+      message: c.message,
+      authoredAt: c.committedDate,
+      author: c.author
+    })),
+    {
+      repoId: 201,
+      oid: sha(201_900_001),
+      message:
+        'Add retry with backoff to the sync engine\n\nRetries transient 5xx errors up to three times.',
+      authoredAt: ago(5 * HOUR),
+      author: V
+    },
+    {
+      repoId: 301,
+      oid: sha(301_900_001),
+      message: 'Fix memory leak in streaming parser\n\nCloses #76',
+      authoredAt: ago(7 * HOUR),
+      author: V
+    }
+  ]
+
   return {
     viewer: actors[0] as FixtureActor,
     actors,
     viewerTeams: [FIXTURE.org.team],
     repos,
     items,
-    notifications
+    notifications,
+    viewerEmail: FIXTURE.viewer.email,
+    contributions: buildContributions(now),
+    searchCommits
   }
+}
+
+/** 이슈 코멘트의 기본 노드 ID */
+export function commentNodeId(item: Pick<FixtureItem, 'repoId' | 'number'>, index: number): string {
+  return `IC_kwDO${item.repoId}_${item.number}_${index + 1}`
+}
+
+/** 최근 5일(어제~5일 전)의 기여 수. 오늘은 0, 6일 전도 0 → 연속 5일 */
+const RECENT_CONTRIBUTIONS = [4, 9, 2, 6, 1]
+
+function contributionLevel(count: number): FixtureContributionDay['contributionLevel'] {
+  if (count <= 0) return 'NONE'
+  if (count <= 2) return 'FIRST_QUARTILE'
+  if (count <= 5) return 'SECOND_QUARTILE'
+  if (count <= 8) return 'THIRD_QUARTILE'
+  return 'FOURTH_QUARTILE'
+}
+
+/**
+ * 기여 달력(최근 1년). 날짜는 UTC 기준이다: 오늘(now 의 UTC 날짜)에서 끝나고, 364일 전이 든 주의
+ * 일요일에서 시작한다(53주, 마지막 주는 짧을 수 있다). 수는 날짜가 아니라 "며칠 전"으로 정해지므로
+ * 언제 돌려도 같다: 오늘 0, 어제부터 5일은 1 이상(연속 5일), 6일 전 0, 그 앞은 0~9 가 섞인다(다섯 수준 모두).
+ */
+export function buildContributions(now: number): FixtureContributions {
+  const today = new Date(now)
+  const todayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
+  const firstDay = todayUtc - 364 * DAY
+  const start = firstDay - new Date(firstDay).getUTCDay() * DAY
+  const weeks: FixtureContributions['weeks'] = []
+  for (let t = start; t <= todayUtc; t += DAY) {
+    const daysAgo = Math.round((todayUtc - t) / DAY)
+    let count: number
+    if (daysAgo === 0 || daysAgo === 6) count = 0
+    else if (daysAgo <= 5) count = RECENT_CONTRIBUTIONS[daysAgo - 1] ?? 1
+    else {
+      const v = (daysAgo * 37 + ((daysAgo * daysAgo) % 11)) % 13
+      count = v < 4 ? 0 : v - 3
+    }
+    if (new Date(t).getUTCDay() === 0 || weeks.length === 0) weeks.push({ contributionDays: [] })
+    ;(weeks[weeks.length - 1] as FixtureContributions['weeks'][number]).contributionDays.push({
+      date: new Date(t).toISOString().slice(0, 10),
+      contributionCount: count,
+      contributionLevel: contributionLevel(count)
+    })
+  }
+  return { totalCommitContributions: FIXTURE.contributions.totalCommits, weeks }
 }
 
 function pad(n: number, width = 2): string {
