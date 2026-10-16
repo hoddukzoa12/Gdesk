@@ -257,6 +257,20 @@ describe('IssuesPage: 목록', () => {
     expect(screen.getByRole('tab', { name: /내가 올린 이슈/ })).toBeTruthy()
     expect(screen.getByText('이슈를 선택하세요')).toBeTruthy()
   })
+
+  it('한국어 연결 항목 탭: PR·커밋', async () => {
+    await i18n.changeLanguage('ko')
+    responses['query:issueDetail'] = () =>
+      detail({
+        linkedPullRequests: [
+          { number: 9, title: 'Fix', state: 'open', repoFullName: 'o/a', url: 'u' }
+        ]
+      })
+    setup('/issues?issue=1-45')
+    const tab = await screen.findByTestId('linked-tab-prs')
+    expect(tab.textContent).toMatch(/^PR/)
+    expect(screen.getByTestId('linked-tab-commits').textContent).toMatch(/^커밋/)
+  })
 })
 
 describe('IssuesPage: 상세 패널', () => {
