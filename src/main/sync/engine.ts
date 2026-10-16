@@ -89,7 +89,7 @@ export interface SyncEngineOptions {
   /** 저장된 마지막 동기화 시각(재시작 직후 "N분 전 정보" 용) */
   readLastSyncedAt(): number | null
   readOrgRestrictions(): OrgRestrictionNotice[]
-  /** 계정 전환(clearAccountData)으로 계정 데이터가 지워질 때 알림. 보고 있던 이슈를 잊는다 */
+  /** 계정 전환(clearAccountData)으로 계정 데이터가 지워질 때 알림. 보고 있던 저장소·이슈를 잊는다 */
   onAccountDataCleared?(listener: () => void): () => void
   notifyDataChanged(keys: string[]): void
   onStatus?(status: SyncStatus): void
@@ -219,8 +219,8 @@ export class SyncEngine {
       options.pins.onChange((repoIds) => this.handlePins(repoIds))
     )
     if (options.onAccountDataCleared) {
-      // 다른 계정의 이슈를 다음 계정으로 받지 않게 한다
-      this.unsubscribers.push(options.onAccountDataCleared(() => (this.viewedIssue = null)))
+      // 이전 계정이 보던 저장소·이슈를 다음 계정으로 받지 않게 한다
+      this.unsubscribers.push(options.onAccountDataCleared(() => this.forgetViewed()))
     }
     // 처음 상태는 sync:getStatus 로 읽는다. 바뀔 때만 알린다
     this.lastEmitted = JSON.stringify(this.getStatus())
@@ -259,6 +259,12 @@ export class SyncEngine {
     if (ref === null || !this.canFetch()) return
     if (previous && previous.repoId === ref.repoId && previous.number === ref.number) return
     await this.runIssueDetail(ref)
+  }
+
+  /** 로그아웃·계정 전환: 보고 있던 저장소·이슈를 잊는다. 화면이 다시 알리면 다시 받는다 */
+  private forgetViewed(): void {
+    this.viewedRepoId = null
+    this.viewedIssue = null
   }
 
   /** 상세 추적 집합 = 고정 + 보고 있는 저장소(중복 없음, 고정 순서 뒤에 보고 있는 저장소) */
@@ -393,8 +399,8 @@ export class SyncEngine {
     const previous = this.session
     this.session = { ...session }
     if (previous.state !== session.state) {
-      // 로그아웃하면 보고 있던 이슈를 잊는다(다음 계정이 이전 계정의 이슈를 받지 않게)
-      if (session.state === 'signed_out') this.viewedIssue = null
+      // 로그아웃하면 보고 있던 저장소·이슈를 잊는다(다음 계정이 이전 계정의 것을 받지 않게)
+      if (session.state === 'signed_out') this.forgetViewed()
       // 로그아웃하면 캐시가 지워진다. 로그인하면 저장된 값을 다시 읽는다
       this.lastSyncedAt = session.state === 'signed_out' ? null : this.safeLastSyncedAt()
       this.reconcile()

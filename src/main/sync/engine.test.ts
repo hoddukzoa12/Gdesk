@@ -438,6 +438,47 @@ describe('SyncEngine', () => {
       expect(h.engine.getTrackedRepoIds()).toEqual([9])
     })
 
+    it('로그아웃하면 보고 있던 저장소를 잊는다(다음 로그인에서 이전 계정의 상세를 받지 않는다)', async () => {
+      h = setup()
+      h.engine.setWindowsOpen(true)
+      await flush()
+      await h.engine.setViewedRepo(9)
+      expect(h.count('detail:9')).toBe(1)
+      h.setSession({ state: 'signed_out' })
+      expect(h.engine.getTrackedRepoIds()).toEqual([])
+      h.setSession({ state: 'signed_in' })
+      await flush()
+      await vi.advanceTimersByTimeAsync(10 * MIN)
+      await h.engine.refresh('home')
+      expect(h.count('detail:9')).toBe(1)
+    })
+
+    it('계정 전환으로 계정 데이터가 지워지면 보고 있던 저장소를 잊는다', async () => {
+      let cleared: (() => void) | null = null
+      h = setup({
+        pins: [1],
+        overrides: {
+          onAccountDataCleared: (listener) => {
+            cleared = listener
+            return () => {
+              cleared = null
+            }
+          }
+        }
+      })
+      h.engine.setWindowsOpen(true)
+      await flush()
+      await h.engine.setViewedRepo(9)
+      expect(h.engine.getTrackedRepoIds()).toEqual([1, 9])
+      cleared!()
+      expect(h.engine.getTrackedRepoIds()).toEqual([1])
+      await vi.advanceTimersByTimeAsync(5 * MIN)
+      expect(h.count('detail:9')).toBe(1)
+      // 같은 저장소를 다시 열면(새 계정에서) 다시 받는다
+      await h.engine.setViewedRepo(9)
+      expect(h.count('detail:9')).toBe(2)
+    })
+
     it('잘못된 저장소 ID 는 거절한다', async () => {
       h = setup()
       await expect(h.engine.setViewedRepo(-1)).rejects.toThrow()
